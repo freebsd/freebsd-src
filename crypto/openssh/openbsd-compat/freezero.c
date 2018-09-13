@@ -16,6 +16,7 @@
 
 #include "includes.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef HAVE_FREEZERO

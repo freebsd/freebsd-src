@@ -75,8 +75,8 @@ libbe_error_description(libbe_handle_t *lbh)
 	case BE_ERR_PATHLEN:
 		return ("provided path name exceeds maximum length limit");
 
-	case BE_ERR_INVORIGIN:
-		return ("snapshot origin's mountpoint is not \"/\"");
+	case BE_ERR_BADMOUNT:
+		return ("mountpoint is not \"/\"");
 
 	case BE_ERR_NOORIGIN:
 		return ("could not open snapshot's origin");

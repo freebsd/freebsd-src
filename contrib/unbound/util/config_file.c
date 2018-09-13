@@ -109,6 +109,7 @@ config_create(void)
 	cfg->ssl_port = UNBOUND_DNS_OVER_TLS_PORT;
 	cfg->ssl_upstream = 0;
 	cfg->tls_cert_bundle = NULL;
+	cfg->tls_win_cert = 0;
 	cfg->use_syslog = 1;
 	cfg->log_identity = NULL; /* changed later with argv[0] */
 	cfg->log_time_ascii = 0;
@@ -161,7 +162,7 @@ config_create(void)
 	if(!(cfg->logfile = strdup(""))) goto error_exit;
 	if(!(cfg->pidfile = strdup(PIDFILE))) goto error_exit;
 	if(!(cfg->target_fetch_policy = strdup("3 2 1 0 0"))) goto error_exit;
-	cfg->low_rtt_pct = 0;
+	cfg->low_rtt_permil = 0;
 	cfg->low_rtt = 45;
 	cfg->donotqueryaddrs = NULL;
 	cfg->donotquery_localhost = 1;
@@ -243,9 +244,10 @@ config_create(void)
 	cfg->insecure_lan_zones = 0;
 	cfg->python_script = NULL;
 	cfg->remote_control_enable = 0;
-	cfg->control_ifs = NULL;
+	cfg->control_ifs.first = NULL;
+	cfg->control_ifs.last = NULL;
 	cfg->control_port = UNBOUND_CONTROL_PORT;
-	cfg->remote_control_use_cert = 1;
+	cfg->control_use_cert = 1;
 	cfg->minimal_responses = 0;
 	cfg->rrset_roundrobin = 0;
 	cfg->max_udp_size = 4096;
@@ -280,7 +282,7 @@ config_create(void)
 	cfg->ratelimit_below_domain = NULL;
 	cfg->ip_ratelimit_factor = 10;
 	cfg->ratelimit_factor = 10;
-	cfg->qname_minimisation = 0;
+	cfg->qname_minimisation = 1;
 	cfg->qname_minimisation_strict = 0;
 	cfg->shm_enable = 0;
 	cfg->shm_key = 11777;
@@ -385,6 +387,9 @@ struct config_file* config_create_forlib(void)
 #define S_STRLIST_UNIQ(str, var) if(strcmp(opt, str)==0) \
 	{ if(cfg_strlist_find(cfg->var, val)) { return 0;} \
 	  return cfg_strlist_insert(&cfg->var, strdup(val)); }
+/** append string to strlist */
+#define S_STRLIST_APPEND(str, var) if(strcmp(opt, str)==0) \
+	{ return cfg_strlist_append(&cfg->var, strdup(val)); }
 
 int config_set_option(struct config_file* cfg, const char* opt,
 	const char* val)
@@ -455,7 +460,10 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STR("ssl-service-pem:", ssl_service_pem)
 	else S_NUMBER_NONZERO("ssl-port:", ssl_port)
 	else S_STR("tls-cert-bundle:", tls_cert_bundle)
-	else S_STRLIST("additional-tls-port:", additional_tls_port)
+	else S_YNO("tls-win-cert:", tls_win_cert)
+	else S_STRLIST("additional-tls-port:", tls_additional_port)
+	else S_STRLIST("tls-additional-ports:", tls_additional_port)
+	else S_STRLIST("tls-additional-port:", tls_additional_port)
 	else S_YNO("interface-automatic:", if_automatic)
 	else S_YNO("use-systemd:", use_systemd)
 	else S_YNO("do-daemonize:", do_daemonize)
@@ -552,7 +560,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("unblock-lan-zones:", unblock_lan_zones)
 	else S_YNO("insecure-lan-zones:", insecure_lan_zones)
 	else S_YNO("control-enable:", remote_control_enable)
-	else S_STRLIST("control-interface:", control_ifs)
+	else S_STRLIST_APPEND("control-interface:", control_ifs)
 	else S_NUMBER_NONZERO("control-port:", control_port)
 	else S_STR("server-key-file:", server_key_file)
 	else S_STR("server-cert-file:", server_cert_file)
@@ -618,7 +626,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_NUMBER_OR_ZERO("ip-ratelimit-factor:", ip_ratelimit_factor)
 	else S_NUMBER_OR_ZERO("ratelimit-factor:", ratelimit_factor)
 	else S_NUMBER_OR_ZERO("low-rtt:", low_rtt)
-	else S_NUMBER_OR_ZERO("low-rtt-pct:", low_rtt_pct)
+	else S_NUMBER_OR_ZERO("low-rtt-pct:", low_rtt_permil)
+	else S_NUMBER_OR_ZERO("low-rtt-permil:", low_rtt_permil)
 	else S_YNO("qname-minimisation:", qname_minimisation)
 	else S_YNO("qname-minimisation-strict:", qname_minimisation_strict)
 #ifdef USE_IPSECMOD
@@ -874,7 +883,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_STR(opt, "ssl-service-pem", ssl_service_pem)
 	else O_DEC(opt, "ssl-port", ssl_port)
 	else O_STR(opt, "tls-cert-bundle", tls_cert_bundle)
-	else O_LST(opt, "additional-tls-port", additional_tls_port)
+	else O_YNO(opt, "tls-win-cert", tls_win_cert)
+	else O_LST(opt, "tls-additional-port", tls_additional_port)
 	else O_YNO(opt, "use-systemd", use_systemd)
 	else O_YNO(opt, "do-daemonize", do_daemonize)
 	else O_STR(opt, "chroot", chrootdir)
@@ -936,7 +946,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "trust-anchor-signaling", trust_anchor_signaling)
 	else O_YNO(opt, "root-key-sentinel", root_key_sentinel)
 	else O_LST(opt, "dlv-anchor", dlv_anchor_list)
-	else O_LST(opt, "control-interface", control_ifs)
+	else O_LST(opt, "control-interface", control_ifs.first)
 	else O_LST(opt, "domain-insecure", domain_insecure)
 	else O_UNS(opt, "val-override-date", val_date_override)
 	else O_YNO(opt, "minimal-responses", minimal_responses)
@@ -1001,7 +1011,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "ip-ratelimit-factor", ip_ratelimit_factor)
 	else O_DEC(opt, "ratelimit-factor", ratelimit_factor)
 	else O_DEC(opt, "low-rtt", low_rtt)
-	else O_DEC(opt, "low-rtt-pct", low_rtt_pct)
+	else O_DEC(opt, "low-rtt-pct", low_rtt_permil)
+	else O_DEC(opt, "low-rtt-permil", low_rtt_permil)
 	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
 	else O_DEC(opt, "val-sig-skew-max", val_sig_skew_max)
 	else O_YNO(opt, "qname-minimisation", qname_minimisation)
@@ -1297,7 +1308,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->ssl_service_key);
 	free(cfg->ssl_service_pem);
 	free(cfg->tls_cert_bundle);
-	config_delstrlist(cfg->additional_tls_port);
+	config_delstrlist(cfg->tls_additional_port);
 	free(cfg->log_identity);
 	config_del_strarray(cfg->ifs, cfg->num_ifs);
 	config_del_strarray(cfg->out_ifs, cfg->num_out_ifs);
@@ -1338,7 +1349,7 @@ config_delete(struct config_file* cfg)
 	config_del_strbytelist(cfg->respip_tags);
 	config_deltrplstrlist(cfg->acl_tag_actions);
 	config_deltrplstrlist(cfg->acl_tag_datas);
-	config_delstrlist(cfg->control_ifs);
+	config_delstrlist(cfg->control_ifs.first);
 	free(cfg->server_key_file);
 	free(cfg->server_cert_file);
 	free(cfg->control_key_file);
@@ -2257,4 +2268,13 @@ void errinf_dname(struct module_qstate* qstate, const char* str, uint8_t* dname)
 	dname_str(dname, buf);
 	snprintf(b, sizeof(b), "%s %s", str, buf);
 	errinf(qstate, b);
+}
+
+int options_remote_is_address(struct config_file* cfg)
+{
+	if(!cfg->remote_control_enable) return 0;
+	if(!cfg->control_ifs.first) return 1;
+	if(!cfg->control_ifs.first->str) return 1;
+	if(cfg->control_ifs.first->str[0] == 0) return 1;
+	return (cfg->control_ifs.first->str[0] != '/');
 }

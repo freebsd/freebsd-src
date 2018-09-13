@@ -116,6 +116,14 @@ void alloc_init(struct alloc_cache* alloc, struct alloc_cache* super,
 void alloc_clear(struct alloc_cache* alloc);
 
 /**
+ * Free the special alloced items.  The rrset and message caches must be
+ * empty, there must be no more references to rrset pointers into the
+ * rrset cache.
+ * @param alloc: the special allocs are freed.
+ */
+void alloc_clear_special(struct alloc_cache* alloc);
+
+/**
  * Get a new special_type element.
  * @param alloc: where to alloc it.
  * @return: memory block. Will not return NULL (instead fatal_exit).

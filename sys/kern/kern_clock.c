@@ -421,81 +421,8 @@ initclocks(void *dummy)
 #endif
 }
 
-/*
- * Each time the real-time timer fires, this function is called on all CPUs.
- * Note that hardclock() calls hardclock_cpu() for the boot CPU, so only
- * the other CPUs in the system need to call this function.
- */
 void
-hardclock_cpu(int usermode)
-{
-	struct pstats *pstats;
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
-	int flags;
-
-	/*
-	 * Run current process's virtual and profile time, as needed.
-	 */
-	pstats = p->p_stats;
-	flags = 0;
-	if (usermode &&
-	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
-		PROC_ITIMLOCK(p);
-		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
-			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
-		PROC_ITIMUNLOCK(p);
-	}
-	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
-		PROC_ITIMLOCK(p);
-		if (itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
-			flags |= TDF_PROFPEND | TDF_ASTPENDING;
-		PROC_ITIMUNLOCK(p);
-	}
-	thread_lock(td);
-	td->td_flags |= flags;
-	thread_unlock(td);
-
-#ifdef HWPMC_HOOKS
-	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
-		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
-	if (td->td_intr_frame != NULL)
-		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
-#endif
-	callout_process(sbinuptime());
-	if (__predict_false(DPCPU_GET(epoch_cb_count)))
-		GROUPTASK_ENQUEUE(DPCPU_PTR(epoch_cb_task));
-}
-
-/*
- * The real-time timer, interrupting hz times per second.
- */
-void
-hardclock(int usermode, uintfptr_t pc)
-{
-
-	atomic_add_int(&ticks, 1);
-	hardclock_cpu(usermode);
-	tc_ticktock(1);
-	cpu_tick_calibration();
-	/*
-	 * If no separate statistics clock is available, run it from here.
-	 *
-	 * XXX: this only works for UP
-	 */
-	if (stathz == 0) {
-		profclock(usermode, pc);
-		statclock(usermode);
-	}
-#ifdef DEVICE_POLLING
-	hardclock_device_poll();	/* this is very short and quick */
-#endif /* DEVICE_POLLING */
-	if (watchdog_enabled > 0 && --watchdog_ticks <= 0)
-		watchdog_fire();
-}
-
-void
-hardclock_cnt(int cnt, int usermode)
+hardclock(int cnt, int usermode)
 {
 	struct pstats *pstats;
 	struct thread *td = curthread;
@@ -696,14 +623,7 @@ stopprofclock(struct proc *p)
  * This should be called by all active processors.
  */
 void
-statclock(int usermode)
-{
-
-	statclock_cnt(1, usermode);
-}
-
-void
-statclock_cnt(int cnt, int usermode)
+statclock(int cnt, int usermode)
 {
 	struct rusage *ru;
 	struct vmspace *vm;
@@ -776,14 +696,7 @@ statclock_cnt(int cnt, int usermode)
 }
 
 void
-profclock(int usermode, uintfptr_t pc)
-{
-
-	profclock_cnt(1, usermode, pc);
-}
-
-void
-profclock_cnt(int cnt, int usermode, uintfptr_t pc)
+profclock(int cnt, int usermode, uintfptr_t pc)
 {
 	struct thread *td;
 #ifdef GPROF

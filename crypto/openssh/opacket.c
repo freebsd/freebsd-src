@@ -3,6 +3,8 @@
 
 #include "includes.h"
 
+#include <stdarg.h>
+
 #include "ssherr.h"
 #include "packet.h"
 #include "log.h"

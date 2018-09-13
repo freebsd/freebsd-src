@@ -47,6 +47,9 @@ static int userboot_zfs_found;
 /* Minimum version required */
 #define	USERBOOT_VERSION	USERBOOT_VERSION_3
 
+#define	LOADER_PATH		"/boot/loader"
+#define	INTERP_MARKER		"$Interpreter:"
+
 #define	MALLOCSZ		(64*1024*1024)
 
 struct loader_callbacks *callbacks;
@@ -57,6 +60,7 @@ static jmp_buf jb;
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 static void	extract_currdev(void);
+static void	check_interpreter(void);
 
 void
 delay(int usec)
@@ -71,6 +75,62 @@ exit(int v)
 
 	CALLBACK(exit, v);
 	longjmp(jb, 1);
+}
+
+static void
+check_interpreter(void)
+{
+	struct stat st;
+	size_t marklen, rdsize;
+	const char *guest_interp, *my_interp;
+	char *buf;
+	int fd;
+
+	/*
+	 * If we can't stat(2) or open(2) LOADER_PATH, then we'll fail by
+	 * simply letting us roll on with whatever interpreter we were compiled
+	 * with.  This is likely not going to be an issue in reality.
+	 */
+	buf =  NULL;
+	if (stat(LOADER_PATH, &st) != 0)
+		return;
+	if ((fd = open(LOADER_PATH, O_RDONLY)) < 0)
+		return;
+
+	rdsize = st.st_size;
+	buf = malloc(rdsize);
+	if (buf == NULL)
+		goto out;
+	if (read(fd, buf, rdsize) < rdsize)
+		goto out;
+
+	marklen = strlen(INTERP_MARKER);
+	my_interp = bootprog_interp + marklen;
+
+	/*
+	 * Here we make the assumption that a loader binary without the
+	 * interpreter marker is a 4th one.  All loader binaries going forward
+	 * should have this properly specified, so our assumption should always
+	 * be a good one.
+	 */
+	if ((guest_interp = memmem(buf, rdsize, INTERP_MARKER,
+	    marklen)) != NULL)
+		guest_interp += marklen;
+	else
+		guest_interp = "4th";
+
+	/*
+	 * The guest interpreter may not have a version of loader that
+	 * specifies the interpreter installed.  If that's the case, we'll
+	 * assume it's legacy (4th) and request a swap to that if we're
+	 * a Lua-userboot.
+	 */
+	if (strcmp(my_interp, guest_interp) != 0)
+		CALLBACK(swap_interpreter, guest_interp);
+out:
+	free(buf);
+	close(fd);
+	return;
 }
 
 void
@@ -137,6 +197,14 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 			(devsw[i]->dv_init)();
 
 	extract_currdev();
+
+	/*
+	 * Checking the interpreter isn't worth the overhead unless we
+	 * actually have the swap_interpreter callback, so we actually version
+	 * check here rather than later on.
+	 */
+	if (version >= USERBOOT_VERSION_5)
+		check_interpreter();
 
 	if (setjmp(jb))
 		return;

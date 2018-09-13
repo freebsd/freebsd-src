@@ -431,7 +431,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 			fatal_exit("could not set up listen SSL_CTX");
 	}
 	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL,
-		cfg->tls_cert_bundle)))
+		cfg->tls_cert_bundle, cfg->tls_win_cert)))
 		fatal_exit("could not set up connect SSL_CTX");
 #endif
 

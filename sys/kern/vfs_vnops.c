@@ -527,6 +527,8 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 	struct vn_io_fault_args args;
 	int error, lock_flags;
 
+	if (offset < 0 && vp->v_type != VCHR)
+		return (EINVAL);
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = base;

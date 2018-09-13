@@ -2069,6 +2069,9 @@ main(int argc, char **argv)
 #else
 	cansandbox = (cansandbox && ndo->ndo_nflag);
 #endif	/* HAVE_CASPER */
+	cansandbox = (cansandbox && (pcap_fileno(pd) != -1 ||
+	    RFileName != NULL));
+
 	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
 		error("unable to enter the capability mode");
 #endif	/* HAVE_CAPSICUM */

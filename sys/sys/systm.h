@@ -363,15 +363,11 @@ void	realitexpire(void *);
 
 int	sysbeep(int hertz, int period);
 
-void	hardclock(int usermode, uintfptr_t pc);
-void	hardclock_cnt(int cnt, int usermode);
-void	hardclock_cpu(int usermode);
+void	hardclock(int cnt, int usermode);
 void	hardclock_sync(int cpu);
 void	softclock(void *);
-void	statclock(int usermode);
-void	statclock_cnt(int cnt, int usermode);
-void	profclock(int usermode, uintfptr_t pc);
-void	profclock_cnt(int cnt, int usermode, uintfptr_t pc);
+void	statclock(int cnt, int usermode);
+void	profclock(int cnt, int usermode, uintfptr_t pc);
 
 int	hardclockintr(void);
 

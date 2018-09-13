@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "xmalloc.h"
 

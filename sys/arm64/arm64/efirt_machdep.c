@@ -268,3 +268,10 @@ efi_arch_leave(void)
 	    "isb		\n"
 	     : : "r"(td->td_proc->p_md.md_l0addr));
 }
+
+int
+efi_rt_arch_call(struct efirt_callinfo *ec)
+{
+
+	panic("not implemented");
+}

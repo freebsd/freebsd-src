@@ -888,29 +888,17 @@ eli_init(struct gctl_req *req)
 		/* Encrypt the first and the only Master Key. */
 		error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen,
 		    md.md_mkeys);
-		explicit_bzero(key, sizeof(key));
 		if (error != 0) {
 			gctl_error(r, "Cannot encrypt Master Key: %s.",
 			    strerror(error));
 			goto out;
 		}
 
-		/*
-		 * Convert metadata to on-disk format and then immediately erase
-		 * sensitive data from the metadata struct.
-		 */
+		/* Convert metadata to on-disk format. */
 		eli_metadata_encode(&md, sector);
-		explicit_bzero(&md.md_provsize, sizeof(md.md_provsize));
-		explicit_bzero(&md.md_sectorsize, sizeof(md.md_sectorsize));
-		explicit_bzero(&md.md_salt, sizeof(md.md_salt));
-		explicit_bzero(&md.md_mkeys, sizeof(md.md_mkeys));
 
-		/*
-		 * Store metadata to disk and then immediately erase sensitive
-		 * data from memory.
-		 */
+		/* Store metadata to disk. */
 		error = g_metadata_store(prov, sector, sizeof(sector));
-		explicit_bzero(sector, sizeof(sector));
 		if (error != 0) {
 			gctl_error(r, "Cannot store metadata on %s: %s.", prov,
 			    strerror(error));
@@ -937,9 +925,11 @@ eli_init(struct gctl_req *req)
 			/* Backupfile given by the user, just copy it. */
 			strlcpy(backfile, str, sizeof(backfile));
 
-			/* Make the backup filename unique if multiple providers
-			 * initialized in one command. */
-			if (nargs > 1) {
+			/* If multiple providers have been initialized in one
+			 * command, and the backup filename has been specified
+			 * as anything other than "none", make the backup
+			 * filename unique for each provider. */
+			if (nargs > 1 && strcmp(backfile, "none") != 0) {
 				/*
 				 * Replace first occurrence of "PROV" with
 				 * provider name.
@@ -999,11 +989,14 @@ out:
 		gctl_free(r);
 
 		/*
-		 * Erase sensitive data from memory, and ensure subsequent
-		 * providers are initialized with unique metadata.
+		 * Erase sensitive and provider specific data from memory.
 		 */
 		explicit_bzero(key, sizeof(key));
-		explicit_bzero(&md, sizeof(md));
+		explicit_bzero(sector, sizeof(sector));
+		explicit_bzero(&md.md_provsize, sizeof(md.md_provsize));
+		explicit_bzero(&md.md_sectorsize, sizeof(md.md_sectorsize));
+		explicit_bzero(&md.md_salt, sizeof(md.md_salt));
+		explicit_bzero(&md.md_mkeys, sizeof(md.md_mkeys));
 	}
 
 	/* Clear the cached metadata, including keys. */

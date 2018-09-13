@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.71 2018/03/12 00:52:01 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.74 2018/07/27 05:13:02 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -31,7 +31,6 @@ struct Forward {
 };
 
 int forward_equals(const struct Forward *, const struct Forward *);
-int bind_permitted(int, uid_t);
 int daemonized(void);
 
 /* Common server and client forwarding options. */
@@ -45,6 +44,7 @@ struct ForwardOptions {
 
 char	*chop(char *);
 char	*strdelim(char **);
+char	*strdelimw(char **);
 int	 set_nonblock(int);
 int	 unset_nonblock(int);
 void	 set_nodelay(int);
@@ -166,7 +166,6 @@ int	 safe_path_fd(int, const char *, struct passwd *,
 
 char	*read_passphrase(const char *, int);
 int	 ask_permission(const char *, ...) __attribute__((format(printf, 1, 2)));
-int	 read_keyfile_line(FILE *, const char *, char *, size_t, u_long *);
 
 #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
 #define MAXIMUM(a, b)	(((a) > (b)) ? (a) : (b))

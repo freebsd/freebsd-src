@@ -30,6 +30,9 @@
    internal symbols */
 #undef EXPORT_ALL_SYMBOLS
 
+/* Define to 1 if you have the `accept4' function. */
+#undef HAVE_ACCEPT4
+
 /* Define to 1 if you have the `arc4random' function. */
 #undef HAVE_ARC4RANDOM
 

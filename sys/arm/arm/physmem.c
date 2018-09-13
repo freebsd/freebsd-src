@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
  * that can be allocated, or both, depending on the exclusion flags associated
  * with the region.
  */
-#define	MAX_HWCNT	10
-#define	MAX_EXCNT	10
+#define	MAX_HWCNT	16
+#define	MAX_EXCNT	16
 
 #if defined(__arm__)
 #define	MAX_PHYS_ADDR	0xFFFFFFFFull
@@ -359,7 +359,8 @@ arm_physmem_hardware_region(uint64_t pa, uint64_t sz)
 /*
  * Add an exclusion region.
  */
-void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
+void
+arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 {
 	vm_offset_t adj;
 
@@ -371,8 +372,10 @@ void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 	pa  = trunc_page(pa);
 	sz  = round_page(sz + adj);
 
-	if (excnt < nitems(exregions))
-		excnt = insert_region(exregions, excnt, pa, sz, exflags);
+	if (excnt >= nitems(exregions))
+		panic("failed to exclude region %#jx-%#jx", (uintmax_t)pa,
+		    (uintmax_t)(pa + sz));
+	excnt = insert_region(exregions, excnt, pa, sz, exflags);
 }
 
 size_t

@@ -25,6 +25,10 @@ raw user keys. The ssh client will support automatic verification of
 acceptance of certified host keys, by adding a similar ability to
 specify CA keys in ~/.ssh/known_hosts.
 
+All certificate types include certification information along with the
+public key that is used to sign challenges. In OpenSSH, ssh-keygen
+performs the CA signing operation.
+
 Certified keys are represented using new key types:
 
     ssh-rsa-cert-v01@openssh.com
@@ -33,9 +37,17 @@ Certified keys are represented using new key types:
     ecdsa-sha2-nistp384-cert-v01@openssh.com
     ecdsa-sha2-nistp521-cert-v01@openssh.com
 
-These include certification information along with the public key
-that is used to sign challenges. ssh-keygen performs the CA signing
-operation.
+Two additional types exist for RSA certificates to force use of
+SHA-2 signatures (SHA-256 and SHA-512 respectively):
+
+    rsa-sha2-256-cert-v01@openssh.com
+    rsa-sha2-512-cert-v01@openssh.com
+
+These RSA/SHA-2 types should not appear in keys at rest or transmitted
+on their wire, but do appear in a SSH_MSG_KEXINIT's host-key algorithms
+field or in the "public key algorithm name" field of a "publickey"
+SSH_USERAUTH_REQUEST to indicate that the signature will use the
+specified algorithm.
 
 Protocol extensions
 -------------------
@@ -174,7 +186,7 @@ certificate. Each represents a time in seconds since 1970-01-01
 
     valid after <= current time < valid before
 
-criticial options is a set of zero or more key options encoded as
+critical options is a set of zero or more key options encoded as
 below. All such options are "critical" in the sense that an implementation
 must refuse to authorise a key that has an unrecognised option.
 
@@ -291,4 +303,4 @@ permit-user-rc          empty         Flag indicating that execution of
                                       of this script will not be permitted if
                                       this option is not present.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.13 2017/11/03 02:32:19 djm Exp $
+$OpenBSD: PROTOCOL.certkeys,v 1.15 2018/07/03 11:39:54 djm Exp $

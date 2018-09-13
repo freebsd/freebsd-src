@@ -102,6 +102,7 @@ FILE *outfile;			/* Current output file */
 
 int aflag, eflag, nflag;
 int rflags = 0;
+int quit = 0;
 static int rval;		/* Exit status */
 
 static int ispan;		/* Whether inplace editing spans across files */
@@ -115,7 +116,7 @@ const char *fname;		/* File name. */
 const char *outfname;		/* Output file name */
 static char oldfname[PATH_MAX];	/* Old file name (for in-place editing) */
 static char tmpfname[PATH_MAX];	/* Temporary file name (for in-place editing) */
-static const char *inplace;	/* Inplace edit file extension. */
+const char *inplace;		/* Inplace edit file extension. */
 u_long linenum;
 
 static void add_compunit(enum e_cut, char *);
@@ -338,7 +339,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 	}
 
 	for (;;) {
-		if (infile != NULL && (c = getc(infile)) != EOF) {
+		if (infile != NULL && (c = getc(infile)) != EOF && !quit) {
 			(void)ungetc(c, infile);
 			break;
 		}

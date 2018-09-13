@@ -12,11 +12,9 @@ UPDATE_DEPENDFILE=	no
 SUBDIR+=sendmail
 .endif
 
-BIN1=	crontab \
+BIN1=	\
 	dhclient.conf \
 	disktab \
-	fbtab \
-	gettytab \
 	group \
 	hosts \
 	hosts.allow \
@@ -24,9 +22,7 @@ BIN1=	crontab \
 	libalias.conf \
 	libmap.conf \
 	login.access \
-	login.conf \
 	mac.conf \
-	motd \
 	netconfig \
 	networks \
 	nsswitch.conf \
@@ -37,16 +33,6 @@ BIN1=	crontab \
 	remote \
 	rpc \
 	termcap.small
-
-.if exists(${.CURDIR}/etc.${MACHINE}/ttys)
-BIN1+=	etc.${MACHINE}/ttys
-.elif exists(${.CURDIR}/etc.${MACHINE_ARCH}/ttys)
-BIN1+=	etc.${MACHINE_ARCH}/ttys
-.elif exists(${.CURDIR}/etc.${MACHINE_CPUARCH}/ttys)
-BIN1+=	etc.${MACHINE_CPUARCH}/ttys
-.else
-.error etc.MACHINE/ttys missing
-.endif
 
 # NB: keep these sorted by MK_* knobs
 
@@ -117,7 +103,6 @@ distribution:
 	cd ${.CURDIR}; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
-	    cap_mkdb ${CAP_MKDB_ENDIAN} ${DESTDIR}/etc/login.conf; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
 
@@ -127,7 +112,6 @@ distribution:
 	pwd_mkdb -i -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 .if defined(NO_ROOT)
 	( \
-		echo "./etc/login.conf.db type=file mode=0644 uname=root gname=wheel"; \
 		echo "./etc/passwd type=file mode=0644 uname=root gname=wheel"; \
 		echo "./etc/pwd.db type=file mode=0644 uname=root gname=wheel"; \
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
@@ -154,18 +138,6 @@ distribution:
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.k5login ${DESTDIR}/root/.k5login;
-.endif
-	cd ${.CURDIR}/root; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.profile ${DESTDIR}/root/.profile; \
-	    rm -f ${DESTDIR}/.profile; \
-	    ${INSTALL_LINK} ${DESTDIR}/root/.profile ${DESTDIR}/.profile
-.if ${MK_TCSH} != "no"
-	cd ${.CURDIR}/root; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.cshrc ${DESTDIR}/root/.cshrc; \
-	    rm -f ${DESTDIR}/.cshrc; \
-	    ${INSTALL_LINK} ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
 .endif
 
 .if ${MK_MAIL} != "no"

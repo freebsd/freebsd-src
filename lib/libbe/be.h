@@ -49,7 +49,7 @@ typedef enum be_error {
 	BE_ERR_BADPATH,		/* path not suitable for operation */
 	BE_ERR_PATHBUSY,	/* requested path is busy */
 	BE_ERR_PATHLEN,         /* provided name exceeds maximum length limit */
-	BE_ERR_INVORIGIN,       /* snapshot origin's mountpoint is not '/' */
+	BE_ERR_BADMOUNT,        /* mountpoint is not '/' */
 	BE_ERR_NOORIGIN,        /* could not open snapshot's origin */
 	BE_ERR_MOUNTED,         /* boot environment is already mounted */
 	BE_ERR_NOMOUNT,         /* boot environment is not mounted */
@@ -118,7 +118,7 @@ void libbe_print_on_error(libbe_handle_t *, bool);
 int be_root_concat(libbe_handle_t *, const char *, char *);
 int be_validate_name(libbe_handle_t * __unused, const char *);
 int be_validate_snap(libbe_handle_t *, const char *);
-bool be_exists(libbe_handle_t *, char *);
+int be_exists(libbe_handle_t *, char *);
 
 int be_export(libbe_handle_t *, const char *, int fd);
 int be_import(libbe_handle_t *, const char *, int fd);

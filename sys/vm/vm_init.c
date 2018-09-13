@@ -259,8 +259,8 @@ again:
 	 * Discount the physical memory larger than the size of kernel_map
 	 * to avoid eating up all of KVA space.
 	 */
-	physmem_est = lmin(physmem, btoc(kernel_map->max_offset -
-	    kernel_map->min_offset));
+	physmem_est = lmin(physmem, btoc(vm_map_max(kernel_map) -
+	    vm_map_min(kernel_map)));
 
 	v = kern_vfs_bio_buffer_alloc(v, physmem_est);
 

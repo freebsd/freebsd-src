@@ -740,22 +740,6 @@ vm_page_dirty(vm_page_t m)
 }
 
 /*
- *	vm_page_remque:
- *
- *	If the given page is in a page queue, then remove it from that page
- *	queue.
- *
- *	The page must be locked.
- */
-static inline void
-vm_page_remque(vm_page_t m)
-{
-
-	if (m->queue != PQ_NONE)
-		vm_page_dequeue(m);
-}
-
-/*
  *	vm_page_undirty:
  *
  *	Set page to not be dirty.  Note: does not clear pmap modify bits

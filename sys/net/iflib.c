@@ -641,7 +641,6 @@ SYSCTL_INT(_net_iflib, OID_AUTO, fl_refills_large, CTLFLAG_RD,
 static int iflib_txq_drain_flushing;
 static int iflib_txq_drain_oactive;
 static int iflib_txq_drain_notready;
-static int iflib_txq_drain_encapfail;
 
 SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_flushing, CTLFLAG_RD,
 		   &iflib_txq_drain_flushing, 0, "# drain flushes");
@@ -649,8 +648,6 @@ SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_oactive, CTLFLAG_RD,
 		   &iflib_txq_drain_oactive, 0, "# drain oactives");
 SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_notready, CTLFLAG_RD,
 		   &iflib_txq_drain_notready, 0, "# drain notready");
-SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_encapfail, CTLFLAG_RD,
-		   &iflib_txq_drain_encapfail, 0, "# drain encap fails");
 
 
 static int iflib_encap_load_mbuf_fail;
@@ -670,21 +667,14 @@ SYSCTL_INT(_net_iflib, OID_AUTO, encap_txd_encap_fail, CTLFLAG_RD,
 static int iflib_task_fn_rxs;
 static int iflib_rx_intr_enables;
 static int iflib_fast_intrs;
-static int iflib_intr_link;
-static int iflib_intr_msix; 
 static int iflib_rx_unavail;
 static int iflib_rx_ctx_inactive;
-static int iflib_rx_zero_len;
 static int iflib_rx_if_input;
 static int iflib_rx_mbuf_null;
 static int iflib_rxd_flush;
 
 static int iflib_verbose_debug;
 
-SYSCTL_INT(_net_iflib, OID_AUTO, intr_link, CTLFLAG_RD,
-		   &iflib_intr_link, 0, "# intr link calls");
-SYSCTL_INT(_net_iflib, OID_AUTO, intr_msix, CTLFLAG_RD,
-		   &iflib_intr_msix, 0, "# intr msix calls");
 SYSCTL_INT(_net_iflib, OID_AUTO, task_fn_rx, CTLFLAG_RD,
 		   &iflib_task_fn_rxs, 0, "# task_fn_rx calls");
 SYSCTL_INT(_net_iflib, OID_AUTO, rx_intr_enables, CTLFLAG_RD,
@@ -695,8 +685,6 @@ SYSCTL_INT(_net_iflib, OID_AUTO, rx_unavail, CTLFLAG_RD,
 		   &iflib_rx_unavail, 0, "# times rxeof called with no available data");
 SYSCTL_INT(_net_iflib, OID_AUTO, rx_ctx_inactive, CTLFLAG_RD,
 		   &iflib_rx_ctx_inactive, 0, "# times rxeof called with inactive context");
-SYSCTL_INT(_net_iflib, OID_AUTO, rx_zero_len, CTLFLAG_RD,
-		   &iflib_rx_zero_len, 0, "# times rxeof saw zero len mbuf");
 SYSCTL_INT(_net_iflib, OID_AUTO, rx_if_input, CTLFLAG_RD,
 		   &iflib_rx_if_input, 0, "# times rxeof called if_input");
 SYSCTL_INT(_net_iflib, OID_AUTO, rx_mbuf_null, CTLFLAG_RD,
@@ -713,12 +701,12 @@ iflib_debug_reset(void)
 	iflib_tx_seen = iflib_tx_sent = iflib_tx_encap = iflib_rx_allocs =
 		iflib_fl_refills = iflib_fl_refills_large = iflib_tx_frees =
 		iflib_txq_drain_flushing = iflib_txq_drain_oactive =
-		iflib_txq_drain_notready = iflib_txq_drain_encapfail =
+		iflib_txq_drain_notready =
 		iflib_encap_load_mbuf_fail = iflib_encap_pad_mbuf_fail =
 		iflib_encap_txq_avail_fail = iflib_encap_txd_encap_fail =
 		iflib_task_fn_rxs = iflib_rx_intr_enables = iflib_fast_intrs =
-		iflib_intr_link = iflib_intr_msix = iflib_rx_unavail =
-		iflib_rx_ctx_inactive = iflib_rx_zero_len = iflib_rx_if_input =
+		iflib_rx_unavail =
+		iflib_rx_ctx_inactive = iflib_rx_if_input =
 		iflib_rx_mbuf_null = iflib_rxd_flush = 0;
 }
 
@@ -839,6 +827,9 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, boo
 	if_ctx_t ctx = rxq->ifr_ctx;
 	iflib_fl_t fl = &rxq->ifr_fl[0];
 	uint32_t refill_pidx, nic_i;
+#if IFLIB_DEBUG_COUNTERS
+	int rf_count = 0;
+#endif
 
 	if (nm_i == head && __predict_true(!init))
 		return 0;
@@ -851,7 +842,12 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, boo
 	 */
 	head = nm_prev(head, lim);
 	nic_i = UINT_MAX;
+	DBG_COUNTER_INC(fl_refills);
 	while (nm_i != head) {
+#if IFLIB_DEBUG_COUNTERS
+		if (++rf_count == 9)
+			DBG_COUNTER_INC(fl_refills_large);
+#endif
 		for (int tmp_pidx = 0; tmp_pidx < IFLIB_MAX_RX_REFRESH && nm_i != head; tmp_pidx++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			void *addr = PNMB(na, slot, &fl->ifl_bus_addrs[tmp_pidx]);
@@ -898,8 +894,10 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, boo
 	if (map)
 		bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 				BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	if (__predict_true(nic_i != UINT_MAX))
+	if (__predict_true(nic_i != UINT_MAX)) {
 		ctx->isc_rxd_flush(ctx->ifc_softc, rxq->ifr_id, fl->ifl_id, nic_i);
+		DBG_COUNTER_INC(rxd_flush);
+	}
 	return (0);
 }
 
@@ -998,6 +996,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 
 			/* Fill the slot in the NIC ring. */
 			ctx->isc_txd_encap(ctx->ifc_softc, &pi);
+			DBG_COUNTER_INC(tx_encap);
 
 			/* prefetch for next round */
 			__builtin_prefetch(&ring->slot[nm_i + 1]);
@@ -1524,8 +1523,10 @@ iflib_fast_intr_rxtx(void *arg)
 		cidx = rxq->ifr_fl[0].ifl_cidx;
 	if (iflib_rxd_avail(ctx, rxq, cidx, 1))
 		GROUPTASK_ENQUEUE(gtask);
-	else
+	else {
 		IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
+		DBG_COUNTER_INC(rx_intr_enables);
+	}
 	return (FILTER_HANDLED);
 }
 
@@ -2887,6 +2888,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 			return (ENOMEM);
 		} else {
 			m_freem(*mp);
+			DBG_COUNTER_INC(tx_frees);
 			*mp = m;
 		}
 	}
@@ -2994,6 +2996,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ip_hlen = sizeof(struct ip6_hdr);
 
 		if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr))) {
+			txq->ift_pullups++;
 			if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr))) == NULL))
 				return (ENOMEM);
 		}
@@ -3039,34 +3042,6 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 	*mp = m;
 
 	return (0);
-}
-
-static  __noinline  struct mbuf *
-collapse_pkthdr(struct mbuf *m0)
-{
-	struct mbuf *m, *m_next, *tmp;
-
-	m = m0;
-	m_next = m->m_next;
-	while (m_next != NULL && m_next->m_len == 0) {
-		m = m_next;
-		m->m_next = NULL;
-		m_free(m);
-		m_next = m_next->m_next;
-	}
-	m = m0;
-	m->m_next = m_next;
-	if (m_next == NULL)
-		return (m);
-	if ((m_next->m_flags & M_EXT) == 0) {
-		m = m_defrag(m, M_NOWAIT);
-	} else {
-		tmp = m_next->m_next;
-		memcpy(m_next, m, MPKTHSIZE);
-		m = m_next;
-		m->m_next = tmp;
-	}
-	return (m);
 }
 
 /*
@@ -3117,8 +3092,7 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 	/*
 	 * Please don't ever do this
 	 */
-	if (__predict_false(m->m_len == 0))
-		*m0 = collapse_pkthdr(m);
+	MPASS(__predict_true(m->m_len > 0));
 
 	ctx = txq->ift_ctx;
 	sctx = ctx->ifc_sctx;
@@ -3259,6 +3233,7 @@ iflib_ether_pad(device_t dev, struct mbuf **m_head, uint16_t min_frame_size)
 			m_freem(*m_head);
 			device_printf(dev, "cannot pad short frame, m_dup() failed");
 			DBG_COUNTER_INC(encap_pad_mbuf_fail);
+			DBG_COUNTER_INC(tx_frees);
 			return ENOMEM;
 		}
 		m_freem(*m_head);
@@ -3274,6 +3249,7 @@ iflib_ether_pad(device_t dev, struct mbuf **m_head, uint16_t min_frame_size)
 		m_freem(*m_head);
 		device_printf(dev, "cannot pad short frame\n");
 		DBG_COUNTER_INC(encap_pad_mbuf_fail);
+		DBG_COUNTER_INC(tx_frees);
 		return (ENOBUFS);
 	}
 
@@ -3337,8 +3313,10 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	if ((sctx->isc_flags & IFLIB_NEED_ETHER_PAD) &&
 	    __predict_false(m_head->m_pkthdr.len < scctx->isc_min_frame_size)) {
 		err = iflib_ether_pad(ctx->ifc_dev, m_headp, scctx->isc_min_frame_size);
-		if (err)
+		if (err) {
+			DBG_COUNTER_INC(encap_txd_encap_fail);
 			return err;
+		}
 	}
 	m_head = *m_headp;
 
@@ -3352,8 +3330,10 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 
 	/* deliberate bitwise OR to make one condition */
 	if (__predict_true((pi.ipi_csum_flags | pi.ipi_vtag))) {
-		if (__predict_false((err = iflib_parse_header(txq, &pi, m_headp)) != 0))
+		if (__predict_false((err = iflib_parse_header(txq, &pi, m_headp)) != 0)) {
+			DBG_COUNTER_INC(encap_txd_encap_fail);
 			return (err);
+		}
 		m_head = *m_headp;
 	}
 
@@ -3370,12 +3350,13 @@ defrag:
 				if (m_head == NULL)
 					remap++;
 			}
-			if (remap == 1)
+			if (remap == 1) {
+				txq->ift_mbuf_defrag++;
 				m_head = m_defrag(*m_headp, M_NOWAIT);
+			}
 			remap++;
 			if (__predict_false(m_head == NULL))
 				goto defrag_failed;
-			txq->ift_mbuf_defrag++;
 			*m_headp = m_head;
 			goto retry;
 			break;
@@ -3391,6 +3372,7 @@ defrag:
 		}
 		txq->ift_map_failed++;
 		DBG_COUNTER_INC(encap_load_mbuf_fail);
+		DBG_COUNTER_INC(encap_txd_encap_fail);
 		return (err);
 	}
 
@@ -3404,6 +3386,7 @@ defrag:
 		if (map != NULL)
 			bus_dmamap_unload(desc_tag, map);
 		DBG_COUNTER_INC(encap_txq_avail_fail);
+		DBG_COUNTER_INC(encap_txd_encap_fail);
 		if ((txq->ift_task.gt_task.ta_flags & TASK_ENQUEUED) == 0)
 			GROUPTASK_ENQUEUE(&txq->ift_task);
 		return (ENOBUFS);
@@ -3466,9 +3449,12 @@ defrag:
 				goto defrag;
 			}
 		}
-		DBG_COUNTER_INC(encap_txd_encap_fail);
 		goto defrag_failed;
 	}
+	/*
+	 * err can't possibly be non-zero here, so we don't neet to test it
+	 * to see if we need to DBG_COUNTER_INC(encap_txd_encap_fail).
+	 */
 	return (err);
 
 defrag_failed:
@@ -3477,6 +3463,7 @@ defrag_failed:
 	m_freem(*m_headp);
 	DBG_COUNTER_INC(tx_frees);
 	*m_headp = NULL;
+	DBG_COUNTER_INC(encap_txd_encap_fail);
 	return (ENOMEM);
 }
 
@@ -3636,7 +3623,8 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	if (__predict_false(ctx->ifc_flags & IFC_QFLUSH)) {
 		DBG_COUNTER_INC(txq_drain_flushing);
 		for (i = 0; i < avail; i++) {
-			m_free(r->items[(cidx + i) & (r->size-1)]);
+			if (__predict_true(r->items[(cidx + i) & (r->size-1)] != (void *)txq))
+				m_free(r->items[(cidx + i) & (r->size-1)]);
 			r->items[(cidx + i) & (r->size-1)] = NULL;
 		}
 		return (avail);
@@ -3675,12 +3663,10 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		in_use_prev = txq->ift_in_use;
 		err = iflib_encap(txq, mp);
 		if (__predict_false(err)) {
-			DBG_COUNTER_INC(txq_drain_encapfail);
 			/* no room - bail out */
 			if (err == ENOBUFS)
 				break;
 			consumed++;
-			DBG_COUNTER_INC(txq_drain_encapfail);
 			/* we can't send this packet - skip it */
 			continue;
 		}
@@ -3740,6 +3726,7 @@ iflib_txq_drain_free(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		if (__predict_false(*mp == (struct mbuf *)txq))
 			continue;
 		m_freem(*mp);
+		DBG_COUNTER_INC(tx_frees);
 	}
 	MPASS(ifmp_ring_is_stalled(r) == 0);
 	return (avail);
@@ -3986,6 +3973,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 			next = m->m_nextpkt;
 			m->m_nextpkt = NULL;
 			m_freem(m);
+			DBG_COUNTER_INC(tx_frees);
 			m = next;
 		}
 		return (ENOBUFS);
@@ -4028,6 +4016,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 #endif
 		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 		m_freem(m);
+		DBG_COUNTER_INC(tx_frees);
 	}
 
 	return (err);

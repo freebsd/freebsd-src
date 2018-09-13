@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-gss.h,v 1.12 2017/06/24 06:34:38 djm Exp $ */
+/* $OpenBSD: ssh-gss.h,v 1.14 2018/07/10 09:13:30 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -108,6 +108,9 @@ ssh_gssapi_mech *ssh_gssapi_get_ctype(Gssctxt *);
 void ssh_gssapi_prepare_supported_oids(void);
 OM_uint32 ssh_gssapi_test_oid_supported(OM_uint32 *, gss_OID, int *);
 
+struct sshbuf;
+int ssh_gssapi_get_buffer_desc(struct sshbuf *, gss_buffer_desc *);
+
 OM_uint32 ssh_gssapi_import_name(Gssctxt *, const char *);
 OM_uint32 ssh_gssapi_init_ctx(Gssctxt *, int,
     gss_buffer_desc *, gss_buffer_desc *, OM_uint32 *);
@@ -119,7 +122,8 @@ char *ssh_gssapi_last_error(Gssctxt *, OM_uint32 *, OM_uint32 *);
 void ssh_gssapi_build_ctx(Gssctxt **);
 void ssh_gssapi_delete_ctx(Gssctxt **);
 OM_uint32 ssh_gssapi_sign(Gssctxt *, gss_buffer_t, gss_buffer_t);
-void ssh_gssapi_buildmic(Buffer *, const char *, const char *, const char *);
+void ssh_gssapi_buildmic(struct sshbuf *, const char *,
+    const char *, const char *);
 int ssh_gssapi_check_mechanism(Gssctxt **, gss_OID, const char *);
 
 /* In the server */

@@ -30,7 +30,7 @@ makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
-# options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
@@ -87,6 +87,15 @@ device		virtio_pci		# VirtIO PCI device
 device		vtnet			# VirtIO Ethernet device
 device		virtio_blk		# VirtIO Block device
 device		virtio_mmio		# VirtIO MMIO bus
+
+# DTrace support
+# device	dtrace
+# device	dtrace_profile
+# device	dtrace_sdt
+# device	dtrace_fbt
+# device	dtrace_systrace
+# device	dtrace_prototype
+# device	dtraceall
 
 # Serial (COM) ports
 device		uart		# Generic UART driver

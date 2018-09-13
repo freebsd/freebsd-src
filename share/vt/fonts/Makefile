@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	gallant.fnt \
+FONTS=	gallant.fnt \
 	terminus-b32.fnt \
 	tom-thumb.fnt \
 	vgarom-8x8.fnt \
@@ -9,8 +9,9 @@ FILES=	gallant.fnt \
 	vgarom-16x32.fnt \
 	vgarom-thin-8x8.fnt \
 	vgarom-thin-8x16.fnt
+FILES=	${FONTS} INDEX.fonts
 
-CLEANFILES+=	${FILES}
+CLEANFILES+=	${FONTS}
 
 .SUFFIXES: .fnt .fnt.uu .hex
 .hex.fnt:

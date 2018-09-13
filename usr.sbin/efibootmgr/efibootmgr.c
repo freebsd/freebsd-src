@@ -622,7 +622,7 @@ create_loadopt(uint8_t *buf, size_t bufmax, uint32_t attributes, efidp dp, size_
 
 static int
 make_boot_var(const char *label, const char *loader, const char *kernel, const char *env, bool dry_run,
-	int bootnum)
+    int bootnum, bool activate)
 {
 	struct entry *new_ent;
 	uint32_t load_attrs = 0;
@@ -665,6 +665,8 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 
 	/* don't make the new bootvar active by default, use the -a option later */
 	load_attrs = LOAD_OPTION_CATEGORY_BOOT;
+	if (activate)
+		load_attrs |= LOAD_OPTION_ACTIVE;
 	load_opt_buf = malloc(MAX_LOADOPT_LEN);
 	if (load_opt_buf == NULL)
 		err(1, "malloc");
@@ -915,7 +917,7 @@ main(int argc, char *argv[])
 		 */
 		make_boot_var(opts.label ? opts.label : "",
 		    opts.loader, opts.kernel, opts.env, opts.dry_run,
-		    opts.has_bootnum ? opts.bootnum : -1);
+		    opts.has_bootnum ? opts.bootnum : -1, opts.set_active);
 	else if (opts.set_active || opts.set_inactive )
 		handle_activity(opts.bootnum, opts.set_active);
 	else if (opts.order != NULL)

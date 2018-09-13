@@ -145,8 +145,8 @@ usage(void)
 {
 
 	if (class_name == NULL) {
-		errx(EXIT_FAILURE, "usage: %s <class> <command> [options]",
-		    "geom");
+		fprintf(stderr, "usage: geom <class> <command> [options]\n");
+		exit(EXIT_FAILURE);
 	} else {
 		struct g_command *cmd;
 		const char *prefix;
@@ -191,8 +191,7 @@ load_module(void)
 		/* Not present in kernel, try loading it. */
 		if (kldload(name2) < 0 || modfind(name1) < 0) {
 			if (errno != EEXIST) {
-				errx(EXIT_FAILURE,
-				    "%s module not available!", name2);
+				err(EXIT_FAILURE, "cannot load %s", name2);
 			}
 		}
 	}
@@ -460,7 +459,8 @@ run_command(int argc, char *argv[])
 			usage();
 		}
 		if (!std_available(cmd->gc_name)) {
-			warnx("Command '%s' not available.", argv[0]);
+			warnx("Command '%s' not available; "
+			    "try 'load' first.", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -644,7 +644,7 @@ get_class(int *argc, char ***argv)
 
 	/* If we can't load or list, it's not a class. */
 	if (!std_available("load") && !std_available("list"))
-		errx(EXIT_FAILURE, "Invalid class name.");
+		errx(EXIT_FAILURE, "Invalid class name '%s'.", class_name);
 
 	if (*argc < 1)
 		usage();
@@ -806,7 +806,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 	classp = find_class(&mesh, gclass_name);
 	if (classp == NULL) {
 		geom_deletetree(&mesh);
-		errx(EXIT_FAILURE, "Class %s not found.", gclass_name);
+		errx(EXIT_FAILURE, "Class '%s' not found.", gclass_name);
 	}
 	nargs = gctl_get_int(req, "nargs");
 	all = gctl_get_int(req, "all");
@@ -814,8 +814,11 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 		for (i = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
-			if (gp == NULL)
-				errx(EXIT_FAILURE, "No such geom: %s.", name);
+			if (gp == NULL) {
+				errx(EXIT_FAILURE, "Class '%s' does not have "
+				    "an instance named '%s'.",
+				    gclass_name, name);
+			}
 			list_one_geom(gp);
 		}
 	} else {

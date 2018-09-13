@@ -10,8 +10,9 @@
 
 CONFGROUPS=	ETC ROOT
 ETC=	csh.cshrc csh.login csh.logout
-ROOT=	dot.login
+ROOT=	dot.cshrc dot.login
 ROOTDIR=	/root
+ROOTNAME_dot.cshrc=	.cshrc
 ROOTNAME_dot.login=	.login
 PACKAGE=runtime
 TCSHDIR= ${SRCTOP}/contrib/tcsh
@@ -152,5 +153,11 @@ tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h ${BUILD
 	    sed -e 's/Char \([a-zA-Z0-9_]*\)\(.*\)/extern Char \1[];/' | \
 	    sort >> ${.TARGET}
 	@echo '#endif /* _h_tc_const */' >> ${.TARGET}
+
+beforeinstallconfig:
+	rm -f ${DESTDIR}/.cshrc
+
+afterinstallconfig:
+	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
 
 .include <bsd.prog.mk>

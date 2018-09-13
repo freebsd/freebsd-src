@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.63 2018/02/07 02:06:50 jsing Exp $ */
+/* $OpenBSD: dh.c,v 1.66 2018/08/04 00:55:06 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -145,9 +145,9 @@ DH *
 choose_dh(int min, int wantbits, int max)
 {
 	FILE *f;
-	char line[4096];
-	int best, bestcount, which;
-	int linenum;
+	char *line = NULL;
+	size_t linesize = 0;
+	int best, bestcount, which, linenum;
 	struct dhgroup dhg;
 
 	if ((f = fopen(_PATH_DH_MODULI, "r")) == NULL) {
@@ -158,7 +158,7 @@ choose_dh(int min, int wantbits, int max)
 
 	linenum = 0;
 	best = bestcount = 0;
-	while (fgets(line, sizeof(line), f)) {
+	while (getline(&line, &linesize, f) != -1) {
 		linenum++;
 		if (!parse_prime(linenum, line, &dhg))
 			continue;
@@ -176,6 +176,9 @@ choose_dh(int min, int wantbits, int max)
 		if (dhg.size == best)
 			bestcount++;
 	}
+	free(line);
+	line = NULL;
+	linesize = 0;
 	rewind(f);
 
 	if (bestcount == 0) {
@@ -186,7 +189,7 @@ choose_dh(int min, int wantbits, int max)
 
 	linenum = 0;
 	which = arc4random_uniform(bestcount);
-	while (fgets(line, sizeof(line), f)) {
+	while (getline(&line, &linesize, f) != -1) {
 		if (!parse_prime(linenum, line, &dhg))
 			continue;
 		if ((dhg.size > max || dhg.size < min) ||
@@ -198,6 +201,8 @@ choose_dh(int min, int wantbits, int max)
 		}
 		break;
 	}
+	free(line);
+	line = NULL;
 	fclose(f);
 	if (linenum != which+1) {
 		logit("WARNING: line %d disappeared in %s, giving up",
@@ -274,6 +279,7 @@ dh_gen_key(DH *dh, int need)
 	if (DH_generate_key(dh) == 0 ||
 	    !dh_pub_is_valid(dh, dh->pub_key)) {
 		BN_clear_free(dh->priv_key);
+		dh->priv_key = NULL;
 		return SSH_ERR_LIBCRYPTO_ERROR;
 	}
 	return 0;
