@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "DSA_dup_DH 3"
-.TH DSA_dup_DH 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "DSA_DUP_DH 3"
+.TH DSA_DUP_DH 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,15 +141,15 @@ DSA_dup_DH \- create a DH structure out of DSA structure
 .Vb 1
 \& #include <openssl/dsa.h>
 \&
-\& DH * DSA_dup_DH(const DSA *r);
+\& DH *DSA_dup_DH(const DSA *r);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fIDSA_dup_DH()\fR duplicates \s-1DSA\s0 parameters/keys as \s-1DH\s0 parameters/keys. q
 is lost during that conversion, but the resulting \s-1DH\s0 parameters
 contain its length.
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
 \&\fIDSA_dup_DH()\fR returns the new \fB\s-1DH\s0\fR structure, and \s-1NULL\s0 on error. The
 error codes can be obtained by \fIERR_get_error\fR\|(3).
 .SH "NOTE"
@@ -157,7 +157,12 @@ error codes can be obtained by \fIERR_get_error\fR\|(3).
 Be careful to avoid small subgroup attacks when using this.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIdh\fR\|(3), \fIdsa\fR\|(3), \fIERR_get_error\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIDSA_dup_DH()\fR was added in OpenSSL 0.9.4.
+\&\fIDH_new\fR\|(3), \fIDSA_new\fR\|(3), \fIERR_get_error\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

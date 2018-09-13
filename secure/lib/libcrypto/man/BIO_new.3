@@ -128,21 +128,21 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_new 3"
-.TH BIO_new 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_NEW 3"
+.TH BIO_NEW 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_new, BIO_set, BIO_free, BIO_vfree, BIO_free_all \- BIO allocation and freeing functions
+BIO_new, BIO_up_ref, BIO_free, BIO_vfree, BIO_free_all \&\- BIO allocation and freeing functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO *  BIO_new(BIO_METHOD *type);
-\& int    BIO_set(BIO *a,BIO_METHOD *type);
+\& BIO *  BIO_new(const BIO_METHOD *type);
+\& int    BIO_up_ref(BIO *a);
 \& int    BIO_free(BIO *a);
 \& void   BIO_vfree(BIO *a);
 \& void   BIO_free_all(BIO *a);
@@ -151,39 +151,36 @@ BIO_new, BIO_set, BIO_free, BIO_vfree, BIO_free_all \- BIO allocation and freein
 .IX Header "DESCRIPTION"
 The \fIBIO_new()\fR function returns a new \s-1BIO\s0 using method \fBtype\fR.
 .PP
-\&\fIBIO_set()\fR sets the method of an already existing \s-1BIO.\s0
+\&\fIBIO_up_ref()\fR increments the reference count associated with the \s-1BIO\s0 object.
 .PP
 \&\fIBIO_free()\fR frees up a single \s-1BIO,\s0 \fIBIO_vfree()\fR also frees up a single \s-1BIO\s0
-but it does not return a value. Calling \fIBIO_free()\fR may also have some effect
+but it does not return a value.
+If \fBa\fR is \s-1NULL\s0 nothing is done.
+Calling \fIBIO_free()\fR may also have some effect
 on the underlying I/O structure, for example it may close the file being
 referred to under certain circumstances. For more details see the individual
 \&\s-1BIO_METHOD\s0 descriptions.
 .PP
 \&\fIBIO_free_all()\fR frees up an entire \s-1BIO\s0 chain, it does not halt if an error
 occurs freeing up an individual \s-1BIO\s0 in the chain.
+If \fBa\fR is \s-1NULL\s0 nothing is done.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBIO_new()\fR returns a newly created \s-1BIO\s0 or \s-1NULL\s0 if the call fails.
 .PP
-\&\fIBIO_set()\fR, \fIBIO_free()\fR return 1 for success and 0 for failure.
+\&\fIBIO_up_ref()\fR and \fIBIO_free()\fR return 1 for success and 0 for failure.
 .PP
 \&\fIBIO_free_all()\fR and \fIBIO_vfree()\fR do not return values.
 .SH "NOTES"
 .IX Header "NOTES"
-Some BIOs (such as memory BIOs) can be used immediately after calling
-\&\fIBIO_new()\fR. Others (such as file BIOs) need some additional initialization,
-and frequently a utility function exists to create and initialize such BIOs.
-.PP
 If \fIBIO_free()\fR is called on a \s-1BIO\s0 chain it will only free one \s-1BIO\s0 resulting
 in a memory leak.
 .PP
-Calling \fIBIO_free_all()\fR a single \s-1BIO\s0 has the same effect as calling \fIBIO_free()\fR
+Calling \fIBIO_free_all()\fR on a single \s-1BIO\s0 has the same effect as calling \fIBIO_free()\fR
 on it other than the discarded return value.
-.PP
-Normally the \fBtype\fR argument is supplied by a function which returns a
-pointer to a \s-1BIO_METHOD.\s0 There is a naming convention for such functions:
-a source/sink \s-1BIO\s0 is normally called BIO_s_*() and a filter \s-1BIO\s0
-BIO_f_*();
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fIBIO_set()\fR was removed in OpenSSL 1.1.0 as \s-1BIO\s0 type is now opaque.
 .SH "EXAMPLE"
 .IX Header "EXAMPLE"
 Create a memory \s-1BIO:\s0
@@ -191,6 +188,11 @@ Create a memory \s-1BIO:\s0
 .Vb 1
 \& BIO *mem = BIO_new(BIO_s_mem());
 .Ve
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\s-1TBA\s0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

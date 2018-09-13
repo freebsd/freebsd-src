@@ -128,32 +128,33 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "EVP_EncodeInit 3"
-.TH EVP_EncodeInit 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "EVP_ENCODEINIT 3"
+.TH EVP_ENCODEINIT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_EncodeInit, EVP_EncodeUpdate, EVP_EncodeFinal, EVP_EncodeBlock,
-EVP_DecodeInit, EVP_DecodeUpdate, EVP_DecodeFinal, EVP_DecodeBlock \- EVP base 64
-encode/decode routines
+EVP_ENCODE_CTX_new, EVP_ENCODE_CTX_free, EVP_ENCODE_CTX_copy, EVP_ENCODE_CTX_num, EVP_EncodeInit, EVP_EncodeUpdate, EVP_EncodeFinal, EVP_EncodeBlock, EVP_DecodeInit, EVP_DecodeUpdate, EVP_DecodeFinal, EVP_DecodeBlock \- EVP base 64 encode/decode routines
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
+\& EVP_ENCODE_CTX *EVP_ENCODE_CTX_new(void);
+\& void EVP_ENCODE_CTX_free(EVP_ENCODE_CTX *ctx);
+\& int EVP_ENCODE_CTX_copy(EVP_ENCODE_CTX *dctx, EVP_ENCODE_CTX *sctx);
+\& int EVP_ENCODE_CTX_num(EVP_ENCODE_CTX *ctx);
 \& void EVP_EncodeInit(EVP_ENCODE_CTX *ctx);
-\& void EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
-\&                       const unsigned char *in, int inl);
+\& int EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
+\&                      const unsigned char *in, int inl);
 \& void EVP_EncodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl);
 \& int EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int n);
 \&
 \& void EVP_DecodeInit(EVP_ENCODE_CTX *ctx);
 \& int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
 \&                      const unsigned char *in, int inl);
-\& int EVP_DecodeFinal(EVP_ENCODE_CTX *ctx, unsigned
-\&                     char *out, int *outl);
+\& int EVP_DecodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl);
 \& int EVP_DecodeBlock(unsigned char *t, const unsigned char *f, int n);
 .Ve
 .SH "DESCRIPTION"
@@ -165,6 +166,12 @@ bytes of binary data provided 4 bytes of base 64 encoded data will be produced
 plus some occasional newlines (see below). If the input data length is not a
 multiple of 3 then the output data will be padded at the end using the \*(L"=\*(R"
 character.
+.PP
+\&\fIEVP_ENCODE_CTX_new()\fR allocates, initializes and returns a context to be used for
+the encode/decode functions.
+.PP
+\&\fIEVP_ENCODE_CTX_free()\fR cleans up an encode/decode context \fBctx\fR and frees up the
+space allocated to it.
 .PP
 Encoding of binary data is performed in blocks of 48 input bytes (or less for
 the final block). For each 48 byte input block encoded 64 bytes of base 64 data
@@ -189,7 +196,8 @@ any remainder). This gives the number of blocks of data that will be processed.
 Ensure the output buffer contains 65 bytes of storage for each block, plus an
 additional byte for a \s-1NUL\s0 terminator. \fIEVP_EncodeUpdate()\fR may be called
 repeatedly to process large amounts of input data. In the event of an error
-\&\fIEVP_EncodeUpdate()\fR will set \fB*outl\fR to 0.
+\&\fIEVP_EncodeUpdate()\fR will set \fB*outl\fR to 0 and return 0. On success 1 will be
+returned.
 .PP
 \&\fIEVP_EncodeFinal()\fR must be called at the end of an encoding operation. It will
 process any partial block of data remaining in the \fBctx\fR object. The output
@@ -197,6 +205,12 @@ data will be stored in \fBout\fR and the length of the data written will be stor
 in \fB*outl\fR. It is the caller's responsibility to ensure that \fBout\fR is
 sufficiently large to accommodate the output data which will never be more than
 65 bytes plus an additional \s-1NUL\s0 terminator (i.e. 66 bytes in total).
+.PP
+\&\fIEVP_ENCODE_CTX_copy()\fR can be used to copy a context \fBsctx\fR to a context
+\&\fBdctx\fR. \fBdctx\fR must be initialized before calling this function.
+.PP
+\&\fIEVP_ENCODE_CTX_num()\fR will return the number of as yet unprocessed bytes still to
+be encoded or decoded that are pending in the \fBctx\fR object.
 .PP
 \&\fIEVP_EncodeBlock()\fR encodes a full block of input data in \fBf\fR and of length
 \&\fBdlen\fR and stores it in \fBt\fR. For every 3 bytes of input provided 4 bytes of
@@ -235,13 +249,21 @@ in this case. Otherwise the function returns 1 on success.
 \&\fIEVP_DecodeBlock()\fR will decode the block of \fBn\fR characters of base 64 data
 contained in \fBf\fR and store the result in \fBt\fR. Any leading whitespace will be
 trimmed as will any trailing whitespace, newlines, carriage returns or \s-1EOF\s0
-characters. After such trimming the length of the data in \fBf\fR must be divisbile
+characters. After such trimming the length of the data in \fBf\fR must be divisible
 by 4. For every 4 input bytes exactly 3 output bytes will be produced. The
 output will be padded with 0 bits if necessary to ensure that the output is
 always 3 bytes for every 4 input bytes. This function will return the length of
 the data decoded or \-1 on error.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
+\&\fIEVP_ENCODE_CTX_new()\fR returns a pointer to the newly allocated \s-1EVP_ENCODE_CTX\s0
+object or \s-1NULL\s0 on error.
+.PP
+\&\fIEVP_ENCODE_CTX_num()\fR returns the number of bytes pending encoding or decoding in
+\&\fBctx\fR.
+.PP
+\&\fIEVP_EncodeUpdate()\fR returns 0 on error or 1 on success.
+.PP
 \&\fIEVP_EncodeBlock()\fR returns the number of bytes encoded excluding the \s-1NUL\s0
 terminator.
 .PP
@@ -253,4 +275,12 @@ then no more non-padding base 64 characters are expected.
 \&\fIEVP_DecodeBlock()\fR returns the length of the data decoded or \-1 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIevp\fR\|(3)
+\&\fIevp\fR\|(7)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

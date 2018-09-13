@@ -128,22 +128,22 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CMS_add1_signer 3"
-.TH CMS_add1_signer 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "CMS_ADD1_SIGNER 3"
+.TH CMS_ADD1_SIGNER 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-.Vb 1
-\& CMS_add1_signer, CMS_SignerInfo_sign \- add a signer to a CMS_ContentInfo signed data structure.
-.Ve
+CMS_add1_signer, CMS_SignerInfo_sign \- add a signer to a CMS_ContentInfo signed data structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
-\& CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms, X509 *signcert, EVP_PKEY *pkey, const EVP_MD *md, unsigned int flags);
+\& CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms, X509 *signcert,
+\&                                 EVP_PKEY *pkey, const EVP_MD *md,
+\&                                 unsigned int flags);
 \&
 \& int CMS_SignerInfo_sign(CMS_SignerInfo *si);
 .Ve
@@ -185,7 +185,7 @@ structure.  An error occurs if a matching digest value cannot be found to copy.
 The returned CMS_ContentInfo structure will be valid and finalized when this
 flag is set.
 .PP
-If \fB\s-1CMS_PARTIAL\s0\fR is set in addition to \fB\s-1CMS_REUSE_DIGEST\s0\fR then the 
+If \fB\s-1CMS_PARTIAL\s0\fR is set in addition to \fB\s-1CMS_REUSE_DIGEST\s0\fR then the
 CMS_SignerInfo structure will not be finalized so additional attributes
 can be added. In this case an explicit call to \fICMS_SignerInfo_sign()\fR is
 needed to finalize it.
@@ -214,7 +214,7 @@ If any of these algorithms is not available then it will not be included: for ex
 not loaded.
 .PP
 \&\fICMS_add1_signer()\fR returns an internal pointer to the CMS_SignerInfo
-structure just added, this can be used to set additional attributes 
+structure just added, this can be used to set additional attributes
 before it is finalized.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -224,6 +224,11 @@ structure just added or \s-1NULL\s0 if an error occurs.
 .IX Header "SEE ALSO"
 \&\fIERR_get_error\fR\|(3), \fICMS_sign\fR\|(3),
 \&\fICMS_final\fR\|(3),
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fICMS_add1_signer()\fR was added to OpenSSL 0.9.8
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2014\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.
