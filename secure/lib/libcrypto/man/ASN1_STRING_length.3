@@ -128,22 +128,21 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "ASN1_STRING_length 3"
-.TH ASN1_STRING_length 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "ASN1_STRING_LENGTH 3"
+.TH ASN1_STRING_LENGTH 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ASN1_STRING_dup, ASN1_STRING_cmp, ASN1_STRING_set, ASN1_STRING_length,
-ASN1_STRING_length_set, ASN1_STRING_type, ASN1_STRING_data, ASN1_STRING_to_UTF8 \-
-ASN1_STRING utility functions
+ASN1_STRING_dup, ASN1_STRING_cmp, ASN1_STRING_set, ASN1_STRING_length, ASN1_STRING_type, ASN1_STRING_get0_data, ASN1_STRING_data, ASN1_STRING_to_UTF8 \- ASN1_STRING utility functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/asn1.h>
 \&
 \& int ASN1_STRING_length(ASN1_STRING *x);
+\& const unsigned char * ASN1_STRING_get0_data(const ASN1_STRING *x);
 \& unsigned char * ASN1_STRING_data(ASN1_STRING *x);
 \&
 \& ASN1_STRING * ASN1_STRING_dup(ASN1_STRING *a);
@@ -152,9 +151,9 @@ ASN1_STRING utility functions
 \&
 \& int ASN1_STRING_set(ASN1_STRING *str, const void *data, int len);
 \&
-\& int ASN1_STRING_type(ASN1_STRING *x);
+\& int ASN1_STRING_type(const ASN1_STRING *x);
 \&
-\& int ASN1_STRING_to_UTF8(unsigned char **out, ASN1_STRING *in);
+\& int ASN1_STRING_to_UTF8(unsigned char **out, const ASN1_STRING *in);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -162,9 +161,13 @@ These functions allow an \fB\s-1ASN1_STRING\s0\fR structure to be manipulated.
 .PP
 \&\fIASN1_STRING_length()\fR returns the length of the content of \fBx\fR.
 .PP
-\&\fIASN1_STRING_data()\fR returns an internal pointer to the data of \fBx\fR.
+\&\fIASN1_STRING_get0_data()\fR returns an internal pointer to the data of \fBx\fR.
 Since this is an internal pointer it should \fBnot\fR be freed or
 modified in any way.
+.PP
+\&\fIASN1_STRING_data()\fR is similar to \fIASN1_STRING_get0_data()\fR except the
+returned value is not constant. This function is deprecated:
+applications should use \fIASN1_STRING_get0_data()\fR instead.
 .PP
 \&\fIASN1_STRING_dup()\fR returns a copy of the structure \fBa\fR.
 .PP
@@ -181,11 +184,11 @@ such as \fBV_ASN1_OCTET_STRING\fR.
 \&\fIASN1_STRING_to_UTF8()\fR converts the string \fBin\fR to \s-1UTF8\s0 format, the
 converted data is allocated in a buffer in \fB*out\fR. The length of
 \&\fBout\fR is returned or a negative error code. The buffer \fB*out\fR
-should be free using \fIOPENSSL_free()\fR.
+should be freed using \fIOPENSSL_free()\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 Almost all \s-1ASN1\s0 types in OpenSSL are represented as an \fB\s-1ASN1_STRING\s0\fR
-structure. Other types such as \fB\s-1ASN1_OCTET_STRING\s0\fR are simply typedefed
+structure. Other types such as \fB\s-1ASN1_OCTET_STRING\s0\fR are simply typedef'ed
 to \fB\s-1ASN1_STRING\s0\fR and the functions call the \fB\s-1ASN1_STRING\s0\fR equivalents.
 \&\fB\s-1ASN1_STRING\s0\fR is also used for some \fB\s-1CHOICE\s0\fR types which consist
 entirely of primitive string types such as \fBDirectoryString\fR and
@@ -205,8 +208,31 @@ Similar care should be take to ensure the data is in the correct format
 when calling \fIASN1_STRING_set()\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
+\&\fIASN1_STRING_length()\fR returns the length of the content of \fBx\fR.
+.PP
+\&\fIASN1_STRING_get0_data()\fR and \fIASN1_STRING_data()\fR return an internal pointer to
+the data of \fBx\fR.
+.PP
+\&\fIASN1_STRING_dup()\fR returns a valid \fB\s-1ASN1_STRING\s0\fR structure or \fB\s-1NULL\s0\fR if an
+error occurred.
+.PP
+\&\fIASN1_STRING_cmp()\fR returns an integer greater than, equal to, or less than 0,
+according to whether \fBa\fR is greater than, equal to, or less than \fBb\fR.
+.PP
+\&\fIASN1_STRING_set()\fR returns 1 on success or 0 on error.
+.PP
+\&\fIASN1_STRING_type()\fR returns the type of \fBx\fR.
+.PP
+\&\fIASN1_STRING_to_UTF8()\fR returns the number of bytes in output string \fBout\fR or a
+negative value if an error occurred.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIERR_get_error\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

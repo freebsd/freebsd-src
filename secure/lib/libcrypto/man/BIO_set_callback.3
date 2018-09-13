@@ -128,102 +128,261 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_set_callback 3"
-.TH BIO_set_callback 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_SET_CALLBACK 3"
+.TH BIO_SET_CALLBACK 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_set_callback, BIO_get_callback, BIO_set_callback_arg, BIO_get_callback_arg,
-BIO_debug_callback \- BIO callback functions
+BIO_set_callback_ex, BIO_get_callback_ex, BIO_set_callback, BIO_get_callback, BIO_set_callback_arg, BIO_get_callback_arg, BIO_debug_callback, BIO_callback_fn_ex, BIO_callback_fn \&\- BIO callback functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& #define BIO_set_callback(b,cb)         ((b)\->callback=(cb))
-\& #define BIO_get_callback(b)            ((b)\->callback)
-\& #define BIO_set_callback_arg(b,arg)    ((b)\->cb_arg=(char *)(arg))
-\& #define BIO_get_callback_arg(b)                ((b)\->cb_arg)
+\& typedef long (*BIO_callback_fn_ex)(BIO *b, int oper, const char *argp,
+\&                                    size_t len, int argi,
+\&                                    long argl, int ret, size_t *processed);
+\& typedef long (*BIO_callback_fn)(BIO *b, int oper, const char *argp, int argi,
+\&                                 long argl, long ret);
 \&
-\& long BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
-\&        long argl,long ret);
+\& void BIO_set_callback_ex(BIO *b, BIO_callback_fn_ex callback);
+\& BIO_callback_fn_ex BIO_get_callback_ex(const BIO *b);
 \&
-\& typedef long (*callback)(BIO *b, int oper, const char *argp,
-\&                        int argi, long argl, long retvalue);
+\& void BIO_set_callback(BIO *b, BIO_callback_fn cb);
+\& BIO_callback_fn BIO_get_callback(BIO *b);
+\& void BIO_set_callback_arg(BIO *b, char *arg);
+\& char *BIO_get_callback_arg(const BIO *b);
+\&
+\& long BIO_debug_callback(BIO *bio, int cmd, const char *argp, int argi,
+\&                         long argl, long ret);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIBIO_set_callback()\fR and \fIBIO_get_callback()\fR set and retrieve the \s-1BIO\s0 callback,
-they are both macros. The callback is called during most high level \s-1BIO\s0
-operations. It can be used for debugging purposes to trace operations on
-a \s-1BIO\s0 or to modify its operation.
+\&\fIBIO_set_callback_ex()\fR and \fIBIO_get_callback_ex()\fR set and retrieve the \s-1BIO\s0
+callback. The callback is called during most high level \s-1BIO\s0 operations. It can
+be used for debugging purposes to trace operations on a \s-1BIO\s0 or to modify its
+operation.
+.PP
+\&\fIBIO_set_callback()\fR and \fIBIO_get_callback()\fR set and retrieve the old format \s-1BIO\s0
+callback. New code should not use these functions, but they are retained for
+backwards compatibility. Any callback set via \fIBIO_set_callback_ex()\fR will get
+called in preference to any set by \fIBIO_set_callback()\fR.
 .PP
 \&\fIBIO_set_callback_arg()\fR and \fIBIO_get_callback_arg()\fR are macros which can be
 used to set and retrieve an argument for use in the callback.
 .PP
 \&\fIBIO_debug_callback()\fR is a standard debugging callback which prints
 out information relating to each \s-1BIO\s0 operation. If the callback
-argument is set if is interpreted as a \s-1BIO\s0 to send the information
+argument is set it is interpreted as a \s-1BIO\s0 to send the information
 to, otherwise stderr is used.
 .PP
-\&\fIcallback()\fR is the callback function itself. The meaning of each
-argument is described below.
-.PP
+\&\fIBIO_callback_fn_ex()\fR is the type of the callback function and \fIBIO_callback_fn()\fR
+is the type of the old format callback function. The meaning of each argument
+is described below:
+.IP "\fBb\fR" 4
+.IX Item "b"
 The \s-1BIO\s0 the callback is attached to is passed in \fBb\fR.
-.PP
+.IP "\fBoper\fR" 4
+.IX Item "oper"
 \&\fBoper\fR is set to the operation being performed. For some operations
 the callback is called twice, once before and once after the actual
 operation, the latter case has \fBoper\fR or'ed with \s-1BIO_CB_RETURN.\s0
-.PP
+.IP "\fBlen\fR" 4
+.IX Item "len"
+The length of the data requested to be read or written. This is only useful if
+\&\fBoper\fR is \s-1BIO_CB_READ, BIO_CB_WRITE\s0 or \s-1BIO_CB_GETS.\s0
+.IP "\fBargp\fR \fBargi\fR \fBargl\fR" 4
+.IX Item "argp argi argl"
 The meaning of the arguments \fBargp\fR, \fBargi\fR and \fBargl\fR depends on
 the value of \fBoper\fR, that is the operation being performed.
-.PP
-\&\fBretvalue\fR is the return value that would be returned to the
+.IP "\fBprocessed\fR" 4
+.IX Item "processed"
+\&\fBprocessed\fR is a pointer to a location which will be updated with the amount of
+data that was actually read or written. Only used for \s-1BIO_CB_READ, BIO_CB_WRITE,
+BIO_CB_GETS\s0 and \s-1BIO_CB_PUTS.\s0
+.IP "\fBret\fR" 4
+.IX Item "ret"
+\&\fBret\fR is the return value that would be returned to the
 application if no callback were present. The actual value returned
 is the return value of the callback itself. In the case of callbacks
-called before the actual \s-1BIO\s0 operation 1 is placed in retvalue, if
+called before the actual \s-1BIO\s0 operation 1 is placed in \fBret\fR, if
 the return value is not positive it will be immediately returned to
 the application and the \s-1BIO\s0 operation will not be performed.
 .PP
-The callback should normally simply return \fBretvalue\fR when it has
-finished processing, unless if specifically wishes to modify the
+The callback should normally simply return \fBret\fR when it has
+finished processing, unless it specifically wishes to modify the
 value returned to the application.
 .SH "CALLBACK OPERATIONS"
 .IX Header "CALLBACK OPERATIONS"
+In the notes below, \fBcallback\fR defers to the actual callback
+function that is called.
 .IP "\fBBIO_free(b)\fR" 4
 .IX Item "BIO_free(b)"
-callback(b, \s-1BIO_CB_FREE, NULL, 0L, 0L, 1L\s0) is called before the
-free operation.
-.IP "\fBBIO_read(b, out, outl)\fR" 4
-.IX Item "BIO_read(b, out, outl)"
-callback(b, \s-1BIO_CB_READ,\s0 out, outl, 0L, 1L) is called before
-the read and callback(b, BIO_CB_READ|BIO_CB_RETURN, out, outl, 0L, retvalue)
+.Vb 1
+\& callback_ex(b, BIO_CB_FREE, NULL, 0, 0, 0L, 1L, NULL)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_FREE, NULL, 0L, 0L, 1L)
+.Ve
+.Sp
+is called before the free operation.
+.IP "\fBBIO_read_ex(b, data, dlen, readbytes)\fR" 4
+.IX Item "BIO_read_ex(b, data, dlen, readbytes)"
+.Vb 1
+\& callback_ex(b, BIO_CB_READ, data, dlen, 0, 0L, 1L, NULL)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_READ, data, dlen, 0L, 1L)
+.Ve
+.Sp
+is called before the read and
+.Sp
+.Vb 2
+\& callback_ex(b, BIO_CB_READ | BIO_CB_RETURN, data, dlen, 0, 0L, retvalue,
+\&             &readbytes)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_READ|BIO_CB_RETURN, data, dlen, 0L, retvalue)
+.Ve
+.Sp
 after.
-.IP "\fBBIO_write(b, in, inl)\fR" 4
-.IX Item "BIO_write(b, in, inl)"
-callback(b, \s-1BIO_CB_WRITE,\s0 in, inl, 0L, 1L) is called before
-the write and callback(b, BIO_CB_WRITE|BIO_CB_RETURN, in, inl, 0L, retvalue)
+.IP "\fBBIO_write(b, data, dlen, written)\fR" 4
+.IX Item "BIO_write(b, data, dlen, written)"
+.Vb 1
+\& callback_ex(b, BIO_CB_WRITE, data, dlen, 0, 0L, 1L, NULL)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_WRITE, datat, dlen, 0L, 1L)
+.Ve
+.Sp
+is called before the write and
+.Sp
+.Vb 2
+\& callback_ex(b, BIO_CB_WRITE | BIO_CB_RETURN, data, dlen, 0, 0L, retvalue,
+\&             &written)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_WRITE|BIO_CB_RETURN, data, dlen, 0L, retvalue)
+.Ve
+.Sp
 after.
-.IP "\fBBIO_gets(b, out, outl)\fR" 4
-.IX Item "BIO_gets(b, out, outl)"
-callback(b, \s-1BIO_CB_GETS,\s0 out, outl, 0L, 1L) is called before
-the operation and callback(b, BIO_CB_GETS|BIO_CB_RETURN, out, outl, 0L, retvalue)
+.IP "\fBBIO_gets(b, buf, size)\fR" 4
+.IX Item "BIO_gets(b, buf, size)"
+.Vb 1
+\& callback_ex(b, BIO_CB_GETS, buf, size, 0, 0L, 1, NULL, NULL)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_GETS, buf, size, 0L, 1L)
+.Ve
+.Sp
+is called before the operation and
+.Sp
+.Vb 2
+\& callback_ex(b, BIO_CB_GETS | BIO_CB_RETURN, buf, size, 0, 0L, retvalue,
+\&             &readbytes)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_GETS|BIO_CB_RETURN, buf, size, 0L, retvalue)
+.Ve
+.Sp
 after.
-.IP "\fBBIO_puts(b, in)\fR" 4
-.IX Item "BIO_puts(b, in)"
-callback(b, \s-1BIO_CB_WRITE,\s0 in, 0, 0L, 1L) is called before
-the operation and callback(b, BIO_CB_WRITE|BIO_CB_RETURN, in, 0, 0L, retvalue)
+.IP "\fBBIO_puts(b, buf)\fR" 4
+.IX Item "BIO_puts(b, buf)"
+.Vb 1
+\& callback_ex(b, BIO_CB_PUTS, buf, 0, 0, 0L, 1L, NULL);
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_PUTS, buf, 0, 0L, 1L)
+.Ve
+.Sp
+is called before the operation and
+.Sp
+.Vb 1
+\& callback_ex(b, BIO_CB_PUTS | BIO_CB_RETURN, buf, 0, 0, 0L, retvalue, &written)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_PUTS|BIO_CB_RETURN, buf, 0, 0L, retvalue)
+.Ve
+.Sp
 after.
 .IP "\fBBIO_ctrl(\s-1BIO\s0 *b, int cmd, long larg, void *parg)\fR" 4
 .IX Item "BIO_ctrl(BIO *b, int cmd, long larg, void *parg)"
-callback(b,BIO_CB_CTRL,parg,cmd,larg,1L) is called before the call and
-callback(b,BIO_CB_CTRL|BIO_CB_RETURN,parg,cmd, larg,ret) after.
+.Vb 1
+\& callback_ex(b, BIO_CB_CTRL, parg, 0, cmd, larg, 1L, NULL)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_CTRL, parg, cmd, larg, 1L)
+.Ve
+.Sp
+is called before the call and
+.Sp
+.Vb 1
+\& callback_ex(b, BIO_CB_CTRL | BIO_CB_RETURN, parg, 0, cmd, larg, ret, NULL)
+.Ve
+.Sp
+or
+.Sp
+.Vb 1
+\& callback(b, BIO_CB_CTRL|BIO_CB_RETURN, parg, cmd, larg, ret)
+.Ve
+.Sp
+after.
+.Sp
+Note: \fBcmd\fR == \fB\s-1BIO_CTRL_SET_CALLBACK\s0\fR is special, because \fBparg\fR is not the
+argument of type \fBBIO_info_cb\fR itself.  In this case \fBparg\fR is a pointer to
+the actual call parameter, see \fBBIO_callback_ctrl\fR.
 .SH "EXAMPLE"
 .IX Header "EXAMPLE"
 The \fIBIO_debug_callback()\fR function is a good example, its source is
 in crypto/bio/bio_cb.c
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\s-1TBA\s0
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fIBIO_get_callback_ex()\fR and \fIBIO_get_callback()\fR return the callback function
+previously set by a call to \fIBIO_set_callback_ex()\fR and \fIBIO_set_callback()\fR
+respectively.
+.PP
+\&\fIBIO_get_callback_arg()\fR returns a \fBchar\fR pointer to the value previously set
+via a call to \fIBIO_set_callback_arg()\fR.
+.PP
+\&\fIBIO_debug_callback()\fR returns 1 or \fBret\fR if it's called after specific \s-1BIO\s0
+operations.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

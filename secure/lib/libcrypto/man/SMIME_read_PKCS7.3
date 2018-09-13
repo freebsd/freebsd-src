@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "SMIME_read_PKCS7 3"
-.TH SMIME_read_PKCS7 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "SMIME_READ_PKCS7 3"
+.TH SMIME_READ_PKCS7 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SMIME_read_PKCS7 \- parse S/MIME message.
+SMIME_read_PKCS7 \- parse S/MIME message
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -162,7 +162,7 @@ signed. \fB*bcont\fR can then be passed to \fIPKCS7_verify()\fR with
 the \fB\s-1PKCS7_DETACHED\s0\fR flag set.
 .PP
 Otherwise the type of the returned structure can be determined
-using \fIPKCS7_type()\fR.
+using \fIPKCS7_type_is_enveloped()\fR, etc.
 .PP
 To support future functionality if \fBbcont\fR is not \fB\s-1NULL\s0\fR
 \&\fB*bcont\fR should be initialized to \fB\s-1NULL\s0\fR. For example:
@@ -192,10 +192,15 @@ streaming single pass option should be available.
 if an error occurred. The error can be obtained from \fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIERR_get_error\fR\|(3), \fIPKCS7_type\fR\|(3)
+\&\fIERR_get_error\fR\|(3),
 \&\fISMIME_read_PKCS7\fR\|(3), \fIPKCS7_sign\fR\|(3),
 \&\fIPKCS7_verify\fR\|(3), \fIPKCS7_encrypt\fR\|(3)
 \&\fIPKCS7_decrypt\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fISMIME_read_PKCS7()\fR was added to OpenSSL 0.9.5
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.
