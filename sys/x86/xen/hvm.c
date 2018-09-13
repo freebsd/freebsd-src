@@ -163,6 +163,12 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 {
 	uint32_t regs[4];
 
+	/* Legacy PVH will get here without the cpuid leaf being set. */
+	if (cpuid_base == 0)
+		cpuid_base = xen_hvm_cpuid_base();
+	if (cpuid_base == 0)
+		return (ENXIO);
+
 	if (xen_domain() && init_type == XEN_HVM_INIT_LATE) {
 		/*
 		 * If the domain type is already set we can assume that the
@@ -172,10 +178,6 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 		hypervisor_version();
 		return 0;
 	}
-
-	cpuid_base = xen_hvm_cpuid_base();
-	if (cpuid_base == 0)
-		return (ENXIO);
 
 	if (init_type == XEN_HVM_INIT_LATE)
 		hypervisor_version();
