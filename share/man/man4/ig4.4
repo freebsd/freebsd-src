@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 03, 2016
+.Dd September 13, 2018
 .Dt IG4 4
 .Os
 .Sh NAME
 .Nm ig4
-.Nd Intel(R) fourth generation mobile CPU integrated I2C driver
+.Nd Synopsys DesignWare I2C Controller
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following lines into
 the kernel configuration file:
@@ -49,9 +49,9 @@ The
 driver provides access to peripherals attached to an I2C controller.
 .Sh HARDWARE
 .Nm
-supports the I2C controllers found in fourth generation Intel(R) Core(TM)
-processors based on the mobile U-processor line for intelligent systems.
-This includes the i7-4650U, i5-4300U, i3-4010U, and 2980U.
+supports the I2C controllers based on Synopsys DesignWare IP that can be found
+in Intel(R) Core(TM) processors starting from the fourth generation, Intel(R)
+Bay Trail, Apollo Lake SoC families, and some AMD systems.
 .Sh SYSCTL VARIABLES
 These
 .Xr sysctl 8
