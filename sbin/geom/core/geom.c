@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -68,6 +69,7 @@ static struct g_command *class_commands = NULL;
 #define	GEOM_CLASS_CMDS	0x01
 #define	GEOM_STD_CMDS	0x02
 static struct g_command *find_command(const char *cmdstr, int flags);
+static void list_one_geom_by_provider(const char *provider_name);
 static int std_available(const char *name);
 
 static void std_help(struct gctl_req *req, unsigned flags);
@@ -146,6 +148,7 @@ usage(void)
 
 	if (class_name == NULL) {
 		fprintf(stderr, "usage: geom <class> <command> [options]\n");
+		fprintf(stderr, "       geom -p <provider-name>\n");
 		exit(EXIT_FAILURE);
 	} else {
 		struct g_command *cmd;
@@ -650,9 +653,56 @@ get_class(int *argc, char ***argv)
 		usage();
 }
 
+static struct ggeom *
+find_geom_by_provider(struct gmesh *mesh, const char *name)
+{
+	struct gclass *classp;
+	struct ggeom *gp;
+	struct gprovider *pp;
+
+	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
+		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+				if (strcmp(pp->lg_name, name) == 0)
+					return (gp);
+			}
+		}
+	}
+
+	return (NULL);
+}
+
 int
 main(int argc, char *argv[])
 {
+	char *provider_name;
+	int ch;
+
+	provider_name = NULL;
+
+	if (strcmp(getprogname(), "geom") == 0) {
+		while ((ch = getopt(argc, argv, "hp:")) != -1) {
+			switch (ch) {
+			case 'p':
+				provider_name = strdup(optarg);
+				if (provider_name == NULL)
+					err(1, "strdup");
+				break;
+			case 'h':
+			default:
+				usage();
+			}
+		}
+
+		/*
+		 * Don't adjust argc and argv, it would break get_class().
+		 */
+	}
+
+	if (provider_name != NULL) {
+		list_one_geom_by_provider(provider_name);
+		return (0);
+	}
 
 	get_class(&argc, &argv);
 	run_command(argc, argv);
@@ -765,6 +815,25 @@ list_one_geom(struct ggeom *gp)
 		}
 	}
 	printf("\n");
+}
+
+static void
+list_one_geom_by_provider(const char *provider_name)
+{
+	struct gmesh mesh;
+	struct ggeom *gp;
+	int error;
+
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+
+	gp = find_geom_by_provider(&mesh, provider_name);
+	if (gp == NULL)
+		errx(EXIT_FAILURE, "Cannot find provider '%s'.", provider_name);
+
+	printf("Geom class: %s\n", gp->lg_class->lg_name);
+	list_one_geom(gp);
 }
 
 static void
