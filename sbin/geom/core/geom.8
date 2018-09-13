@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2011
+.Dd September 13, 2018
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -52,6 +52,9 @@
 .Ar class
 .Cm unload
 .Op Fl v
+.Nm
+.Fl p
+.Ar provider-name
 .Sh DESCRIPTION
 The
 .Nm
@@ -101,6 +104,13 @@ sysctl.
 Unload the kernel module which implements the given class.
 This command is only available if the given class is loaded as a
 kernel module.
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Cm status"
+.It Fl p Ar provider-name
+Print detailed information about the geom which provides
+.Ar provider-name .
 .El
 .Pp
 Class-specific commands are implemented as shared libraries which
