@@ -5,9 +5,6 @@ SHLIB_MAJOR=	9
 
 NO_LINT=
 
-.if exists(Makefile.man)
-.include "Makefile.man"
-.endif
 .include "../libcrypto/Makefile.inc"
 
 SRCS=	bio_ssl.c d1_both.c d1_clnt.c d1_lib.c d1_meth.c d1_pkt.c d1_srtp.c \
@@ -27,5 +24,4 @@ CFLAGS+=	-I${LCRYPTO_SRC}/crypto
 
 .include <bsd.lib.mk>
 
-.PATH:	${LCRYPTO_SRC}/ssl \
-	${.CURDIR}/man
+.PATH:	${LCRYPTO_SRC}/ssl
