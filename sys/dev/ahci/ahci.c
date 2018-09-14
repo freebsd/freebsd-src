@@ -100,6 +100,21 @@ static MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 #define RECOVERY_REQUEST_SENSE	2
 #define recovery_slot		spriv_field1
 
+#ifdef __powerpc64__
+#define AHCI_BUS_SPACE_MAXADDR_31BIT	0x7FFFFFFFU
+
+#define AHCI_BUS_SPACE_MAXADDR(quirks) \
+	(quirks & AHCI_Q_DMA31 ? AHCI_BUS_SPACE_MAXADDR_31BIT : \
+	 	BUS_SPACE_MAXADDR)
+
+#define AHCI_BUS_SPACE_MAXADDR_32BIT(quirks) \
+	(quirks & AHCI_Q_DMA31 ? AHCI_BUS_SPACE_MAXADDR_31BIT : \
+	 	BUS_SPACE_MAXADDR_32BIT)
+#else
+#define AHCI_BUS_SPACE_MAXADDR(quirks) 		BUS_SPACE_MAXADDR
+#define AHCI_BUS_SPACE_MAXADDR_32BIT(quirks)	BUS_SPACE_MAXADDR_32BIT
+#endif
+
 int
 ahci_ctlr_setup(device_t dev)
 {
@@ -248,8 +263,10 @@ ahci_attach(device_t dev)
 
 	/* Create controller-wide DMA tag. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
-	    (ctlr->caps & AHCI_CAP_64BIT) ? BUS_SPACE_MAXADDR :
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    (ctlr->caps & AHCI_CAP_64BIT) ?
+	    	AHCI_BUS_SPACE_MAXADDR(ctlr->quirks) :
+	    		AHCI_BUS_SPACE_MAXADDR_32BIT(ctlr->quirks),
+	    AHCI_BUS_SPACE_MAXADDR(ctlr->quirks), NULL, NULL,
 	    BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE,
 	    ctlr->dma_coherent ? BUS_DMA_COHERENT : 0, NULL, NULL, 
 	    &ctlr->dma_tag)) {
@@ -943,7 +960,8 @@ ahci_dmainit(device_t dev)
 
 	/* Command area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1024, 0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    AHCI_BUS_SPACE_MAXADDR(ch->quirks),
+	    AHCI_BUS_SPACE_MAXADDR(ch->quirks),
 	    NULL, NULL, AHCI_WORK_SIZE, 1, AHCI_WORK_SIZE,
 	    0, NULL, NULL, &ch->dma.work_tag))
 		goto error;
@@ -962,7 +980,8 @@ ahci_dmainit(device_t dev)
 	else
 	    rfsize = 256;
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), rfsize, 0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    AHCI_BUS_SPACE_MAXADDR(ch->quirks),
+	    AHCI_BUS_SPACE_MAXADDR(ch->quirks),
 	    NULL, NULL, rfsize, 1, rfsize,
 	    0, NULL, NULL, &ch->dma.rfis_tag))
 		goto error;
@@ -977,7 +996,8 @@ ahci_dmainit(device_t dev)
 	ch->dma.rfis_bus = dcba.maddr;
 	/* Data area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    AHCI_BUS_SPACE_MAXADDR(ch->quirks),
+	    AHCI_BUS_SPACE_MAXADDR(ch->quirks),
 	    NULL, NULL,
 	    AHCI_SG_ENTRIES * PAGE_SIZE * ch->numslots,
 	    AHCI_SG_ENTRIES, AHCI_PRD_MAX,
