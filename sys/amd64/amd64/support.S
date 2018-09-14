@@ -41,7 +41,7 @@
 	.text
 
 /* Address: %rdi */
-ENTRY(pagezero)
+ENTRY(pagezero_std)
 	PUSH_FRAME_POINTER
 	movq	$PAGE_SIZE/8,%rcx
 	xorl	%eax,%eax
@@ -49,7 +49,17 @@ ENTRY(pagezero)
 	stosq
 	POP_FRAME_POINTER
 	ret
-END(pagezero)
+END(pagezero_std)
+
+ENTRY(pagezero_erms)
+	PUSH_FRAME_POINTER
+	movq	$PAGE_SIZE,%rcx
+	xorl	%eax,%eax
+	rep
+	stosb
+	POP_FRAME_POINTER
+	ret
+END(pagezero_erms)
 
 /*
  * pagecopy(%rdi=from, %rsi=to)
