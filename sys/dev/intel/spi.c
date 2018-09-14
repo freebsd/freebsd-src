@@ -480,7 +480,7 @@ error:
 		    sc->sc_mem_rid, sc->sc_mem_res);
 
 	if (sc->sc_irq_res != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY,
+		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->sc_irq_rid, sc->sc_irq_res);
 
 	return (ENXIO);
@@ -503,7 +503,7 @@ intelspi_detach(device_t dev)
 		    sc->sc_mem_rid, sc->sc_mem_res);
 
 	if (sc->sc_irq_res != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY,
+		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->sc_irq_rid, sc->sc_irq_res);
 
 	return (0);
