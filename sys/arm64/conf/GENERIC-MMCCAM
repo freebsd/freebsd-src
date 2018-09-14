@@ -9,6 +9,7 @@
 #NO_UNIVERSE
 
 include		GENERIC
+ident		GENERIC-MMCCAM
 
 # Add CAMDEBUG stuff
 options 	CAMDEBUG

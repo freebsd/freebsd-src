@@ -161,17 +161,19 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		if (ppdev[i] != NULL) {
 			dev = libusb_get_device(ppdev[i]);
 
-			if (fds[i].revents == 0)
-				err = 0;	/* nothing to do */
-			else
+			if (fds[i].revents != 0) {
 				err = libusb20_dev_process(ppdev[i]);
 
-			if (err) {
-				/* cancel all transfers - device is gone */
-				libusb10_cancel_all_transfer(dev);
+				if (err) {
+					/* set device is gone */
+					dev->device_is_gone = 1;
 
-				/* remove USB device from polling loop */
-				libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);
+					/* remove USB device from polling loop */
+					libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);
+
+					/* cancel all pending transfers */
+					libusb10_cancel_all_transfer_locked(ppdev[i], dev);
+				}
 			}
 			CTX_UNLOCK(ctx);
 			libusb_unref_device(dev);
@@ -180,10 +182,8 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		} else {
 			uint8_t dummy;
 
-			while (1) {
-				if (read(fds[i].fd, &dummy, 1) != 1)
-					break;
-			}
+			while (read(fds[i].fd, &dummy, 1) == 1)
+				;
 		}
 	}
 
@@ -489,13 +489,26 @@ libusb_control_transfer(libusb_device_handle *devh,
 	return (actlen);
 }
 
+static libusb_context *
+libusb10_get_context_by_device_handle(libusb_device_handle *devh)
+{
+	libusb_context *ctx;
+
+	if (devh != NULL)
+		ctx = libusb_get_device(devh)->ctx;
+	else
+		ctx = NULL;
+
+	return (GET_CONTEXT(ctx));
+}
+
 static void
 libusb10_do_transfer_cb(struct libusb_transfer *transfer)
 {
 	libusb_context *ctx;
 	int *pdone;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(transfer->dev_handle);
 
 	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "sync I/O done");
 
@@ -585,7 +598,8 @@ libusb_bulk_transfer(libusb_device_handle *devh,
 	libusb_context *ctx;
 	int ret;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(devh);
+
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,
@@ -603,7 +617,8 @@ libusb_interrupt_transfer(libusb_device_handle *devh,
 	libusb_context *ctx;
 	int ret;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(devh);
+
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,

@@ -5401,14 +5401,6 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_RST)
 		return (rack_process_rst(m, th, so, tp));
 	/*
-	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
-	 * synchronized state.
-	 */
-	if (thflags & TH_SYN) {
-		rack_challenge_ack(m, th, tp, &ret_val);
-		return (ret_val);
-	}
-	/*
 	 * RFC 1323 PAWS: If we have a timestamp reply on this segment and
 	 * it's less than ts_recent, drop it.
 	 */
@@ -5478,6 +5470,16 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * FIN-WAIT-1
 	 */
 	tp->t_starttime = ticks;
+	if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
+		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
+		tp->t_tfo_pending = NULL;
+
+		/*
+		 * Account for the ACK of our SYN prior to
+		 * regular ACK processing below.
+		 */ 
+		tp->snd_una++;
+	}
 	if (tp->t_flags & TF_NEEDFIN) {
 		tcp_state_change(tp, TCPS_FIN_WAIT_1);
 		tp->t_flags &= ~TF_NEEDFIN;
@@ -5485,16 +5487,6 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tcp_state_change(tp, TCPS_ESTABLISHED);
 		TCP_PROBE5(accept__established, NULL, tp,
 		    mtod(m, const char *), tp, th);
-		if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
-			tcp_fastopen_decrement_counter(tp->t_tfo_pending);
-			tp->t_tfo_pending = NULL;
-
-			/*
-			 * Account for the ACK of our SYN prior to regular
-			 * ACK processing below.
-			 */
-			tp->snd_una++;
-		}
 		/*
 		 * TFO connections call cc_conn_init() during SYN
 		 * processing.  Calling it again here for such connections
@@ -6924,16 +6916,6 @@ rack_output(struct tcpcb *tp)
 	if (tp->t_flags & TF_TOE)
 		return (tcp_offload_output(tp));
 #endif
-
-	/*
-	 * For TFO connections in SYN_RECEIVED, only allow the initial
-	 * SYN|ACK and those sent by the retransmit timer.
-	 */
-	if (IS_FASTOPEN(tp->t_flags) &&
-	    (tp->t_state == TCPS_SYN_RECEIVED) &&
-	    SEQ_GT(tp->snd_max, tp->snd_una) &&    /* initial SYN|ACK sent */
-	    (rack->r_ctl.rc_resend == NULL))         /* not a retransmit */
-		return (0);
 #ifdef INET6
 	if (rack->r_state) {
 		/* Use the cache line loaded if possible */
@@ -6975,6 +6957,17 @@ rack_output(struct tcpcb *tp)
 	}
 	rack->r_wanted_output = 0;
 	rack->r_timer_override = 0;
+	/*
+	 * For TFO connections in SYN_SENT or SYN_RECEIVED,
+	 * only allow the initial SYN or SYN|ACK and those sent
+	 * by the retransmit timer.
+	 */
+	if (IS_FASTOPEN(tp->t_flags) &&
+	    ((tp->t_state == TCPS_SYN_RECEIVED) ||
+	     (tp->t_state == TCPS_SYN_SENT)) &&
+	    SEQ_GT(tp->snd_max, tp->snd_una) && /* initial SYN or SYN|ACK sent */
+	    (tp->t_rxtshift == 0))              /* not a retransmit */
+		return (0);
 	/*
 	 * Determine length of data that should be transmitted, and flags
 	 * that will be used. If there is some data or critical controls
@@ -7353,8 +7346,10 @@ again:
 	    (((flags & TH_SYN) && (tp->t_rxtshift > 0)) ||
 	     ((tp->t_state == TCPS_SYN_SENT) &&
 	      (tp->t_tfo_client_cookie_len == 0)) ||
-	     (flags & TH_RST)))
+	     (flags & TH_RST))) {
+		sack_rxmit = 0;
 		len = 0;
+	}
 	/* Without fast-open there should never be data sent on a SYN */
 	if ((flags & TH_SYN) && (!IS_FASTOPEN(tp->t_flags)))
 		len = 0;

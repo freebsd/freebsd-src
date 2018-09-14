@@ -3954,7 +3954,7 @@ get_params__post_init(struct adapter *sc)
 		sc->toecaps = 0;
 
 		param[0] = FW_PARAM_DEV(NTID);
-		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query HASHFILTER parameters: %d.\n", rc);

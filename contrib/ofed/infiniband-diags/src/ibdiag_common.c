@@ -84,8 +84,7 @@ static const struct ibdiag_opt *opts_map[256];
 
 static const char *get_build_version(void)
 {
-	return "BUILD VERSION: " IBDIAG_VERSION " Build date: " __DATE__ " "
-	    __TIME__;
+	return "BUILD VERSION: " IBDIAG_VERSION;
 }
 
 static void pretty_print(int start, int width, const char *str)

@@ -84,7 +84,7 @@ extern uintptr_t dpcpu_off[];
 /* struct _hack is to stop this from being used with the static keyword. */
 #define	DPCPU_DEFINE(t, n)	\
     struct _hack; t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
-#if defined(KLD_MODULE) && defined(__aarch64__)
+#if defined(KLD_MODULE) && (defined(__aarch64__) || defined(__riscv))
 /*
  * On some architectures the compiler will use PC-relative load to
  * find the address of DPCPU data with the static keyword. We then

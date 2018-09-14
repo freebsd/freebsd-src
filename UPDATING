@@ -113,7 +113,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20180719:
 	New uid:gid added, ntpd:ntpd (123:123).  Be sure to run mergemaster
 	or take steps to update /etc/passwd before doing installworld on
-	existing systems.  Also, rc.d/ntpd now starts ntpd(8) as user ntpd
+	existing systems.  Do not skip the "mergemaster -Fp" step before
+	installworld, as described in the update procedures near the bottom
+	of this document.  Also, rc.d/ntpd now starts ntpd(8) as user ntpd
 	if the new mac_ntpd(4) policy is available, unless ntpd_flags or
 	the ntp config file contain options that change file/dir locations.
 	When such options (e.g., "statsdir" or "crypto") are used, ntpd can

@@ -1266,6 +1266,8 @@ template <class ELFT> void DynamicSection<ELFT>::finalizeContents() {
     DtFlags |= DF_SYMBOLIC;
   if (Config->ZInitfirst)
     DtFlags1 |= DF_1_INITFIRST;
+  if (Config->ZInterpose)
+    DtFlags1 |= DF_1_INTERPOSE;
   if (Config->ZNodelete)
     DtFlags1 |= DF_1_NODELETE;
   if (Config->ZNodlopen)

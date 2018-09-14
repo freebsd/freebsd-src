@@ -1,5 +1,5 @@
-# Copyright 1998 Juniper Networks, Inc.
-# All rights reserved.
+#
+# Copyright 2018 Yuri Pankov
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,12 +23,23 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
 
-# The modules link in libpam.  They build the static modules as well.
-SUBDIR+=	libpam modules pam.d
-SUBDIR_DEPEND_modules=	libpam
-SUBDIR+=	static_libpam
-SUBDIR_DEPEND_static_libpam= modules
-SUBDIR_PARALLEL=
+atf_test_case unlink_dash_filename
+unlink_dash_filename_head()
+{
+	atf_set "descr" "unlink correctly handles -filename"
+}
+unlink_dash_filename_body()
+{
+	touch -- foo bar -foo -bar
+	atf_check -s exit:0 unlink foo
+	atf_check -s exit:0 unlink -- bar
+	atf_check -s exit:0 unlink -foo
+	atf_check -s exit:0 unlink -- -bar
+}
 
-.include <bsd.subdir.mk>
+atf_init_test_cases()
+{
+	atf_add_test_case unlink_dash_filename
+}
