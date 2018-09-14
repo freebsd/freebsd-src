@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
@@ -3942,9 +3943,16 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		pmc->pm_flags = pa.pm_flags;
 
 		/* XXX set lower bound on sampling for process counters */
-		if (PMC_IS_SAMPLING_MODE(mode))
-			pmc->pm_sc.pm_reloadcount = pa.pm_count;
-		else
+		if (PMC_IS_SAMPLING_MODE(mode)) {
+			/*
+			 * Don't permit requested sample rate to be less than 1000
+			 */
+			if (pa.pm_count < 1000)
+				log(LOG_WARNING,
+					"pmcallocate: passed sample rate %ju - setting to 1000\n",
+					(uintmax_t)pa.pm_count);
+			pmc->pm_sc.pm_reloadcount = MAX(1000, pa.pm_count);
+		} else
 			pmc->pm_sc.pm_initial = pa.pm_count;
 
 		/* switch thread to CPU 'cpu' */
@@ -4460,9 +4468,16 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 		}
 
-		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-			pm->pm_sc.pm_reloadcount = sc.pm_count;
-		else
+		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+			/*
+			 * Don't permit requested sample rate to be less than 1000
+			 */
+			if (sc.pm_count < 1000)
+				log(LOG_WARNING,
+					"pmcsetcount: passed sample rate %ju - setting to 1000\n",
+					(uintmax_t)sc.pm_count);
+			pm->pm_sc.pm_reloadcount = MAX(1000, sc.pm_count);
+		} else
 			pm->pm_sc.pm_initial = sc.pm_count;
 	}
 	break;
