@@ -330,11 +330,9 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_RISCV_RELATIVE:
-		val = relocbase + addend;
-
 		before64 = *where;
-		if (*where != val)
-			*where = val;
+
+		*where = elf_relocaddr(lf, relocbase + addend);
 
 		if (debug_kld)
 			printf("%p %c %-24s %016lx -> %016lx\n",

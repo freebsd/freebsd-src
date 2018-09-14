@@ -41,22 +41,24 @@
 #define	HOTPLUG_LOCK(ctx) pthread_mutex_lock(&(ctx)->hotplug_lock)
 #define	HOTPLUG_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->hotplug_lock)
 
-#define	DPRINTF(ctx, dbg, format, args...) do {	\
-    if ((ctx)->debug == dbg) {			\
-	switch (dbg) {				\
-	case LIBUSB_DEBUG_FUNCTION:		\
-		printf("LIBUSB_FUNCTION: "	\
-		    format "\n", ## args);	\
-		break;				\
-	case LIBUSB_DEBUG_TRANSFER:		\
-		printf("LIBUSB_TRANSFER: "	\
-		    format "\n", ## args);	\
-		break;				\
-	default:				\
-		break;				\
-	}					\
-    }						\
-} while(0)
+#define	DPRINTF(ctx, dbg, format, ...) do {			\
+	switch (dbg) {						\
+	case LIBUSB_DEBUG_FUNCTION:				\
+		if ((ctx)->debug & LIBUSB_DEBUG_FUNCTION) {	\
+			printf("LIBUSB_FUNCTION: "		\
+			       format "\n", ## __VA_ARGS__);	\
+		}						\
+		break;						\
+	case LIBUSB_DEBUG_TRANSFER:				\
+		if ((ctx)->debug & LIBUSB_DEBUG_TRANSFER) { 	\
+			printf("LIBUSB_TRANSFER: "		\
+			       format "\n", ## __VA_ARGS__);	\
+		}						\
+		break;						\
+	default:						\
+		break;						\
+	}							\
+} while (0)
 
 /* internal structures */
 
@@ -116,6 +118,8 @@ struct libusb_context {
 struct libusb_device {
 	int	refcnt;
 
+	int	device_is_gone;
+
 	uint32_t claimed_interfaces;
 
 	struct libusb_super_pollfd dev_poll;
@@ -134,5 +138,6 @@ extern struct libusb_context *usbi_default_context;
 void	libusb10_add_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd, struct libusb20_device *pdev, int fd, short events);
 void	libusb10_remove_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd);
 void	libusb10_cancel_all_transfer(libusb_device *dev);
+void	libusb10_cancel_all_transfer_locked(struct libusb20_device *pdev, struct libusb_device *dev);
 
 #endif					/* __LIBUSB10_H__ */

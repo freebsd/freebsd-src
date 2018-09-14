@@ -41,6 +41,8 @@ options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilites
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
 options 	MAC			# Support for Mandatory Access Control (MAC)

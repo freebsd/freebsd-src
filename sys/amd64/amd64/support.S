@@ -41,7 +41,7 @@
 	.text
 
 /* Address: %rdi */
-ENTRY(pagezero)
+ENTRY(pagezero_std)
 	PUSH_FRAME_POINTER
 	movq	$PAGE_SIZE/8,%rcx
 	xorl	%eax,%eax
@@ -49,7 +49,17 @@ ENTRY(pagezero)
 	stosq
 	POP_FRAME_POINTER
 	ret
-END(pagezero)
+END(pagezero_std)
+
+ENTRY(pagezero_erms)
+	PUSH_FRAME_POINTER
+	movq	$PAGE_SIZE,%rcx
+	xorl	%eax,%eax
+	rep
+	stosb
+	POP_FRAME_POINTER
+	ret
+END(pagezero_erms)
 
 /*
  * pagecopy(%rdi=from, %rsi=to)
@@ -96,7 +106,7 @@ END(sse2_pagezero)
  * Adapted from bcopy written by:
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
-ENTRY(memmove)
+ENTRY(memmove_std)
 	PUSH_FRAME_POINTER
 	movq	%rdi,%r9
 	movq	%rdx,%rcx
@@ -142,7 +152,37 @@ ENTRY(memmove)
 	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
-END(memmove)
+END(memmove_std)
+
+ENTRY(memmove_erms)
+	PUSH_FRAME_POINTER
+	movq	%rdi,%r9
+	movq	%rdx,%rcx
+
+	movq	%rdi,%rax
+	subq	%rsi,%rax
+	cmpq	%rcx,%rax			/* overlapping && src < dst? */
+	jb	1f
+
+	rep
+	movsb
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+
+1:
+	addq	%rcx,%rdi			/* copy backwards */
+	addq	%rcx,%rsi
+	decq	%rdi
+	decq	%rsi
+	std
+	rep
+	movsb
+	cld
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+END(memmove_erms)
 
 /*
  * memcpy(dst, src, len)
@@ -150,7 +190,7 @@ END(memmove)
  *
  * Note: memcpy does not support overlapping copies
  */
-ENTRY(memcpy)
+ENTRY(memcpy_std)
 	PUSH_FRAME_POINTER
 	movq	%rdi,%rax
 	movq	%rdx,%rcx
@@ -167,13 +207,23 @@ ENTRY(memcpy)
 	movsb
 	POP_FRAME_POINTER
 	ret
-END(memcpy)
+END(memcpy_std)
+
+ENTRY(memcpy_erms)
+	PUSH_FRAME_POINTER
+	movq	%rdi,%rax
+	movq	%rdx,%rcx
+	rep
+	movsb
+	POP_FRAME_POINTER
+	ret
+END(memcpy_erms)
 
 /*
  * memset(dst, c,   len)
  *        rdi, rsi, rdx
  */
-ENTRY(memset)
+ENTRY(memset_std)
 	PUSH_FRAME_POINTER
 	movq	%rdi,%r9
 	movq	%rdx,%rcx
@@ -195,7 +245,19 @@ ENTRY(memset)
 	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
-END(memset)
+END(memset_std)
+
+ENTRY(memset_erms)
+	PUSH_FRAME_POINTER
+	movq	%rdi,%r9
+	movq	%rdx,%rcx
+	movb	%sil,%al
+	rep
+	stosb
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+END(memset_erms)
 
 /* fillw(pat, base, cnt) */
 /*       %rdi,%rsi, %rdx */

@@ -846,6 +846,7 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   Config->ZHazardplt = hasZOption(Args, "hazardplt");
   Config->ZIfuncnoplt = hasZOption(Args, "ifunc-noplt");
   Config->ZInitfirst = hasZOption(Args, "initfirst");
+  Config->ZInterpose = hasZOption(Args, "interpose");
   Config->ZKeepTextSectionPrefix = getZFlag(
       Args, "keep-text-section-prefix", "nokeep-text-section-prefix", false);
   Config->ZNodelete = hasZOption(Args, "nodelete");

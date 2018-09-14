@@ -101,13 +101,12 @@ main(int argc, char *argv[])
 	else
 		++p;
 	if (strcmp(p, "unlink") == 0) {
-		while (getopt(argc, argv, "") != -1)
+		if (argc == 2)
+			rm_file(&argv[1]);
+		else if (argc == 3 && strcmp(argv[1], "--") == 0)
+			rm_file(&argv[2]);
+		else
 			usage();
-		argc -= optind;
-		argv += optind;
-		if (argc != 1)
-			usage();
-		rm_file(&argv[0]);
 		exit(eval);
 	}
 
@@ -634,7 +633,7 @@ usage(void)
 
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: rm [-f | -i] [-dIPRrvWx] file ...",
-	    "       unlink file");
+	    "       unlink [--] file");
 	exit(EX_USAGE);
 }
 

@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 	u_int pageins;
 	const char *user, *kernel = NULL;
 
-	if (strcmp(getprogname(), "halt") == 0) {
+	if (strstr(getprogname(), "halt") != NULL) {
 		dohalt = 1;
 		howto = RB_HALT;
 	} else
