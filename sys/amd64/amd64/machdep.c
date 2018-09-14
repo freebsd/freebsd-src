@@ -2693,3 +2693,12 @@ DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull, size_t),
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
 		memcpy_erms : memcpy_std);
 }
+
+void	pagezero_std(void *addr);
+void	pagezero_erms(void *addr);
+DEFINE_IFUNC(, void , pagezero, (void *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
+		pagezero_erms : pagezero_std);
+}
