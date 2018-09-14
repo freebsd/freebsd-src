@@ -123,7 +123,7 @@ static char *trap_msg[] = {
 	"",					/*  7 unused */
 	"",					/*  8 unused */
 	"general protection fault",		/*  9 T_PROTFLT */
-	"trace trap",				/* 10 T_TRCTRAP */
+	"debug exception",			/* 10 T_TRCTRAP */
 	"",					/* 11 unused */
 	"page fault",				/* 12 T_PAGEFLT */
 	"",					/* 13 unused */
@@ -184,10 +184,7 @@ trap(struct trapframe *frame)
 	ksiginfo_t ksi;
 	struct thread *td;
 	struct proc *p;
-	register_t addr;
-#ifdef KDB
-	register_t dr6;
-#endif
+	register_t addr, dr6;
 	int signo, ucode;
 	u_int type;
 
@@ -196,6 +193,7 @@ trap(struct trapframe *frame)
 	signo = 0;
 	ucode = 0;
 	addr = 0;
+	dr6 = 0;
 
 	PCPU_INC(cnt.v_trap);
 	type = frame->tf_trapno;
@@ -283,18 +281,29 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_BPTFLT:		/* bpt instruction fault */
-		case T_TRCTRAP:		/* trace trap */
 			enable_intr();
 #ifdef KDTRACE_HOOKS
-			if (type == T_BPTFLT) {
-				if (dtrace_pid_probe_ptr != NULL &&
-				    dtrace_pid_probe_ptr(frame) == 0)
-					return;
-			}
+			if (dtrace_pid_probe_ptr != NULL &&
+			    dtrace_pid_probe_ptr(frame) == 0)
+				return;
 #endif
-			frame->tf_rflags &= ~PSL_T;
 			signo = SIGTRAP;
-			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
+			ucode = TRAP_BRKPT;
+			break;
+
+		case T_TRCTRAP:		/* debug exception */
+			enable_intr();
+			signo = SIGTRAP;
+			ucode = TRAP_TRACE;
+			dr6 = rdr6();
+			if ((dr6 & DBREG_DR6_BS) != 0) {
+				PROC_LOCK(td->td_proc);
+				if ((td->td_dbgflags & TDB_STEP) != 0) {
+					td->td_frame->tf_rflags &= ~PSL_T;
+					td->td_dbgflags &= ~TDB_STEP;
+				}
+				PROC_UNLOCK(td->td_proc);
+			}
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
@@ -532,9 +541,13 @@ trap(struct trapframe *frame)
 			}
 			break;
 
-		case T_TRCTRAP:	 /* trace trap */
+		case T_TRCTRAP:	 /* debug exception */
+			/* Clear any pending debug events. */
+			dr6 = rdr6();
+			load_dr6(0);
+
 			/*
-			 * Ignore debug register trace traps due to
+			 * Ignore debug register exceptions due to
 			 * accesses in the user's address space, which
 			 * can happen under several conditions such as
 			 * if a user sets a watchpoint on a buffer and
@@ -543,14 +556,8 @@ trap(struct trapframe *frame)
 			 * in kernel space because that is useful when
 			 * debugging the kernel.
 			 */
-			if (user_dbreg_trap()) {
-				/*
-				 * Reset breakpoint bits because the
-				 * processor doesn't
-				 */
-				load_dr6(rdr6() & ~0xf);
+			if (user_dbreg_trap(dr6))
 				return;
-			}
 
 			/*
 			 * Malicious user code can configure a debug
@@ -606,9 +613,6 @@ trap(struct trapframe *frame)
 			 * Otherwise, debugger traps "can't happen".
 			 */
 #ifdef KDB
-			/* XXX %dr6 is not quite reentrant. */
-			dr6 = rdr6();
-			load_dr6(dr6 & ~0x4000);
 			if (kdb_trap(type, dr6, frame))
 				return;
 #endif
@@ -651,6 +655,13 @@ trap(struct trapframe *frame)
 	}
 	KASSERT((read_rflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
+
+	/*
+	 * Clear any pending debug exceptions after allowing a
+	 * debugger to read DR6 while stopped in trapsignal().
+	 */
+	if (type == T_TRCTRAP)
+		load_dr6(0);
 userret:
 	userret(td, frame);
 	KASSERT(PCB_USER_FPU(td->td_pcb),

@@ -589,8 +589,12 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
-	struct trapframe *regs = td->td_frame;
-	struct pcb *pcb = td->td_pcb;
+	struct trapframe *regs;
+	struct pcb *pcb;
+	register_t saved_rflags;
+
+	regs = td->td_frame;
+	pcb = td->td_pcb;
 
 	mtx_lock(&dt_lock);
 	if (td->td_proc->p_md.md_ldt != NULL)
@@ -604,11 +608,12 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	clear_pcb_flags(pcb, PCB_32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 
+	saved_rflags = regs->tf_rflags & PSL_T;
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = ((stack - 8) & ~0xFul) + 8;
 	regs->tf_rdi = stack;		/* argv */
-	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_rflags = PSL_USER | saved_rflags;
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -1990,14 +1995,21 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 int
 ptrace_single_step(struct thread *td)
 {
-	td->td_frame->tf_rflags |= PSL_T;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	if ((td->td_frame->tf_rflags & PSL_T) == 0) {
+		td->td_frame->tf_rflags |= PSL_T;
+		td->td_dbgflags |= TDB_STEP;
+	}
 	return (0);
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	td->td_frame->tf_rflags &= ~PSL_T;
+	td->td_dbgflags &= ~TDB_STEP;
 	return (0);
 }
 
@@ -2500,14 +2512,23 @@ reset_dbregs(void)
  * breakpoint was in user space.  Return 0, otherwise.
  */
 int
-user_dbreg_trap(void)
+user_dbreg_trap(register_t dr6)
 {
-        u_int64_t dr7, dr6; /* debug registers dr6 and dr7 */
+        u_int64_t dr7;
         u_int64_t bp;       /* breakpoint bits extracted from dr6 */
         int nbp;            /* number of breakpoints that triggered */
         caddr_t addr[4];    /* breakpoint addresses */
         int i;
-        
+
+        bp = dr6 & DBREG_DR6_BMASK;
+        if (bp == 0) {
+                /*
+                 * None of the breakpoint bits are set meaning this
+                 * trap was not caused by any of the debug registers
+                 */
+                return 0;
+        }
+
         dr7 = rdr7();
         if ((dr7 & 0x000000ff) == 0) {
                 /*
@@ -2519,16 +2540,6 @@ user_dbreg_trap(void)
         }
 
         nbp = 0;
-        dr6 = rdr6();
-        bp = dr6 & 0x0000000f;
-
-        if (!bp) {
-                /*
-                 * None of the breakpoint bits are set meaning this
-                 * trap was not caused by any of the debug registers
-                 */
-                return 0;
-        }
 
         /*
          * at least one of the breakpoints were hit, check to see
