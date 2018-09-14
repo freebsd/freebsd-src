@@ -489,13 +489,26 @@ libusb_control_transfer(libusb_device_handle *devh,
 	return (actlen);
 }
 
+static libusb_context *
+libusb10_get_context_by_device_handle(libusb_device_handle *devh)
+{
+	libusb_context *ctx;
+
+	if (devh != NULL)
+		ctx = libusb_get_device(devh)->ctx;
+	else
+		ctx = NULL;
+
+	return (GET_CONTEXT(ctx));
+}
+
 static void
 libusb10_do_transfer_cb(struct libusb_transfer *transfer)
 {
 	libusb_context *ctx;
 	int *pdone;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(transfer->dev_handle);
 
 	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "sync I/O done");
 
@@ -585,7 +598,8 @@ libusb_bulk_transfer(libusb_device_handle *devh,
 	libusb_context *ctx;
 	int ret;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(devh);
+
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,
@@ -603,7 +617,8 @@ libusb_interrupt_transfer(libusb_device_handle *devh,
 	libusb_context *ctx;
 	int ret;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(devh);
+
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,
