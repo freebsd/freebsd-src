@@ -885,6 +885,7 @@ cache_setup(void)
 void
 initarm(struct arm64_bootparams *abp)
 {
+	struct efi_fb *efifb;
 	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
 #ifdef FDT
@@ -930,6 +931,13 @@ initarm(struct arm64_bootparams *abp)
 		    &physmap_idx);
 	}
 #endif
+
+	/* Exclude the EFI framebuffer from our view of physical memory. */
+	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_FB);
+	if (efifb != NULL)
+		arm_physmem_exclude_region(efifb->fb_addr, efifb->fb_size,
+		    EXFLAG_NOALLOC);
 
 	/* Print the memory map */
 	mem_len = 0;
