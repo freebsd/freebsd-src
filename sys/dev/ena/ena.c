@@ -2302,6 +2302,8 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 	rc = 0;
 	switch (command) {
 	case SIOCSIFMTU:
+		if (ifp->if_mtu == ifr->ifr_mtu)
+			break;
 		sx_xlock(&adapter->ioctl_sx);
 		ena_down(adapter);
 
