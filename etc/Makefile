@@ -21,12 +21,10 @@ BIN1=	\
 	libmap.conf \
 	login.access \
 	mac.conf \
-	netconfig \
 	phones \
 	rc.bsdextended \
 	rc.firewall \
 	remote \
-	rpc \
 	termcap.small
 
 # NB: keep these sorted by MK_* knobs
