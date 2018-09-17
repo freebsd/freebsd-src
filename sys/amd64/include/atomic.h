@@ -444,10 +444,10 @@ ATOMIC_ASM(clear,    int,   "andl %1,%0",  "ir", ~v);
 ATOMIC_ASM(add,	     int,   "addl %1,%0",  "ir",  v);
 ATOMIC_ASM(subtract, int,   "subl %1,%0",  "ir",  v);
 
-ATOMIC_ASM(set,	     long,  "orq %1,%0",   "ir",  v);
-ATOMIC_ASM(clear,    long,  "andq %1,%0",  "ir", ~v);
-ATOMIC_ASM(add,	     long,  "addq %1,%0",  "ir",  v);
-ATOMIC_ASM(subtract, long,  "subq %1,%0",  "ir",  v);
+ATOMIC_ASM(set,	     long,  "orq %1,%0",   "er",  v);
+ATOMIC_ASM(clear,    long,  "andq %1,%0",  "er", ~v);
+ATOMIC_ASM(add,	     long,  "addq %1,%0",  "er",  v);
+ATOMIC_ASM(subtract, long,  "subq %1,%0",  "er",  v);
 
 #define	ATOMIC_LOADSTORE(TYPE)					\
 	ATOMIC_LOAD(TYPE);					\
