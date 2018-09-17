@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2016
+.Dd August 17, 2018
 .Dt PTHREAD_MUTEX_TIMEDLOCK 3
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .In pthread.h
 .In time.h
 .Ft int
-.Fn pthread_mutex_timedlock "pthread_mutex_t *mutex" "const struct timespec *abs_timeout"
+.Fn pthread_mutex_timedlock "pthread_mutex_t *restrict mutex" "const struct timespec *restrict abs_timeout"
 .Sh DESCRIPTION
 The
 .Fn pthread_mutex_timedlock

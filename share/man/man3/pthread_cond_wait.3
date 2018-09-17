@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2016
+.Dd August 17, 2018
 .Dt PTHREAD_COND_WAIT 3
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_cond_wait "pthread_cond_t *cond" "pthread_mutex_t *mutex"
+.Fn pthread_cond_wait "pthread_cond_t *restrict cond" "pthread_mutex_t *restrict mutex"
 .Sh DESCRIPTION
 The
 .Fn pthread_cond_wait

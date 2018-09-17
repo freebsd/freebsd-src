@@ -56,8 +56,8 @@ _pthread_barrierattr_destroy(pthread_barrierattr_t *attr)
 }
 
 int
-_pthread_barrierattr_getpshared(const pthread_barrierattr_t *attr,
-    int *pshared)
+_pthread_barrierattr_getpshared(const pthread_barrierattr_t * __restrict attr,
+    int * __restrict pshared)
 {
 
 	if (attr == NULL || *attr == NULL)
