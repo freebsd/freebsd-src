@@ -1179,11 +1179,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	pmap_init_pat();
 
 	/* Initialize TLB Context Id. */
-	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
-	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
-		/* Check for INVPCID support */
-		invpcid_works = (cpu_stdext_feature & CPUID_STDEXT_INVPCID)
-		    != 0;
+	if (pmap_pcid_enabled) {
 		for (i = 0; i < MAXCPU; i++) {
 			kernel_pmap->pm_pcids[i].pm_pcid = PMAP_PCID_KERN;
 			kernel_pmap->pm_pcids[i].pm_gen = 1;
@@ -1204,8 +1200,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		 * during pcpu setup.
 		 */
 		load_cr4(rcr4() | CR4_PCIDE);
-	} else {
-		pmap_pcid_enabled = 0;
 	}
 }
 
