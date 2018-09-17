@@ -1307,6 +1307,18 @@ void ixgbe_restore_mdd_vf(struct ixgbe_hw *hw, u32 vf)
 }
 
 /**
+ *  ixgbe_fw_recovery_mode - Check if in FW NVM recovery mode
+ *  @hw: pointer to hardware structure
+ *
+ **/
+bool ixgbe_fw_recovery_mode(struct ixgbe_hw *hw)
+{
+	if (hw->mac.ops.fw_recovery_mode)
+		return hw->mac.ops.fw_recovery_mode(hw);
+	return false;
+}
+
+/**
  *  ixgbe_enter_lplu - Transition to low power states
  *  @hw: pointer to hardware structure
  *
