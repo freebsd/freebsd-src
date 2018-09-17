@@ -108,40 +108,40 @@ END(sse2_pagezero)
  */
 ENTRY(memmove_std)
 	PUSH_FRAME_POINTER
-	movq	%rdi,%r9
+	movq	%rdi,%rax
 	movq	%rdx,%rcx
 
-	movq	%rdi,%rax
-	subq	%rsi,%rax
-	cmpq	%rcx,%rax			/* overlapping && src < dst? */
-	jb	1f
+	movq	%rdi,%r8
+	subq	%rsi,%r8
+	cmpq	%rcx,%r8			/* overlapping && src < dst? */
+	jb	2f
 
 	shrq	$3,%rcx				/* copy by 64-bit words */
 	rep
 	movsq
 	movq	%rdx,%rcx
 	andq	$7,%rcx				/* any bytes left? */
-	jne	2f
-	movq	%r9,%rax
+	jne	1f
 	POP_FRAME_POINTER
 	ret
-2:
+1:
 	rep
 	movsb
-	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
 
 	/* ALIGN_TEXT */
-1:
+2:
 	addq	%rcx,%rdi			/* copy backwards */
 	addq	%rcx,%rsi
 	decq	%rdi
 	decq	%rsi
-	andq	$7,%rcx				/* any fractional bytes? */
 	std
+	andq	$7,%rcx				/* any fractional bytes? */
+	je	3f
 	rep
 	movsb
+3:
 	movq	%rdx,%rcx			/* copy remainder by 32-bit words */
 	shrq	$3,%rcx
 	subq	$7,%rsi
@@ -149,24 +149,22 @@ ENTRY(memmove_std)
 	rep
 	movsq
 	cld
-	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
 END(memmove_std)
 
 ENTRY(memmove_erms)
 	PUSH_FRAME_POINTER
-	movq	%rdi,%r9
+	movq	%rdi,%rax
 	movq	%rdx,%rcx
 
-	movq	%rdi,%rax
-	subq	%rsi,%rax
-	cmpq	%rcx,%rax			/* overlapping && src < dst? */
+	movq	%rdi,%r8
+	subq	%rsi,%r8
+	cmpq	%rcx,%r8			/* overlapping && src < dst? */
 	jb	1f
 
 	rep
 	movsb
-	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
 
@@ -179,7 +177,6 @@ ENTRY(memmove_erms)
 	rep
 	movsb
 	cld
-	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
 END(memmove_erms)

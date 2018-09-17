@@ -221,14 +221,20 @@ atpic_register_sources(struct pic *pic)
 	 * that APIC ISA routing and allowing the ATPIC source for that IRQ
 	 * to leak through.  We used to depend on this feature for routing
 	 * IRQ0 via mixed mode, but now we don't use mixed mode at all.
+	 *
+	 * To avoid the slave not register sources after the master
+	 * registers its sources, register all IRQs when this function is
+	 * called on the master.
 	 */
+	if (ap != &atpics[MASTER])
+		return;
 	for (i = 0; i < NUM_ISA_IRQS; i++)
 		if (intr_lookup_source(i) != NULL)
 			return;
 
 	/* Loop through all interrupt sources and add them. */
-	for (i = 0, ai = atintrs + ap->at_irqbase; i < 8; i++, ai++) {
-		if (ap->at_irqbase + i == ICU_SLAVEID)
+	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
+		if (i == ICU_SLAVEID)
 			continue;
 		intr_register_source(&ai->at_intsrc);
 	}
