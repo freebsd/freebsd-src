@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-shift $#
-getopts x opt
-r=$?
-[ "$r" != 0 ] && [ "$OPTIND" = 1 ]

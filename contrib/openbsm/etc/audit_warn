@@ -1,6 +1,0 @@
-#!/bin/sh
-#
-# $FreeBSD$
-#
-
-logger -p security.warning "audit warning: $@"

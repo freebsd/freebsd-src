@@ -1,3 +1,0 @@
-interfaces = "{ enc0, tun1000000 }"
-block drop in on enc0 all
-block drop in on tun1000000 all

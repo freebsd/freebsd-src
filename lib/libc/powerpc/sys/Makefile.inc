@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-MDASM+=	cerror.S

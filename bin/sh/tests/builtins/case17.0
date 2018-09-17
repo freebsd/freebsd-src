@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-! case x in x) false ;& y) esac

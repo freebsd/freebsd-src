@@ -1,4 +1,0 @@
-include start
-call OK addstr "abcde"
-call OK refresh
-compare addstr.chk

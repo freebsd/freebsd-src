@@ -1,3 +1,0 @@
-include start
-input "i"
-call 105 getch

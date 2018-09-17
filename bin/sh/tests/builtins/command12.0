@@ -1,7 +1,0 @@
-# $FreeBSD$
-
-alias aa=echo\ \'\"\'
-cmd=$(command -v aa)
-alias aa=echo\ bad
-eval "$cmd"
-[ "$(eval aa)" = \" ]

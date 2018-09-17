@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Enable firewire support in /boot/loader on x86. This option is a nop
-on all other platforms.

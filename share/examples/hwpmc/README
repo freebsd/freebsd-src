@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-Examples illustrating the use of the hwpmc(4) driver and pmc(3)
-library interface.
-
-
