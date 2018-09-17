@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-options		KERNVIRTADDR=0xc0100000
-makeoptions	KERNVIRTADDR=0xc0100000
-options		LINUX_BOOT_ABI

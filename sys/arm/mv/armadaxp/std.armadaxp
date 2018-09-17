@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-makeoptions	KERNVIRTADDR=0xc0200000
-options		KERNVIRTADDR=0xc0200000
