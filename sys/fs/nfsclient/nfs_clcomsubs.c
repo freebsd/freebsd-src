@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 
 extern struct nfsstatsv1 nfsstatsv1;
-extern struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS];
 extern int ncl_mbuf_mlen;
 extern enum vtype newnv2tov_type[8];
 extern enum vtype nv34tov_type[8];

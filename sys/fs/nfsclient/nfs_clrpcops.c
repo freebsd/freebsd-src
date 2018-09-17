@@ -5091,9 +5091,10 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 				NFSM_DISSECT(tl, uint32_t *, 5 * NFSX_UNSIGNED);
 				vers = fxdr_unsigned(uint32_t, *tl++);
 				minorvers = fxdr_unsigned(uint32_t, *tl++);
-				if ((vers == NFS_VER4 && minorvers ==
-				    NFSV41_MINORVERSION) || (vers == NFS_VER3 &&
-				    gotvers == 0)) {
+				if ((vers == NFS_VER4 && (minorvers ==
+				    NFSV41_MINORVERSION || minorvers ==
+				    NFSV42_MINORVERSION)) || (vers ==
+				    NFS_VER3 && gotvers == 0)) {
 					gotvers = vers;
 					/* We'll take this one. */
 					ndi->nfsdi_versindex = i;

@@ -4478,7 +4478,10 @@ nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
 	(void)nfsm_strtom(nd, optag, len);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	if ((nd->nd_flag & ND_NFSV41) != 0) {
-		*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
+		if ((nd->nd_flag & ND_NFSV42) != 0)
+			*tl++ = txdr_unsigned(NFSV42_MINORVERSION);
+		else
+			*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
 		*tl++ = txdr_unsigned(callback);
 		*tl++ = txdr_unsigned(2);
 		*tl = txdr_unsigned(NFSV4OP_CBSEQUENCE);

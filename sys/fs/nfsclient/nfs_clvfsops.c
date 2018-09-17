@@ -1150,7 +1150,7 @@ nfs_mount(struct mount *mp)
 	if (vfs_getopt(mp->mnt_optnew, "minorversion", (void **)&opt, NULL) ==
 	    0) {
 		ret = sscanf(opt, "%d", &minvers);
-		if (ret != 1 || minvers < 0 || minvers > 1 ||
+		if (ret != 1 || minvers < 0 || minvers > 2 ||
 		    (args.flags & NFSMNT_NFSV4) == 0) {
 			vfs_mount_error(mp, "illegal minorversion: %s", opt);
 			error = EINVAL;

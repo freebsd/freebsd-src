@@ -2121,6 +2121,8 @@ nfsd_getminorvers(struct nfsrv_descript *nd, u_char *tag, u_char **tagstrp,
 	*tagstrp = tagstr;
 	if (*minversp == NFSV41_MINORVERSION)
 		nd->nd_flag |= ND_NFSV41;
+	else if (*minversp == NFSV42_MINORVERSION)
+		nd->nd_flag |= (ND_NFSV41 | ND_NFSV42);
 nfsmout:
 	if (error != 0) {
 		if (tagstr != NULL && taglen > NFSV4_SMALLSTR)

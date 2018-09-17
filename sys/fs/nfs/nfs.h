@@ -686,6 +686,7 @@ struct nfsrv_descript {
 #define	ND_CURSTATEID		0x80000000
 #define	ND_SAVEDCURSTATEID	0x100000000
 #define	ND_HASSLOTID		0x200000000
+#define	ND_NFSV42		0x400000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.

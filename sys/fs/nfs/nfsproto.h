@@ -78,6 +78,7 @@
 #define	NFS_FABLKSIZE	512	/* Size in bytes of a block wrt fa_blocks */
 #define	NFSV4_MINORVERSION	0	/* V4 Minor version */
 #define	NFSV41_MINORVERSION	1	/* V4 Minor version */
+#define	NFSV42_MINORVERSION	2	/* V4 Minor version */
 #define	NFSV4_CBVERS		1	/* V4 CB Version */
 #define	NFSV41_CBVERS		4	/* V4.1 CB Version */
 #define	NFSV4_SMALLSTR	50		/* Strings small enough for stack */
@@ -920,6 +921,10 @@ struct nfsv3_sattr {
 #define	NFSATTRBIT_MODESETMASKED	74
 #define	NFSATTRBIT_SUPPATTREXCLCREAT	75
 #define	NFSATTRBIT_FSCHARSETCAP		76
+#define	NFSATTRBIT_CLONEBLKSIZE		77
+#define	NFSATTRBIT_SPACEFREED		78
+#define	NFSATTRBIT_CHANGEATTRTYPE	79
+#define	NFSATTRBIT_SECLABEL		80
 
 #define	NFSATTRBM_SUPPORTEDATTRS	0x00000001
 #define	NFSATTRBM_TYPE			0x00000002
@@ -998,8 +1003,12 @@ struct nfsv3_sattr {
 #define	NFSATTRBM_MODESETMASKED		0x00000400
 #define	NFSATTRBM_SUPPATTREXCLCREAT	0x00000800
 #define	NFSATTRBM_FSCHARSETCAP		0x00001000
+#define	NFSATTRBM_CLONEBLKSIZE		0x00002000
+#define	NFSATTRBM_SPACEFREED		0x00004000
+#define	NFSATTRBM_CHANGEATTRTYPE	0x00008000
+#define	NFSATTRBM_SECLABEL		0x00010000
 
-#define	NFSATTRBIT_MAX			77
+#define	NFSATTRBIT_MAX			81
 
 /*
  * Sets of attributes that are supported, by words in the bitmap.

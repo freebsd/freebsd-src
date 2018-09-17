@@ -257,9 +257,29 @@
 
 /*
  * Must be one more than last op#.
- * NFSv4.2 isn't implemented yet, but define the op# limit for it.
  */
 #define	NFSV41_NOPS		59
+
+/*
+ * Additional operations for NFSv4.2.
+ */
+#define	NFSV4OP_ALLOCATE	59
+#define	NFSV4OP_COPY		60
+#define	NFSV4OP_COPYNOTIFY	61
+#define	NFSV4OP_DEALLOCATE	62
+#define	NFSV4OP_IOADVISE	63
+#define	NFSV4OP_LAYOUTERROR	64
+#define	NFSV4OP_LAYOUTSTATS	65
+#define	NFSV4OP_OFFLOADCANCEL	66
+#define	NFSV4OP_OFFLOADSTATUS	67
+#define	NFSV4OP_READPLUS	68
+#define	NFSV4OP_SEEK		69
+#define	NFSV4OP_WRITESAME	70
+#define	NFSV4OP_CLONE		71
+
+/*
+ * Must be one more than the last op#.
+ */
 #define	NFSV42_NOPS		72
 
 /* Quirky case if the illegal op code */
@@ -309,6 +329,12 @@
 #define	NFSV4OP_CBNOTIFYDEVID	14
 
 #define	NFSV41_CBNOPS		15
+
+/*
+ * Additional callback operations for NFSv4.2.
+ */
+#define	NFSV4OP_CBOFFLOAD	15
+
 #define	NFSV42_CBNOPS		16
 
 /*

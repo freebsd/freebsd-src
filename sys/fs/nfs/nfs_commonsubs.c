@@ -106,7 +106,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsmirror, CTLFLAG_RD,
  * non-idempotent Ops.
  * Define it here, since it is used by both the client and server.
  */
-struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
+struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
@@ -166,6 +166,19 @@ struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Want Delegation */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0, 0 },		/* Destroy ClientID */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Reclaim Complete */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Allocate */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Copy */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Copy Notify */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Deallocate */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* IO Advise */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Error */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Stats */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Offload Cancel */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Offload Status */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Read Plus */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Seek */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Write Same */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Clone */
 };
 #endif	/* !APPLEKEXT */
 
@@ -300,13 +313,17 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		nd->nd_flag = ND_NFSV4 | ND_NFSCL;
 		if (minorvers == NFSV41_MINORVERSION)
 			nd->nd_flag |= ND_NFSV41;
+		else if (minorvers == NFSV42_MINORVERSION)
+			nd->nd_flag |= (ND_NFSV41 | ND_NFSV42);
 	} else if (vers == NFS_VER3)
 		nd->nd_flag = ND_NFSV3 | ND_NFSCL;
 	else {
 		if (NFSHASNFSV4(nmp)) {
 			nd->nd_flag = ND_NFSV4 | ND_NFSCL;
-			if (NFSHASNFSV4N(nmp))
+			if (nmp->nm_minorvers == 1)
 				nd->nd_flag |= ND_NFSV41;
+			else if (nmp->nm_minorvers == 2)
+				nd->nd_flag |= (ND_NFSV41 | ND_NFSV42);
 		} else if (NFSHASNFSV3(nmp))
 			nd->nd_flag = ND_NFSV3 | ND_NFSCL;
 		else
@@ -355,7 +372,9 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		(void) nfsm_strtom(nd, nfsv4_opmap[procnum].tag,
 			nfsv4_opmap[procnum].taglen);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		if ((nd->nd_flag & ND_NFSV41) != 0)
+		if ((nd->nd_flag & ND_NFSV42) != 0)
+			*tl++ = txdr_unsigned(NFSV42_MINORVERSION);
+		else if ((nd->nd_flag & ND_NFSV41) != 0)
 			*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
 		else
 			*tl++ = txdr_unsigned(NFSV4_MINORVERSION);
