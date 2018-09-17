@@ -351,7 +351,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_X550EM_A_SFP:
-		return ixgbe_identify_module_generic(hw);
+		return ixgbe_identify_sfp_module_X550em(hw);
 	case IXGBE_DEV_ID_X550EM_X_SFP:
 		/* set up for CS4227 usage */
 		ixgbe_setup_mux_ctl(hw);
@@ -359,7 +359,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		/* Fallthrough */
 
 	case IXGBE_DEV_ID_X550EM_A_SFP_N:
-		return ixgbe_identify_module_generic(hw);
+		return ixgbe_identify_sfp_module_X550em(hw);
 		break;
 	case IXGBE_DEV_ID_X550EM_X_KX4:
 		hw->phy.type = ixgbe_phy_x550em_kx4;
