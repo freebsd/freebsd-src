@@ -15,7 +15,6 @@ SUBDIR+=sendmail
 BIN1=	\
 	group \
 	hosts.allow \
-	libalias.conf \
 	login.access \
 	phones \
 	rc.bsdextended \
