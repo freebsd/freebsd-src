@@ -34,10 +34,6 @@ BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
 BIN1+=	hosts.lpd printcap
 .endif
 
-.if ${MK_MAIL} != "no"
-BIN1+=	${SRCTOP}/usr.bin/mail/misc/mail.rc
-.endif
-
 .if ${MK_OPENSSL} != "no"
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
 .endif
