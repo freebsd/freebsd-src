@@ -17,7 +17,6 @@ BIN1=	\
 	group \
 	hosts.allow \
 	libalias.conf \
-	libmap.conf \
 	login.access \
 	mac.conf \
 	phones \
