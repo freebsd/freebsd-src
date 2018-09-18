@@ -13,7 +13,6 @@ SUBDIR+=sendmail
 .endif
 
 BIN1=	\
-	dhclient.conf \
 	disktab \
 	group \
 	hosts.allow \
