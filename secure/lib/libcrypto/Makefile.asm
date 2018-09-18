@@ -75,7 +75,7 @@ SRCS+=	cmll-x86_64.pl
 SRCS+=	chacha-x86_64.pl
 
 # ec
-SRCS+=	ecp_nistz256-avx2.pl ecp_nistz256-x86_64.pl x25519-x86_64.pl
+SRCS+=	ecp_nistz256-x86_64.pl x25519-x86_64.pl
 
 # engines
 SRCS+=	e_padlock-x86_64.pl
@@ -93,8 +93,7 @@ SRCS+=	poly1305-x86_64.pl
 SRCS+=	rc4-md5-x86_64.pl rc4-x86_64.pl
 
 # sha
-SRCS+=	keccak1600-avx2.pl keccak1600-avx512.pl keccak1600-avx512vl.pl \
-	keccak1600-x86_64.pl sha1-mb-x86_64.pl sha1-x86_64.pl \
+SRCS+=	keccak1600-x86_64.pl sha1-mb-x86_64.pl sha1-x86_64.pl \
 	sha256-mb-x86_64.pl
 
 # whrlpool
