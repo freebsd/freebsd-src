@@ -26,10 +26,6 @@ BIN1=	\
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_LOCATE} != "no"
-BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
-.endif
-
 .if ${MK_LPR} != "no"
 BIN1+=	hosts.lpd printcap
 .endif
