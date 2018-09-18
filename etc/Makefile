@@ -27,10 +27,6 @@ BIN1=	\
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_AMD} != "no"
-BIN1+= amd.map
-.endif
-
 .if ${MK_LOCATE} != "no"
 BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
 .endif
