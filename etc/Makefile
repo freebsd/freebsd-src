@@ -18,7 +18,6 @@ BIN1=	\
 	hosts.allow \
 	libalias.conf \
 	login.access \
-	mac.conf \
 	phones \
 	rc.bsdextended \
 	rc.firewall \
