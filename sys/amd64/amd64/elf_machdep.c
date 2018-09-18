@@ -200,6 +200,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		switch (rtype) {
 		case R_X86_64_PC32:
 		case R_X86_64_32S:
+		case R_X86_64_PLT32:
 			addend = *(Elf32_Addr *)where;
 			break;
 		default:
@@ -235,6 +236,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_X86_64_PC32:	/* S + A - P */
+		case R_X86_64_PLT32:	/* L + A - P, L is PLT location for
+					   the symbol, which we treat as S */
 			error = lookup(lf, symidx, 1, &addr);
 			where32 = (Elf32_Addr *)where;
 			val32 = (Elf32_Addr)(addr + addend - (Elf_Addr)where);
