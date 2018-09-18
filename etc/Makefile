@@ -13,7 +13,6 @@ SUBDIR+=sendmail
 .endif
 
 BIN1=	\
-	disktab \
 	group \
 	hosts.allow \
 	libalias.conf \
