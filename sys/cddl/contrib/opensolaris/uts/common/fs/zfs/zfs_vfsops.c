@@ -198,6 +198,8 @@ zfs_quotactl(vfs_t *vfsp, int cmds, uid_t id, void *arg)
 			break;
 		default:
 			error = EINVAL;
+			if (cmd == Q_QUOTAON || cmd == Q_QUOTAOFF)
+				vfs_unbusy(vfsp);
 			goto done;
 		}
 	}
@@ -255,9 +257,11 @@ zfs_quotactl(vfs_t *vfsp, int cmds, uid_t id, void *arg)
 	case Q_QUOTAON:
 		// As far as I can tell, you can't turn quotas on or off on zfs
 		error = 0;
+		vfs_unbusy(vfsp);
 		break;
 	case Q_QUOTAOFF:
 		error = ENOTSUP;
+		vfs_unbusy(vfsp);
 		break;
 	case Q_SETQUOTA:
 		error = copyin(&dqblk, arg, sizeof(dqblk));
