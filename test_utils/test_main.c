@@ -2166,7 +2166,7 @@ void assertVersion(const char *prog, const char *base)
 
 	/* Skip arbitrary third-party version numbers. */
 	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' ||
-	    isalnum(*q))) {
+	    isalnum((unsigned char)*q))) {
 		++q;
 		--s;
 	}

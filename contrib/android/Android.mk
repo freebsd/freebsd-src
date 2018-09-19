@@ -94,9 +94,9 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_string.c \
 						libarchive/archive_string_sprintf.c \
 						libarchive/archive_util.c \
+						libarchive/archive_version_details.c \
 						libarchive/archive_virtual.c \
 						libarchive/archive_write.c \
-						libarchive/archive_write_disk_acl.c \
 						libarchive/archive_write_disk_posix.c \
 						libarchive/archive_write_disk_set_standard_lookup.c \
 						libarchive/archive_write_open_fd.c \
