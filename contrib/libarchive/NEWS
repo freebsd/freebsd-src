@@ -1,3 +1,13 @@
+Sep 03, 2018: libarchive 3.3.3 released
+
+Jul 19, 2018: Avoid super-linear slowdown on malformed mtree files
+
+Jan 27, 2018: Many fixes for building with Visual Studio
+
+Oct 19, 2017: NO_OVERWRITE doesn't change existing directory attributes
+
+Aug 12, 2017: New support for Zstandard read and write filters
+
 Jul 09, 2017: libarchive 3.3.2 released
 
 Mar 16, 2017: NFSv4 ACL support for Linux (librichacl)
