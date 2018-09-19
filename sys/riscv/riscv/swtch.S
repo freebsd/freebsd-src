@@ -154,6 +154,59 @@ END(fpe_state_save)
 #endif /* FPE */
 
 /*
+ * void
+ * fpe_state_clear(void)
+ */
+ENTRY(fpe_state_clear)
+	/*
+	 * Enable FPE usage in supervisor mode,
+	 * so we can access registers.
+	 */
+	li	t0, SSTATUS_FS_INITIAL
+	csrs	sstatus, t0
+
+	fscsr	zero
+	fcvt.d.l f0, zero
+	fcvt.d.l f1, zero
+	fcvt.d.l f2, zero
+	fcvt.d.l f3, zero
+	fcvt.d.l f4, zero
+	fcvt.d.l f5, zero
+	fcvt.d.l f6, zero
+	fcvt.d.l f7, zero
+	fcvt.d.l f8, zero
+	fcvt.d.l f9, zero
+	fcvt.d.l f10, zero
+	fcvt.d.l f11, zero
+	fcvt.d.l f12, zero
+	fcvt.d.l f13, zero
+	fcvt.d.l f14, zero
+	fcvt.d.l f15, zero
+	fcvt.d.l f16, zero
+	fcvt.d.l f17, zero
+	fcvt.d.l f18, zero
+	fcvt.d.l f19, zero
+	fcvt.d.l f20, zero
+	fcvt.d.l f21, zero
+	fcvt.d.l f22, zero
+	fcvt.d.l f23, zero
+	fcvt.d.l f24, zero
+	fcvt.d.l f25, zero
+	fcvt.d.l f26, zero
+	fcvt.d.l f27, zero
+	fcvt.d.l f28, zero
+	fcvt.d.l f29, zero
+	fcvt.d.l f30, zero
+	fcvt.d.l f31, zero
+
+	/* Disable FPE usage in supervisor mode. */
+	li	t0, SSTATUS_FS_MASK
+	csrc	sstatus, t0
+
+	ret
+END(fpe_state_clear)
+	
+/*
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
