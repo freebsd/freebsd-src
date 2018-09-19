@@ -1,21 +1,16 @@
-/* ====================================================================
- *    Licensed to the Apache Software Foundation (ASF) under one
- *    or more contributor license agreements.  See the NOTICE file
- *    distributed with this work for additional information
- *    regarding copyright ownership.  The ASF licenses this file
- *    to you under the Apache License, Version 2.0 (the
- *    "License"); you may not use this file except in compliance
- *    with the License.  You may obtain a copy of the License at
+/* Copyright 2002-2004 Justin Erenkrantz and Greg Stein
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *    Unless required by applicable law or agreed to in writing,
- *    software distributed under the License is distributed on an
- *    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- *    KIND, either express or implied.  See the License for the
- *    specific language governing permissions and limitations
- *    under the License.
- * ====================================================================
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <apr_pools.h>
@@ -195,20 +190,6 @@ static apr_status_t serf_request_peek(serf_bucket_t *bucket,
     return serf_bucket_peek(bucket, data, len);
 }
 
-/* Note that this function is only called when serialize_data()
-   hasn't been called on the bucket */
-static void serf_request_destroy(serf_bucket_t *bucket)
-{
-  request_context_t *ctx = bucket->data;
-
-  serf_bucket_destroy(ctx->headers);
-
-  if (ctx->body)
-    serf_bucket_destroy(ctx->body);
-
-  serf_default_destroy_and_data(bucket);
-}
-
 void serf_bucket_request_become(
     serf_bucket_t *bucket,
     const char *method,
@@ -237,6 +218,6 @@ const serf_bucket_type_t serf_bucket_type_request = {
     serf_default_read_for_sendfile,
     serf_default_read_bucket,
     serf_request_peek,
-    serf_request_destroy,
+    serf_default_destroy_and_data,
 };
 

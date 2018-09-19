@@ -91,7 +91,7 @@ static	char name[ANAME_SZ];
 static	AUTH_DAT adat = { 0, "", "", "", 0, {}, 0, 0, 0, { 0, "", 0 } };
 #ifdef	ENCRYPTION
 static Block	session_key	= { 0 };
-static DES_key_schedule sched;
+static des_key_schedule sched;
 static Block	challenge	= { 0 };
 #endif	/* ENCRYPTION */
 
@@ -206,10 +206,10 @@ kerberos4_send(Authenticator *ap)
 	if ((ap->way & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) {
 		register int i;
 
-		DES_key_sched(&cred.session, sched);
-		DES_random_key(&session_key);
-		DES_ecb_encrypt(&session_key, &session_key, sched, 0);
-		DES_ecb_encrypt(&session_key, &challenge, sched, 0);
+		des_key_sched(&cred.session, sched);
+		des_random_key(&session_key);
+		des_ecb_encrypt(&session_key, &session_key, sched, 0);
+		des_ecb_encrypt(&session_key, &challenge, sched, 0);
 		/*
 		 * Increment the challenge by 1, and encrypt it for
 		 * later comparison.
@@ -221,7 +221,7 @@ kerberos4_send(Authenticator *ap)
 			if (x < 256)		/* if no overflow, all done */
 				break;
 		}
-		DES_ecb_encrypt(&challenge, &challenge, sched, 1);
+		des_ecb_encrypt(&challenge, &challenge, sched, 1);
 	}
 #endif	/* ENCRYPTION */
 
@@ -298,14 +298,14 @@ kerberos4_is(Authenticator *ap, unsigned char *data, int cnt)
 			break;
 		}
 
-		DES_key_sched(&session_key, sched);
+		des_key_sched(&session_key, sched);
 		memmove((void *)datablock, (void *)data, sizeof(Block));
 		/*
 		 * Take the received encrypted challenge, and encrypt
 		 * it again to get a unique session_key for the
 		 * ENCRYPT option.
 		 */
-		DES_ecb_encrypt(&datablock, &session_key, sched, 1);
+		des_ecb_encrypt(&datablock, &session_key, sched, 1);
 		skey.type = SK_DES;
 		skey.length = 8;
 		skey.data = session_key;
@@ -314,7 +314,7 @@ kerberos4_is(Authenticator *ap, unsigned char *data, int cnt)
 		 * Now decrypt the received encrypted challenge,
 		 * increment by one, re-encrypt it and send it back.
 		 */
-		DES_ecb_encrypt(&datablock, &challenge, sched, 0);
+		des_ecb_encrypt(&datablock, &challenge, sched, 0);
 		for (r = 7; r >= 0; r--) {
 			register int t;
 			t = (unsigned int)challenge[r] + 1;
@@ -322,7 +322,7 @@ kerberos4_is(Authenticator *ap, unsigned char *data, int cnt)
 			if (t < 256)		/* if no overflow, all done */
 				break;
 		}
-		DES_ecb_encrypt(&challenge, &challenge, sched, 1);
+		des_ecb_encrypt(&challenge, &challenge, sched, 1);
 		Data(ap, KRB_RESPONSE, challenge, sizeof(challenge));
 #endif	/* ENCRYPTION */
 		break;
@@ -364,7 +364,7 @@ kerberos4_reply(Authenticator *ap, unsigned char *data, int cnt)
 #else	/* ENCRYPTION */
 			Data(ap, KRB_CHALLENGE, session_key,
 						sizeof(session_key));
-			DES_ecb_encrypt(&session_key, &session_key, sched, 1);
+			des_ecb_encrypt(&session_key, &session_key, sched, 1);
 			skey.type = SK_DES;
 			skey.length = 8;
 			skey.data = session_key;

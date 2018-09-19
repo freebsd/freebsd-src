@@ -32,7 +32,7 @@
 /* header for the des routines that we will use */
 
 typedef unsigned char byte, DesData[ 8], IdeaData[16];
-#define DesKeys DES_key_schedule
+#define DesKeys des_key_schedule
 
 #define DES_DECRYPT 0
 #define DES_ENCRYPT 1

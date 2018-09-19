@@ -1,21 +1,16 @@
-/* ====================================================================
- *    Licensed to the Apache Software Foundation (ASF) under one
- *    or more contributor license agreements.  See the NOTICE file
- *    distributed with this work for additional information
- *    regarding copyright ownership.  The ASF licenses this file
- *    to you under the Apache License, Version 2.0 (the
- *    "License"); you may not use this file except in compliance
- *    with the License.  You may obtain a copy of the License at
+/* Copyright 2002-2004 Justin Erenkrantz and Greg Stein
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *    Unless required by applicable law or agreed to in writing,
- *    software distributed under the License is distributed on an
- *    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- *    KIND, either express or implied.  See the License for the
- *    specific language governing permissions and limitations
- *    under the License.
- * ====================================================================
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <apr_pools.h>
@@ -147,7 +142,7 @@ apr_status_t serf__conn_update_pollset(serf_connection_t *conn)
     desc.reqevents = conn->reqevents;
 
     status = ctx->pollset_rm(ctx->pollset_baton,
-                             &desc, &conn->baton);
+                             &desc, conn);
     if (status && !APR_STATUS_IS_NOTFOUND(status))
         return status;
 
@@ -552,7 +547,7 @@ static apr_status_t remove_connection(serf_context_t *ctx,
     desc.reqevents = conn->reqevents;
 
     return ctx->pollset_rm(ctx->pollset_baton,
-                           &desc, &conn->baton);
+                           &desc, conn);
 }
 
 /* A socket was closed, inform the application. */
@@ -627,11 +622,6 @@ static apr_status_t reset_connection(serf_connection_t *conn,
     conn->dirty_conn = 1;
     conn->ctx->dirty_pollset = 1;
     conn->state = SERF_CONN_INIT;
-
-    conn->hit_eof = 0;
-    conn->connect_time = 0;
-    conn->latency = -1;
-    conn->stop_writing = 0;
 
     serf__log(CONN_VERBOSE, __FILE__, "reset connection 0x%x\n", conn);
 

@@ -1,26 +1,7 @@
-Apache Serf 1.3.9 [2016-09-01, from tags/1.3.9, rxxxx]
-  serf is now Apache Serf; apply header changes (r1700062)
-  Fix issue #151: SCons build broken when only one library in ENVPATH
-  Fix issue #153: avoid SSPI handle leak
-  Fix issue #167: Explicitly use the ANSI version of SSPI
-  Fix issue #170: Allow building with Microsoft Visual Studio 2015
-  Fix build of 'check' target when using VPATH-style builds (r1699858, ...)
-    (builddir != srcdir).
-  Resolve a bucket (aka "memory") leak when a request bucket is
-    destroyed before it is morphed into an aggregate bucket (r1699791)
-  Reset state variables when resetting connection (r1708849)
-  Fix types of passed, but unused batons (r1699986, r1699987)
-  Fix some usages of the openssl BIO api (r1699852)
-  Improve handling of bad data in the response state line. (r1699985)
-  Resolve several compiler issues with less common compilers
-  Support more overrides via SCons arguments (r1701836, ...)
-  Adapt to OpenSSL 1.1.x api (r1750819)
-
-
-Serf 1.3.8 [2014-10-20, from /tags/1.3.8, r2441]
-  Fix issue #152: CRC calculation error for gzipped http reponses > 4GB.
-  Fix issue #153: SSPI CredHandle not freed when APR pool is destroyed.
-  Fix issue #154: Disable SSLv2 and SSLv3 as both or broken.
+Serf 1.3.8 [2014-10-20, from /tags/1.3.8, rxxxx]
+Fix issue #152: CRC calculation error for gzipped http reponses > 4GB.
+Fix issue #153: SSPI CredHandle not freed when APR pool is destroyed.
+Fix issue #154: Disable SSLv2 and SSLv3 as both or broken.
 
 
 Serf 1.3.7 [2014-08-11, from /tags/1.3.7, r2411]
