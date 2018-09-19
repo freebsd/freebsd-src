@@ -188,6 +188,9 @@ ns8250_flush(struct uart_bas *bas, int what)
 	uint8_t fcr;
 
 	fcr = FCR_ENABLE;
+#ifdef CPU_XBURST
+	fcr |= FCR_UART_ON;
+#endif
 	if (what & UART_FLUSH_TRANSMITTER)
 		fcr |= FCR_XMT_RST;
 	if (what & UART_FLUSH_RECEIVER)
@@ -258,6 +261,10 @@ ns8250_probe(struct uart_bas *bas)
 {
 	u_char val;
 
+#ifdef CPU_XBURST
+	uart_setreg(bas, REG_FCR, FCR_UART_ON);
+#endif
+
 	/* Check known 0 bits that don't depend on DLAB. */
 	val = uart_getreg(bas, REG_IIR);
 	if (val & 0x30)
@@ -279,7 +286,7 @@ static void
 ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
-	u_char	ier;
+	u_char ier, val;
 
 	if (bas->rclk == 0)
 		bas->rclk = DEFAULT_RCLK;
@@ -296,7 +303,11 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	uart_barrier(bas);
 
 	/* Disable the FIFO (if present). */
-	uart_setreg(bas, REG_FCR, 0);
+	val = 0;
+#ifdef CPU_XBURST
+	val = FCR_UART_ON;
+#endif
+	uart_setreg(bas, REG_FCR, val);
 	uart_barrier(bas);
 
 	/* Set RTS & DTR. */
@@ -456,6 +467,9 @@ ns8250_bus_attach(struct uart_softc *sc)
 
 	ns8250->mcr = uart_getreg(bas, REG_MCR);
 	ns8250->fcr = FCR_ENABLE;
+#ifdef CPU_XBURST
+	ns8250->fcr |= FCR_UART_ON;
+#endif
 	if (!resource_int_value("uart", device_get_unit(sc->sc_dev), "flags",
 	    &ivar)) {
 		if (UART_FLAGS_FCR_RX_LOW(ivar)) 
@@ -747,6 +761,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 	struct uart_bas *bas;
 	int count, delay, error, limit;
 	uint8_t lsr, mcr, ier;
+	uint8_t val;
 
 	ns8250 = (struct ns8250_softc *)sc;
 	bas = &sc->sc_bas;
@@ -780,7 +795,11 @@ ns8250_bus_probe(struct uart_softc *sc)
 	 * done. Since this is the first time we enable the FIFOs, we reset
 	 * them.
 	 */
-	uart_setreg(bas, REG_FCR, FCR_ENABLE);
+	val = FCR_ENABLE;
+#ifdef CPU_XBURST
+	val |= FCR_UART_ON;
+#endif
+	uart_setreg(bas, REG_FCR, val);
 	uart_barrier(bas);
 	if (!(uart_getreg(bas, REG_IIR) & IIR_FIFO_MASK)) {
 		/*
@@ -794,7 +813,11 @@ ns8250_bus_probe(struct uart_softc *sc)
 		return (0);
 	}
 
-	uart_setreg(bas, REG_FCR, FCR_ENABLE | FCR_XMT_RST | FCR_RCV_RST);
+	val = FCR_ENABLE | FCR_XMT_RST | FCR_RCV_RST;
+#ifdef CPU_XBURST
+	val |= FCR_UART_ON;
+#endif
+	uart_setreg(bas, REG_FCR, val);
 	uart_barrier(bas);
 
 	count = 0;
@@ -804,7 +827,11 @@ ns8250_bus_probe(struct uart_softc *sc)
 	error = ns8250_drain(bas, UART_DRAIN_RECEIVER|UART_DRAIN_TRANSMITTER);
 	if (error) {
 		uart_setreg(bas, REG_MCR, mcr);
-		uart_setreg(bas, REG_FCR, 0);
+		val = 0;
+#ifdef CPU_XBURST
+		val |= FCR_UART_ON;
+#endif
+		uart_setreg(bas, REG_FCR, val);
 		uart_barrier(bas);
 		goto describe;
 	}
@@ -834,7 +861,11 @@ ns8250_bus_probe(struct uart_softc *sc)
 			ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
 			uart_setreg(bas, REG_IER, ier);
 			uart_setreg(bas, REG_MCR, mcr);
-			uart_setreg(bas, REG_FCR, 0);
+			val = 0;
+#ifdef CPU_XBURST
+			val |= FCR_UART_ON;
+#endif
+			uart_setreg(bas, REG_FCR, val);
 			uart_barrier(bas);
 			count = 0;
 			goto describe;
