@@ -161,6 +161,7 @@ void nfsrv_freealllayoutsanddevids(void);
 void nfsrv_freefilelayouts(fhandle_t *);
 int nfsrv_deldsserver(int, char *, NFSPROC_T *);
 struct nfsdevice *nfsrv_deldsnmp(int, struct nfsmount *, NFSPROC_T *);
+int nfsrv_delds(char *, NFSPROC_T *);
 int nfsrv_createdevids(struct nfsd_nfsd_args *, NFSPROC_T *);
 int nfsrv_checkdsattr(struct nfsrv_descript *, vnode_t, NFSPROC_T *);
 int nfsrv_copymr(vnode_t, vnode_t, vnode_t, struct nfsdevice *,
@@ -275,6 +276,8 @@ int nfsrvd_getdevinfo(struct nfsrv_descript *, int,
 int nfsrvd_layoutcommit(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
 int nfsrvd_layoutreturn(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_layouterror(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
 int nfsrvd_teststateid(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);

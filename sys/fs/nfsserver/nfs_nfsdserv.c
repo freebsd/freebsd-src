@@ -4654,6 +4654,72 @@ nfsmout:
 }
 
 /*
+ * nfsv4 layout error service
+ */
+APPLESTATIC int
+nfsrvd_layouterror(struct nfsrv_descript *nd, __unused int isdgram,
+    vnode_t vp, NFSPROC_T *p, struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	nfsv4stateid_t stateid;
+	int cnt, error = 0, i, opnum, stat;
+	char devid[NFSX_V4DEVICEID];
+	uint64_t offset, len;
+
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_HYPER + NFSX_STATEID +
+	    NFSX_UNSIGNED);
+	offset = fxdr_hyper(tl); tl += 2;
+	len = fxdr_hyper(tl); tl += 2;
+	stateid.seqid = fxdr_unsigned(uint32_t, *tl++);
+	NFSBCOPY(tl, stateid.other, NFSX_STATEIDOTHER);
+	tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
+	cnt = fxdr_unsigned(int, *tl);
+	NFSD_DEBUG(4, "layouterror off=%ju len=%ju cnt=%d\n", (uintmax_t)offset,
+	    (uintmax_t)len, cnt);
+	/*
+	 * For the special stateid of other all 0s and seqid == 1, set
+	 * the stateid to the current stateid, if it is set.
+	 */
+	if (stateid.seqid == 1 && stateid.other[0] == 0 &&
+	    stateid.other[1] == 0 && stateid.other[2] == 0) {
+		if ((nd->nd_flag & ND_CURSTATEID) != 0) {
+			stateid = nd->nd_curstateid;
+			stateid.seqid = 0;
+		} else {
+			nd->nd_repstat = NFSERR_BADSTATEID;
+			goto nfsmout;
+		}
+	}
+
+	/*
+	 * Ignore offset, len and stateid for now.
+	 */
+	for (i = 0; i < cnt; i++) {
+		NFSM_DISSECT(tl, uint32_t *, NFSX_V4DEVICEID + 2 *
+		    NFSX_UNSIGNED);
+		NFSBCOPY(tl, devid, NFSX_V4DEVICEID);
+		tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+		stat = fxdr_unsigned(int, *tl++);
+		opnum = fxdr_unsigned(int, *tl);
+		NFSD_DEBUG(4, "nfsrvd_layouterr op=%d stat=%d\n", opnum, stat);
+		/*
+		 * Except for NFSERR_ACCES and NFSERR_STALE errors,
+		 * disable the mirror.
+		 */
+		if (stat != NFSERR_ACCES && stat != NFSERR_STALE)
+			nfsrv_delds(devid, p);
+	}
+nfsmout:
+	vput(vp);
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
  * nfsv4 getdeviceinfo service
  */
 APPLESTATIC int

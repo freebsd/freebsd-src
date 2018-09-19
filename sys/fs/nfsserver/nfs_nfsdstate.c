@@ -213,7 +213,6 @@ static void nfsrv_freealllayouts(void);
 static void nfsrv_freedevid(struct nfsdevice *ds);
 static int nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
     struct nfsdevice **dsp);
-static int nfsrv_delds(char *devid, NFSPROC_T *p);
 static void nfsrv_deleteds(struct nfsdevice *fndds);
 static void nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost);
 static void nfsrv_freealldevids(void);
@@ -7575,7 +7574,7 @@ nfsrv_deldsnmp(int op, struct nfsmount *nmp, NFSPROC_T *p)
  * point.
  * Also, returns an error instead of the nfsdevice found.
  */
-static int
+APPLESTATIC int
 nfsrv_delds(char *devid, NFSPROC_T *p)
 {
 	struct nfsdevice *ds, *fndds;

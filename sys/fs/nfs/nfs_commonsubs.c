@@ -171,7 +171,7 @@ struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Copy Notify */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Deallocate */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* IO Advise */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Error */
+	{ 0, 1, 0, 1, LK_EXCLUSIVE, 1, 0 },		/* Layout Error */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Stats */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Offload Cancel */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Offload Status */
