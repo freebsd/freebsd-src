@@ -1,21 +1,16 @@
-/* ====================================================================
- *    Licensed to the Apache Software Foundation (ASF) under one
- *    or more contributor license agreements.  See the NOTICE file
- *    distributed with this work for additional information
- *    regarding copyright ownership.  The ASF licenses this file
- *    to you under the Apache License, Version 2.0 (the
- *    "License"); you may not use this file except in compliance
- *    with the License.  You may obtain a copy of the License at
+/* Copyright 2010 Justin Erenkrantz and Greg Stein
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *    Unless required by applicable law or agreed to in writing,
- *    software distributed under the License is distributed on an
- *    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- *    KIND, either express or implied.  See the License for the
- *    specific language governing permissions and limitations
- *    under the License.
- * ====================================================================
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include "auth_spnego.h"
@@ -143,7 +138,7 @@ serf__spnego_create_sec_context(serf__spnego_context_t **ctx_p,
     else
         sspi_package = "NTLM";
 
-    sspi_status = AcquireCredentialsHandleA(
+    sspi_status = AcquireCredentialsHandle(
         NULL, sspi_package, SECPKG_CRED_OUTBOUND,
         NULL, NULL, NULL, NULL,
         &ctx->sspi_credentials, NULL);
@@ -252,7 +247,7 @@ serf__spnego_init_sec_context(serf_connection_t *conn,
     sspi_out_buffer_desc.pBuffers = &sspi_out_buffer;
     sspi_out_buffer_desc.ulVersion = SECBUFFER_VERSION;
 
-    status = InitializeSecurityContextA(
+    status = InitializeSecurityContext(
         &ctx->sspi_credentials,
         ctx->initalized ? &ctx->sspi_context : NULL,
         ctx->target_name,

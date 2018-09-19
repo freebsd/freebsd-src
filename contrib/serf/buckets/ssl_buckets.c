@@ -1,23 +1,35 @@
-/* ====================================================================
- *    Licensed to the Apache Software Foundation (ASF) under one
- *    or more contributor license agreements.  See the NOTICE file
- *    distributed with this work for additional information
- *    regarding copyright ownership.  The ASF licenses this file
- *    to you under the Apache License, Version 2.0 (the
- *    "License"); you may not use this file except in compliance
- *    with the License.  You may obtain a copy of the License at
+/* Copyright 2002-2004 Justin Erenkrantz and Greg Stein
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *    Unless required by applicable law or agreed to in writing,
- *    software distributed under the License is distributed on an
- *    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- *    KIND, either express or implied.  See the License for the
- *    specific language governing permissions and limitations
- *    under the License.
- * ====================================================================
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * ----
+ *
+ * For the OpenSSL thread-safety locking code:
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * Originally developed by Aaron Bannert and Justin Erenkrantz, eBuilt.
  */
@@ -50,10 +62,6 @@
 
 #ifndef APR_ARRAY_PUSH
 #define APR_ARRAY_PUSH(ary,type) (*((type *)apr_array_push(ary)))
-#endif
-
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define USE_OPENSSL_1_1_API
 #endif
 
 
@@ -144,7 +152,6 @@ struct serf_ssl_context_t {
     SSL_CTX *ctx;
     SSL *ssl;
     BIO *bio;
-    BIO_METHOD *biom;
 
     serf_ssl_stream_t encrypt;
     serf_ssl_stream_t decrypt;
@@ -237,28 +244,10 @@ apps_ssl_info_callback(const SSL *s, int where, int ret)
 }
 #endif
 
-static void bio_set_data(BIO *bio, void *data)
-{
-#ifdef USE_OPENSSL_1_1_API
-    BIO_set_data(bio, data);
-#else
-    bio->ptr = data;
-#endif
-}
-
-static void *bio_get_data(BIO *bio)
-{
-#ifdef USE_OPENSSL_1_1_API
-    return BIO_get_data(bio);
-#else
-    return bio->ptr;
-#endif
-}
-
 /* Returns the amount read. */
 static int bio_bucket_read(BIO *bio, char *in, int inlen)
 {
-    serf_ssl_context_t *ctx = bio_get_data(bio);
+    serf_ssl_context_t *ctx = bio->ptr;
     const char *data;
     apr_status_t status;
     apr_size_t len;
@@ -302,7 +291,7 @@ static int bio_bucket_read(BIO *bio, char *in, int inlen)
 /* Returns the amount written. */
 static int bio_bucket_write(BIO *bio, const char *in, int inl)
 {
-    serf_ssl_context_t *ctx = bio_get_data(bio);
+    serf_ssl_context_t *ctx = bio->ptr;
     serf_bucket_t *tmp;
 
     serf__log(SSL_VERBOSE, __FILE__, "bio_bucket_write called for %d bytes\n",
@@ -330,9 +319,11 @@ static int bio_bucket_write(BIO *bio, const char *in, int inl)
 /* Returns the amount read. */
 static int bio_file_read(BIO *bio, char *in, int inlen)
 {
-    apr_file_t *file = bio_get_data(bio);
+    apr_file_t *file = bio->ptr;
     apr_status_t status;
     apr_size_t len;
+
+    BIO_clear_retry_flags(bio);
 
     len = inlen;
     status = apr_file_read(file, in, &len);
@@ -340,6 +331,7 @@ static int bio_file_read(BIO *bio, char *in, int inlen)
     if (!SERF_BUCKET_READ_ERROR(status)) {
         /* Oh suck. */
         if (APR_STATUS_IS_EOF(status)) {
+            BIO_set_retry_read(bio);
             return -1;
         } else {
             return len;
@@ -352,7 +344,7 @@ static int bio_file_read(BIO *bio, char *in, int inlen)
 /* Returns the amount written. */
 static int bio_file_write(BIO *bio, const char *in, int inl)
 {
-    apr_file_t *file = bio_get_data(bio);
+    apr_file_t *file = bio->ptr;
     apr_size_t nbytes;
 
     BIO_clear_retry_flags(bio);
@@ -365,32 +357,15 @@ static int bio_file_write(BIO *bio, const char *in, int inl)
 
 static int bio_file_gets(BIO *bio, char *in, int inlen)
 {
-    apr_file_t *file = bio_get_data(bio);
-    apr_status_t status;
-
-    status = apr_file_gets(in, inlen, file);
-
-    if (! status) {
-        return (int)strlen(in);
-    } else if (APR_STATUS_IS_EOF(status)) {
-        return 0;
-    } else {
-        return -1; /* Signal generic error */
-    }
+    return bio_file_read(bio, in, inlen);
 }
 
 static int bio_bucket_create(BIO *bio)
 {
-#ifdef USE_OPENSSL_1_1_API
-    BIO_set_shutdown(bio, 1);
-    BIO_set_init(bio, 1);
-    BIO_set_data(bio, NULL);
-#else
     bio->shutdown = 1;
     bio->init = 1;
     bio->num = -1;
     bio->ptr = NULL;
-#endif
 
     return 1;
 }
@@ -424,7 +399,6 @@ static long bio_bucket_ctrl(BIO *bio, int cmd, long num, void *ptr)
     return ret;
 }
 
-#ifndef USE_OPENSSL_1_1_API
 static BIO_METHOD bio_bucket_method = {
     BIO_TYPE_MEM,
     "Serf SSL encryption and decryption buckets",
@@ -454,55 +428,6 @@ static BIO_METHOD bio_file_method = {
     NULL /* sslc does not have the callback_ctrl field */
 #endif
 };
-#endif
-
-static BIO_METHOD *bio_meth_bucket_new(void)
-{
-    BIO_METHOD *biom = NULL;
-
-#ifdef USE_OPENSSL_1_1_API
-    biom = BIO_meth_new(BIO_TYPE_MEM,
-                        "Serf SSL encryption and decryption buckets");
-    if (biom) {
-        BIO_meth_set_write(biom, bio_bucket_write);
-        BIO_meth_set_read(biom, bio_bucket_read);
-        BIO_meth_set_ctrl(biom, bio_bucket_ctrl);
-        BIO_meth_set_create(biom, bio_bucket_create);
-        BIO_meth_set_destroy(biom, bio_bucket_destroy);
-    }
-#else
-    biom = &bio_bucket_method;
-#endif
-
-    return biom;
-}
-
-static BIO_METHOD *bio_meth_file_new(void)
-{
-    BIO_METHOD *biom = NULL;
-
-#ifdef USE_OPENSSL_1_1_API
-    biom = BIO_meth_new(BIO_TYPE_FILE,
-                        "Wrapper around APR file structures");
-    BIO_meth_set_write(biom, bio_file_write);
-    BIO_meth_set_read(biom, bio_file_read);
-    BIO_meth_set_gets(biom, bio_file_gets);
-    BIO_meth_set_ctrl(biom, bio_bucket_ctrl);
-    BIO_meth_set_create(biom, bio_bucket_create);
-    BIO_meth_set_destroy(biom, bio_bucket_destroy);
-#else
-    biom = &bio_file_method;
-#endif
-
-    return biom;
-}
-
-static void bio_meth_free(BIO_METHOD *biom)
-{
-#ifdef USE_OPENSSL_1_1_API
-    BIO_meth_free(biom);
-#endif
-}
 
 typedef enum san_copy_t {
     EscapeNulAndCopy = 0,
@@ -1052,7 +977,7 @@ static apr_status_t ssl_encrypt(void *baton, apr_size_t bufsize,
     return status;
 }
 
-#if APR_HAS_THREADS && !defined(USE_OPENSSL_1_1_API)
+#if APR_HAS_THREADS
 static apr_pool_t *ssl_pool;
 static apr_thread_mutex_t **ssl_locks;
 
@@ -1139,7 +1064,7 @@ static void init_ssl_libraries(void)
     val = apr_atomic_cas32(&have_init_ssl, INIT_BUSY, INIT_UNINITIALIZED);
 
     if (!val) {
-#if APR_HAS_THREADS && !defined(USE_OPENSSL_1_1_API)
+#if APR_HAS_THREADS
         int i, numlocks;
 #endif
 
@@ -1156,17 +1081,13 @@ static void init_ssl_libraries(void)
         }
 #endif
 
-#ifdef USE_OPENSSL_1_1_API
-        OPENSSL_malloc_init();
-#else
         CRYPTO_malloc_init();
-#endif
         ERR_load_crypto_strings();
         SSL_load_error_strings();
         SSL_library_init();
         OpenSSL_add_all_algorithms();
 
-#if APR_HAS_THREADS && !defined(USE_OPENSSL_1_1_API)
+#if APR_HAS_THREADS
         numlocks = CRYPTO_num_locks();
         apr_pool_create(&ssl_pool, NULL);
         ssl_locks = apr_palloc(ssl_pool, sizeof(apr_thread_mutex_t*)*numlocks);
@@ -1219,7 +1140,6 @@ static int ssl_need_client_cert(SSL *ssl, X509 **cert, EVP_PKEY **pkey)
         const char *cert_path;
         apr_file_t *cert_file;
         BIO *bio;
-        BIO_METHOD *biom;
         PKCS12 *p12;
         int i;
         int retrying_success = 0;
@@ -1245,9 +1165,8 @@ static int ssl_need_client_cert(SSL *ssl, X509 **cert, EVP_PKEY **pkey)
             continue;
         }
 
-        biom = bio_meth_file_new();
-        bio = BIO_new(biom);
-        bio_set_data(bio, cert_file);
+        bio = BIO_new(&bio_file_method);
+        bio->ptr = cert_file;
 
         ctx->cert_path = cert_path;
         p12 = d2i_PKCS12_bio(bio, NULL);
@@ -1257,7 +1176,6 @@ static int ssl_need_client_cert(SSL *ssl, X509 **cert, EVP_PKEY **pkey)
 
         if (i == 1) {
             PKCS12_free(p12);
-            bio_meth_free(biom);
             ctx->cached_cert = *cert;
             ctx->cached_cert_pw = *pkey;
             if (!retrying_success && ctx->cert_cache_pool) {
@@ -1293,7 +1211,6 @@ static int ssl_need_client_cert(SSL *ssl, X509 **cert, EVP_PKEY **pkey)
                         i = PKCS12_parse(p12, password, pkey, cert, NULL);
                         if (i == 1) {
                             PKCS12_free(p12);
-                            bio_meth_free(biom);
                             ctx->cached_cert = *cert;
                             ctx->cached_cert_pw = *pkey;
                             if (!retrying_success && ctx->cert_cache_pool) {
@@ -1321,7 +1238,6 @@ static int ssl_need_client_cert(SSL *ssl, X509 **cert, EVP_PKEY **pkey)
                     }
                 }
                 PKCS12_free(p12);
-                bio_meth_free(biom);
                 return 0;
             }
             else {
@@ -1329,7 +1245,6 @@ static int ssl_need_client_cert(SSL *ssl, X509 **cert, EVP_PKEY **pkey)
                        ERR_GET_FUNC(err),
                        ERR_GET_REASON(err));
                 PKCS12_free(p12);
-                bio_meth_free(biom);
             }
         }
     }
@@ -1424,9 +1339,8 @@ static serf_ssl_context_t *ssl_init_context(serf_bucket_alloc_t *allocator)
     disable_compression(ssl_ctx);
 
     ssl_ctx->ssl = SSL_new(ssl_ctx->ctx);
-    ssl_ctx->biom = bio_meth_bucket_new();
-    ssl_ctx->bio = BIO_new(ssl_ctx->biom);
-    bio_set_data(ssl_ctx->bio, ssl_ctx);
+    ssl_ctx->bio = BIO_new(&bio_bucket_method);
+    ssl_ctx->bio->ptr = ssl_ctx;
 
     SSL_set_bio(ssl_ctx->ssl, ssl_ctx->bio, ssl_ctx->bio);
 
@@ -1469,7 +1383,6 @@ static apr_status_t ssl_free_context(
 
     /* SSL_free implicitly frees the underlying BIO. */
     SSL_free(ssl_ctx->ssl);
-    bio_meth_free(ssl_ctx->biom);
     SSL_CTX_free(ssl_ctx->ctx);
 
     serf_bucket_mem_free(ssl_ctx->allocator, ssl_ctx);
