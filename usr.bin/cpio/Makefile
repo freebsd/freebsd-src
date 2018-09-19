@@ -6,7 +6,7 @@ LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=	3.3.2
+BSDCPIO_VERSION_STRING=	3.3.3
 
 .PATH:	${LIBARCHIVEDIR}/cpio
 SRCS=	cpio.c cmdline.c
