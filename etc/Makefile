@@ -36,10 +36,6 @@ SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
 BIN1+=	rc.sendmail
 .endif
 
-.if ${MK_WIRELESS} != "no"
-BIN1+= regdomain.xml
-.endif
-
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
 .else
