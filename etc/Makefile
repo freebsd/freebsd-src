@@ -16,10 +16,8 @@ BIN1=	\
 	group \
 	hosts.allow \
 	login.access \
-	phones \
 	rc.bsdextended \
 	rc.firewall \
-	remote \
 	termcap.small
 
 # NB: keep these sorted by MK_* knobs
