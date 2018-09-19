@@ -135,7 +135,7 @@
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the `DSA_SIG_set0' function. */
-/* #undef HAVE_DSA_SIG_SET0 */
+#define HAVE_DSA_SIG_SET0 1
 
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
@@ -177,10 +177,10 @@
 /* #undef HAVE_EVP_DIGESTVERIFY */
 
 /* Define to 1 if you have the `EVP_dss1' function. */
-#define HAVE_EVP_DSS1 1
+/* #undef HAVE_EVP_DSS1 */
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
-/* #undef HAVE_EVP_MD_CTX_NEW */
+#define HAVE_EVP_MD_CTX_NEW 1
 
 /* Define to 1 if you have the `EVP_sha1' function. */
 #define HAVE_EVP_SHA1 1
