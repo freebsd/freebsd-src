@@ -60,18 +60,58 @@ static unsigned char dh512_g[] =
 	0x02
 };
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000
+
+static inline int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
+{
+	/* If the fields p and g in d are NULL, the corresponding input
+	 * parameters MUST be non-NULL.  q may remain NULL.
+	 */
+	if ((dh->p == NULL && p == NULL)
+	    || (dh->g == NULL && g == NULL))
+		return 0;
+
+	if (p != NULL) {
+		BN_free(dh->p);
+		dh->p = p;
+	}
+	if (q != NULL) {
+		BN_free(dh->q);
+		dh->q = q;
+	}
+	if (g != NULL) {
+		BN_free(dh->g);
+		dh->g = g;
+	}
+
+	if (q != NULL) {
+		dh->length = BN_num_bits(q);
+	}
+
+	return 1;
+}
+#endif
+
 static DH *
 get_dh512()
 {
 	DH *dh = NULL;
+	BIGNUM *p;
+	BIGNUM *g;
 
-	if ((dh = DH_new()) == NULL)
-		return NULL;
-	dh->p = BN_bin2bn(dh512_p, sizeof(dh512_p), NULL);
-	dh->g = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
-	if ((dh->p == NULL) || (dh->g == NULL))
-		return NULL;
+	dh = DH_new();
+	p = BN_bin2bn(dh512_p, sizeof(dh512_p), NULL);
+	g = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
+	if (!dh || !p || !g)
+		goto err;
+	if (!DH_set0_pqg(dh, p, NULL, g))
+		goto err;
 	return dh;
+err:
+	DH_free(dh);
+	BN_free(p);
+	BN_free(g);
+	return NULL;
 }
 
 #  if 0
@@ -117,17 +157,22 @@ get_dh2048()
 		};
 	static unsigned char dh2048_g[]={ 0x02, };
 	DH *dh;
+	BIGNUM *p;
+	BIGNUM *g;
 
-	if ((dh=DH_new()) == NULL)
-		return(NULL);
-	dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-	dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
-	if ((dh->p == NULL) || (dh->g == NULL))
-	{
-		DH_free(dh);
-		return(NULL);
-	}
+	dh = DH_new();
+	p = BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
+	g = BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+	if (!dh || !p || !g)
+		goto err;
+	if (!DH_set0_pqg(dh, p, NULL, g))
+		goto err;
 	return(dh);
+err:
+	DH_free(dh);
+	BN_free(p);
+	BN_free(g);
+	return NULL;
 }
 # endif /* !NO_DH */
 
@@ -926,7 +971,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	{
 		/* get a pointer to the current certificate validation store */
 		store = SSL_CTX_get_cert_store(*ctx);	/* does not fail */
-		crl_file = BIO_new(BIO_s_file_internal());
+		crl_file = BIO_new(BIO_s_file());
 		if (crl_file != NULL)
 		{
 			if (BIO_read_filename(crl_file, CRLFile) >= 0)
@@ -1000,26 +1045,41 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	**  maybe we should do it only on demand...
 	*/
 
-	if (bitset(TLS_I_RSA_TMP, req)
 #  if SM_CONF_SHM
-	    && ShmId != SM_SHM_NO_ID &&
-	    (rsa_tmp = RSA_generate_key(RSA_KEYLENGTH, RSA_F4, NULL,
-					NULL)) == NULL
-#  else /* SM_CONF_SHM */
-	    && 0	/* no shared memory: no need to generate key now */
-#  endif /* SM_CONF_SHM */
-	   )
+	if (bitset(TLS_I_RSA_TMP, req)
+	    && ShmId != SM_SHM_NO_ID)
 	{
-		if (LogLevel > 7)
-		{
-			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS=%s, error: RSA_generate_key failed",
-				  who);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+		BIGNUM *bn;
+
+		bn = BN_new();
+		rsa_tmp = RSA_new();
+		if (!bn || !rsa_tmp || !BN_set_word(bn, RSA_F4)) {
+			RSA_free(rsa_tmp);
+			rsa_tmp = NULL;
 		}
-		return false;
+		if (rsa_tmp)
+		{
+			if (!RSA_generate_key_ex(rsa_tmp, RSA_KEYLENGTH, bn, NULL))
+			{
+				RSA_free(rsa_tmp);
+				rsa_tmp = NULL;
+			}
+		}
+		BN_free(bn);
+		if (!rsa_tmp)
+		{
+			if (LogLevel > 7)
+			{
+				sm_syslog(LOG_WARNING, NOQID,
+					  "STARTTLS=%s, error: RSA_generate_key failed",
+					  who);
+				if (LogLevel > 9)
+					tlslogerr(LOG_WARNING, who);
+			}
+			return false;
+		}
 	}
+#  endif /* SM_CONF_SHM */
 # endif /* !TLS_NO_RSA */
 
 	/*
@@ -1210,9 +1270,15 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 				sm_dprintf("inittls: Generating %d bit DH parameters\n", bits);
 
 			/* this takes a while! */
-			dsa = DSA_generate_parameters(bits, NULL, 0, NULL,
-						      NULL, 0, NULL);
-			dh = DSA_dup_DH(dsa);
+			dsa = DSA_new();
+			if (dsa) {
+				int r;
+
+				r = DSA_generate_parameters_ex(dsa, bits, NULL, 0,
+							    NULL, NULL, NULL);
+				if (r != 0)
+					dh = DSA_dup_DH(dsa);
+			}
 			DSA_free(dsa);
 		}
 		else if (dh == NULL && bitset(TLS_I_DHFIXED, req))
@@ -1733,6 +1799,9 @@ tmp_rsa_key(s, export, keylength)
 	int export;
 	int keylength;
 {
+	BIGNUM *bn;
+	int ret;
+
 #   if SM_CONF_SHM
 	extern int ShmId;
 	extern int *PRSATmpCnt;
@@ -1742,10 +1811,22 @@ tmp_rsa_key(s, export, keylength)
 		return rsa_tmp;
 #   endif /* SM_CONF_SHM */
 
-	if (rsa_tmp != NULL)
-		RSA_free(rsa_tmp);
-	rsa_tmp = RSA_generate_key(RSA_KEYLENGTH, RSA_F4, NULL, NULL);
-	if (rsa_tmp == NULL)
+	if (rsa_tmp == NULL) {
+		rsa_tmp = RSA_new();
+		if (!rsa_tmp)
+			return NULL;
+	}
+
+	bn = BN_new();
+	if (!bn)
+		return NULL;
+	if (!BN_set_word(bn, RSA_F4)) {
+		BN_free(bn);
+		return NULL;
+	}
+	ret = RSA_generate_key_ex(rsa_tmp, RSA_KEYLENGTH, bn, NULL);
+	BN_free(bn);
+	if (!ret)
 	{
 		if (LogLevel > 0)
 			sm_syslog(LOG_ERR, NOQID,
@@ -1971,9 +2052,9 @@ x509_verify_cb(ok, ctx)
 	{
 		if (LogLevel > 13)
 			tls_verify_log(ok, ctx, "x509");
-		if (ctx->error == X509_V_ERR_UNABLE_TO_GET_CRL)
+		if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_UNABLE_TO_GET_CRL)
 		{
-			ctx->error = 0;
+			X509_STORE_CTX_set_error(ctx, 0);
 			return 1;	/* override it */
 		}
 	}
