@@ -7442,8 +7442,7 @@ pmap_pcid_alloc_checked(pmap_t pmap, u_int cpuid)
 	uint64_t cached;
 
 	cached = pmap_pcid_alloc(pmap, cpuid);
-	KASSERT(pmap->pm_pcids[cpuid].pm_pcid >= 0 &&
-	    pmap->pm_pcids[cpuid].pm_pcid < PMAP_PCID_OVERMAX,
+	KASSERT(pmap->pm_pcids[cpuid].pm_pcid < PMAP_PCID_OVERMAX,
 	    ("pmap %p cpu %d pcid %#x", pmap, cpuid,
 	    pmap->pm_pcids[cpuid].pm_pcid));
 	KASSERT(pmap->pm_pcids[cpuid].pm_pcid != PMAP_PCID_KERN ||
