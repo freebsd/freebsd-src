@@ -159,17 +159,19 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		if (ppdev[i] != NULL) {
 			dev = libusb_get_device(ppdev[i]);
 
-			if (fds[i].revents == 0)
-				err = 0;	/* nothing to do */
-			else
+			if (fds[i].revents != 0) {
 				err = libusb20_dev_process(ppdev[i]);
 
-			if (err) {
-				/* cancel all transfers - device is gone */
-				libusb10_cancel_all_transfer(dev);
+				if (err) {
+					/* set device is gone */
+					dev->device_is_gone = 1;
 
-				/* remove USB device from polling loop */
-				libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);
+					/* remove USB device from polling loop */
+					libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);
+
+					/* cancel all pending transfers */
+					libusb10_cancel_all_transfer_locked(ppdev[i], dev);
+				}
 			}
 			CTX_UNLOCK(ctx);
 			libusb_unref_device(dev);
@@ -178,10 +180,8 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		} else {
 			uint8_t dummy;
 
-			while (1) {
-				if (read(fds[i].fd, &dummy, 1) != 1)
-					break;
-			}
+			while (read(fds[i].fd, &dummy, 1) == 1)
+				;
 		}
 	}
 
