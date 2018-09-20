@@ -241,9 +241,6 @@ static struct vmem buffer_arena_storage;
 static struct vmem transient_arena_storage;
 /* kernel and kmem arenas are aliased for backwards KPI compat. */
 vmem_t *kernel_arena = &kernel_arena_storage;
-#if VM_NRESERVLEVEL > 0
-vmem_t *kernel_rwx_arena = NULL;
-#endif
 vmem_t *kmem_arena = &kernel_arena_storage;
 vmem_t *buffer_arena = &buffer_arena_storage;
 vmem_t *transient_arena = &transient_arena_storage;
