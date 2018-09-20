@@ -410,7 +410,7 @@ copyout_fault:
 	movsq
 	movb	%al,%cl
 	andb	$7,%cl				/* copy remaining bytes */
-	je	1
+	je	1f
 .endif
 	rep
 	movsb
