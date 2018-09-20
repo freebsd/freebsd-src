@@ -22,10 +22,6 @@ BIN1=	\
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_LPR} != "no"
-BIN1+=	hosts.lpd printcap
-.endif
-
 .if ${MK_OPENSSL} != "no"
 SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
 .endif
