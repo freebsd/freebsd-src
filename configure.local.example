@@ -1,6 +1,6 @@
-# $Id: configure.local.example,v 1.33 2017/07/20 16:24:53 schwarze Exp $
+# $Id: configure.local.example,v 1.34 2018/07/31 15:34:00 schwarze Exp $
 #
-# Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014,2015,2016,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -77,7 +77,7 @@ MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 # If you do not want uname(3) to be called but instead want a fixed
 # string to be used, use the following line:
 
-OSNAME="OpenBSD 6.0"
+OSNAME="OpenBSD 6.3"
 
 # The following installation directories are used.
 # It is possible to set only one or a few of these variables,
@@ -100,6 +100,7 @@ BIN_FROM_SBIN="../bin"
 # Some distributions may want to avoid naming conflicts
 # with the configuration files of other man(1) implementations.
 # This changes the name of the installed section 5 manual page as well.
+
 MANM_MANCONF="mandoc.conf"	# default is "man.conf"
 
 # Some distributions may want to avoid naming conflicts among manuals.
@@ -147,13 +148,6 @@ LN="ln -sf"			# default is "ln -f"
 # variable to specify the required linker flags.
 
 LD_OHASH="-lutil"
-
-# When library autodetection decides to use -L/usr/local/lib,
-# -I/usr/local/include is automatically added to CFLAGS.
-# If you manually set LD_OHASH to something including -L/usr/local/lib,
-# chances are you will also need the following line:
-
-CFLAGS="${CFLAGS} -I/usr/local/include"
 
 # Some platforms may need an additional linker flag for nanosleep(2).
 # If none is needed or it is -lrt, it is autodetected.
@@ -222,15 +216,21 @@ BUILD_CGI=1
 # The remaining settings in this section are only relevant if BUILD_CGI
 # is enabled.  Otherwise, they have no effect either way.
 
-# By default, man.cgi(8) is linked statically.
-# Some systems do not support static linking, for example Mac OS X.
-# In that case, use the following line:
+# By default, man.cgi(8) is linked statically if the compiler supports
+# the -static option.  If automatic detection fails, you can force
+# static linking of man.cgi(8).
 
-STATIC=
+STATIC="-static"
 
-# Some systems, for example Linux, require -pthread for static linking:
+# Some systems may require -pthread for static linking:
 
 STATIC="-static -pthread"
+
+# If static linking works in general but not with additional libraries
+# like -lrt or -lz, you can force dynamic linking.  This may for
+# example be required on SunOS 5.9.
+
+STATIC=" "
 
 # Some directories.
 # This works just like PREFIX, see above.
@@ -263,15 +263,19 @@ BINM_CATMAN=mcatman		# default is "catman"
 
 CC=cc
 
+# Because the system compiler may not provide <stdint.h>,
+# SunOS 5.9 may need:
+
+CC=gcc
+
 # IBM AIX may need:
 
 CC=xlc
 
-# The default compiler flags are:
-
-CFLAGS="-g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings"
-
-# IBM AIX xlc does not support -W; in that case, please use:
+# Normally, leave CFLAGS unset.  In that case, -g will automatically
+# be used, and various -W options will be added if the compiler
+# supports them.  If you define CFLAGS manually, it will be used
+# unchanged, and nothing will be added.
 
 CFLAGS="-g"
 

@@ -1,4 +1,4 @@
-/*	$Id: cgi.c,v 1.156 2017/06/24 14:38:32 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.158 2018/05/29 20:32:45 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@usta.de>
@@ -356,6 +356,8 @@ resp_begin_html(int code, const char *msg, const char *file)
 	       "<html>\n"
 	       "<head>\n"
 	       "  <meta charset=\"UTF-8\"/>\n"
+	       "  <meta name=\"viewport\""
+		      " content=\"width=device-width, initial-scale=1.0\">\n"
 	       "  <link rel=\"stylesheet\" href=\"%s/mandoc.css\""
 	       " type=\"text/css\" media=\"all\">\n"
 	       "  <title>",
@@ -398,7 +400,7 @@ resp_searchform(const struct req *req, enum focus focus)
 
 	/* Write query input box. */
 
-	printf("    <input type=\"text\" name=\"query\" value=\"");
+	printf("    <input type=\"search\" name=\"query\" value=\"");
 	if (req->q.query != NULL)
 		html_print(req->q.query);
 	printf( "\" size=\"40\"");
@@ -434,7 +436,7 @@ resp_searchform(const struct req *req, enum focus focus)
 		printf(" selected=\"selected\"");
 	puts(">All Architectures</option>");
 	for (i = 0; i < arch_MAX; i++) {
-		printf("      <option value=\"%s\"", arch_names[i]);
+		printf("      <option");
 		if (NULL != req->q.arch &&
 		    0 == strcmp(arch_names[i], req->q.arch))
 			printf(" selected=\"selected\"");
@@ -447,12 +449,10 @@ resp_searchform(const struct req *req, enum focus focus)
 	if (req->psz > 1) {
 		puts("    <select name=\"manpath\">");
 		for (i = 0; i < (int)req->psz; i++) {
-			printf("      <option ");
+			printf("      <option");
 			if (strcmp(req->q.manpath, req->p[i]) == 0)
-				printf("selected=\"selected\" ");
-			printf("value=\"");
-			html_print(req->p[i]);
-			printf("\">");
+				printf(" selected=\"selected\"");
+			printf(">");
 			html_print(req->p[i]);
 			puts("</option>");
 		}

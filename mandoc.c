@@ -1,7 +1,7 @@
-/*	$Id: mandoc.c,v 1.103 2017/07/03 13:40:19 schwarze Exp $ */
+/*	$Id: mandoc.c,v 1.104 2018/07/28 18:34:15 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2015, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -540,6 +540,9 @@ mandoc_normdate(struct roff_man *man, char *in, int ln, int pos)
 		cp = time2a(t);
 		if (t > time(NULL) + 86400)
 			mandoc_msg(MANDOCERR_DATE_FUTURE, man->parse,
+			    ln, pos, cp);
+		else if (*in != '$' && strcmp(in, cp) != 0)
+			mandoc_msg(MANDOCERR_DATE_NORM, man->parse,
 			    ln, pos, cp);
 		return cp;
 	}

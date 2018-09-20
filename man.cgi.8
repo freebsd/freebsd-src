@@ -1,4 +1,4 @@
-.\"	$Id: man.cgi.8,v 1.22 2017/03/18 16:48:24 schwarze Exp $
+.\"	$Id: man.cgi.8,v 1.23 2018/05/20 21:48:44 schwarze Exp $
 .\"
 .\" Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 18 2017 $
+.Dd $Mdocdate: May 20 2018 $
 .Dt MAN.CGI 8
 .Os
 .Sh NAME
@@ -104,6 +104,9 @@ Lists are returned when searches match more than one manual page.
 The first column shows the names and section numbers of manuals
 as clickable links.
 The second column shows the one-line descriptions of the manuals.
+For
+.Xr man 1
+style searches, the content of the first manual page follows the list.
 .It A manual page.
 This output format is used when a search matches exactly one
 manual page, or when a link on a list page or an
@@ -111,7 +114,7 @@ manual page, or when a link on a list page or an
 link on another manual page is followed.
 .It A no-result page.
 This is shown when a search request returns no results -
-eiher because it violates the query syntax, or because
+either because it violates the query syntax, or because
 the search does not match any manual pages.
 .It \&An error page.
 This cannot happen by merely clicking the
@@ -234,6 +237,8 @@ They consist of:
 .It
 The
 .Cm http://
+or
+.Cm https://
 protocol specifier.
 .It
 The host name.
@@ -394,7 +399,7 @@ The
 CGI program is call-compatible with queries from the traditional
 .Pa man.cgi
 script by Wolfram Schneider.
-However, the output may not be quite the same.
+However, the output looks quite different.
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr mandoc.db 5 ,

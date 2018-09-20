@@ -1,7 +1,7 @@
-/*	$Id: html.h,v 1.87 2017/07/08 14:51:04 schwarze Exp $ */
+/*	$Id: html.h,v 1.92 2018/06/25 16:54:59 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,6 +23,7 @@ enum	htmltag {
 	TAG_META,
 	TAG_TITLE,
 	TAG_DIV,
+	TAG_IDIV,
 	TAG_H1,
 	TAG_H2,
 	TAG_SPAN,
@@ -30,8 +31,6 @@ enum	htmltag {
 	TAG_BR,
 	TAG_A,
 	TAG_TABLE,
-	TAG_COLGROUP,
-	TAG_COL,
 	TAG_TR,
 	TAG_TD,
 	TAG_LI,
@@ -119,6 +118,7 @@ struct	eqn_box;
 
 void		  roff_html_pre(struct html *, const struct roff_node *);
 
+void		  print_gen_comment(struct html *, struct roff_node *);
 void		  print_gen_decls(struct html *);
 void		  print_gen_head(struct html *);
 struct tag	 *print_otag(struct html *, enum htmltag, const char *, ...);
@@ -131,5 +131,4 @@ void		  print_eqn(struct html *, const struct eqn_box *);
 void		  print_paragraph(struct html *);
 void		  print_endline(struct html *);
 
-char		 *html_make_id(const struct roff_node *);
-int		  html_strlen(const char *);
+char		 *html_make_id(const struct roff_node *, int);

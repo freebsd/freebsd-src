@@ -1,6 +1,6 @@
-.\"	$Id: mandoc_html.3,v 1.10 2017/07/15 17:57:51 schwarze Exp $
+.\"	$Id: mandoc_html.3,v 1.17 2018/06/25 16:54:59 schwarze Exp $
 .\"
-.\" Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 15 2017 $
+.Dd $Mdocdate: June 25 2018 $
 .Dt MANDOC_HTML 3
 .Os
 .Sh NAME
@@ -24,6 +24,8 @@
 .In "html.h"
 .Ft void
 .Fn print_gen_decls "struct html *h"
+.Ft void
+.Fn print_gen_comment "struct html *h" "struct roff_node *n"
 .Ft void
 .Fn print_gen_head "struct html *h"
 .Ft struct tag *
@@ -107,6 +109,18 @@ prints the opening
 and
 .Aq Pf \&! Ic DOCTYPE
 declarations required for the current document type.
+.Pp
+The function
+.Fn print_gen_comment
+prints the leading comments, usually containing a Copyright notice
+and license, as an HTML comment.
+It is intended to be called right after opening the
+.Aq Ic HTML
+element.
+Pass the first
+.Dv ROFFT_COMMENT
+node in
+.Fa n .
 .Pp
 The function
 .Fn print_gen_head
@@ -198,84 +212,10 @@ Print a
 .Cm style
 attribute.
 If present, it must be the last format letter.
-In contrast to the other format letters, this one does not yet
-print the value and does not take an argument.
-Instead, the rest of the format string consists of pairs of
-argument type letters and style name letters.
-.El
-.Pp
-Argument type letters each require one argument as follows:
-.Bl -tag -width 1n -offset indent
-.It Cm h
-Requires one
-.Vt int
-argument, interpreted as a horizontal length in units of
-.Dv SCALE_EN .
-.It Cm s
-Requires one
-.Vt char *
-argument, used as a style value.
-.It Cm u
-Requires one
-.Vt struct roffsu *
-argument, used as a length.
-.It Cm w
-Requires one
-.Vt char *
-argument, interpreted as an
-.Xr mdoc 7 Ns -style
-width specifier.
-If the argument is
-.Dv NULL ,
-nothing is printed for this pair.
-.Pp
-The
-.Cm w
-argument type letter can optionally be followed by one, two, or three
-modifier letters.
-The modifier
-.Cm *
-suppresses printing of the pair if the argument matches 6n.
-The modifier
-.Cm +
-increases the width by 20% to make even bold text fit
-and adds three units for padding between columns.
-The modifier
-.Cm \-
-makes the width negative by multiplying it with \-1.
-.El
-.Pp
-Style name letters decide what to do with the preceding argument:
-.Bl -tag -width 1n -offset indent
-.It Cm h
-Set
-.Cm height
-to the given length.
-.It Cm i
-Set
-.Cm text-indent
-to the given length.
-.It Cm l
-Set
-.Cm margin-left
-to the given length.
-.It Cm w
-Set
-.Cm width
-to the given length.
-.It Cm W
-Set
-.Cm min-width
-to the given length.
-.It Cm \&?
-The special pair
-.Cm s?
-requires two
-.Vt char *
+It requires two
+.Va char *
 arguments.
-The first is the style name, the second its value.
-The style name must not be
-.Dv NULL .
+The first is the name of the style property, the second its value.
 .El
 .Pp
 .Fn print_otag

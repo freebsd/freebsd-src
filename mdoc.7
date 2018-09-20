@@ -1,7 +1,7 @@
-.\"	$Id: mdoc.7,v 1.269 2017/07/20 16:24:53 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.271 2018/07/28 18:34:15 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2011, 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2013-2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 20 2017 $
+.Dd $Mdocdate: July 28 2018 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -674,12 +674,10 @@ Examples:
 .Ss \&Ao
 Begin a block enclosed by angle brackets.
 Does not have any head arguments.
-.Pp
-Examples:
-.Dl \&.Fl -key= \&Ns \&Ao \&Ar val \&Ac
-.Pp
-See also
-.Sx \&Aq .
+This macro is almost never useful.
+See
+.Sx \&Aq
+for more details.
 .Ss \&Ap
 Inserts an apostrophe without any surrounding whitespace.
 This is generally used as a grammatical device when referring to the verb
@@ -689,19 +687,45 @@ Examples:
 .Dl \&.Fn execve \&Ap d
 .Ss \&Aq
 Encloses its arguments in angle brackets.
+The only important use case is for email addresses.
+See
+.Sx \&Mt
+for an example.
 .Pp
-Examples:
-.Dl \&.Fl -key= \&Ns \&Aq \&Ar val
+Occasionally, it is used for names of characters and keys, for example:
+.Bd -literal -offset indent
+Press the
+\&.Aq escape
+key to ...
+.Ed
 .Pp
-.Em Remarks :
-this macro is often abused for rendering URIs, which should instead use
+For URIs, use
 .Sx \&Lk
+instead, and
+.Sx \&In
+for
+.Dq #include
+directives.
+Never wrap
+.Sx \&Ar
+in
+.Sx \&Aq .
+.Pp
+Since
+.Sx \&Aq
+usually renders with non-ASCII characters in non-ASCII output modes,
+do not use it where the ASCII characters
+.Sq <
+and
+.Sq >
+are required as syntax elements.
+Instead, use these characters directly in such cases, combining them
+with the macros
+.Sx \&Pf ,
+.Sx \&Ns ,
 or
-.Sx \&Mt ,
-or to note pre-processor
-.Dq Li #include
-statements, which should use
-.Sx \&In .
+.Sx \&Eo
+as needed.
 .Pp
 See also
 .Sx \&Ao .
@@ -1210,7 +1234,7 @@ The
 .Ar month
 is the full English month name, the
 .Ar day
-is an optionally zero-padded numeral, and the
+is an integer number, and the
 .Ar year
 is the full four-digit year.
 .Pp
@@ -1240,8 +1264,8 @@ If no date string is given, the current date is used.
 .Pp
 Examples:
 .Dl \&.Dd $\&Mdocdate$
-.Dl \&.Dd $\&Mdocdate: July 21 2007$
-.Dl \&.Dd July 21, 2007
+.Dl \&.Dd $\&Mdocdate: July 2 2018$
+.Dl \&.Dd July 2, 2018
 .Pp
 See also
 .Sx \&Dt

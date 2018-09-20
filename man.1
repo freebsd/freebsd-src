@@ -1,4 +1,4 @@
-.\"	$Id: man.1,v 1.29 2017/05/17 23:23:00 schwarze Exp $
+.\"	$Id: man.1,v 1.33 2018/04/19 23:41:16 schwarze Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)man.1	8.2 (Berkeley) 1/2/94
 .\"
-.Dd $Mdocdate: May 17 2017 $
+.Dd $Mdocdate: April 19 2018 $
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -78,6 +78,18 @@ Copy the manual page to the standard output instead of using
 .Xr more 1
 to paginate it.
 This is done by default if the standard output is not a terminal device.
+.Pp
+When using
+.Fl c ,
+most terminal devices are unable to show the markup.
+To print the output of
+.Nm
+to the terminal with markup but without using a pager, pipe it to
+.Xr ul 1 .
+To remove the markup, pipe the output to
+.Xr col 1
+.Fl b
+instead.
 .It Fl f
 A synonym for
 .Xr whatis 1 .
@@ -102,8 +114,7 @@ manual.
 By default, it displays the header lines of all matching pages.
 .It Fl l
 A synonym for
-.Xr mandoc 1
-.Fl a .
+.Xr mandoc 1 .
 The
 .Ar name
 arguments are interpreted as filenames.
@@ -115,6 +126,8 @@ No search is done and
 and
 .Fl w
 are ignored.
+This option implies
+.Fl a .
 .It Fl M Ar path
 Override the list of standard directories which
 .Nm
@@ -285,11 +298,6 @@ If neither PAGER nor MANPAGER is defined,
 .Xr more 1
 .Fl s
 is used.
-Only used if
-.Fl a
-or
-.Fl l
-is specified.
 .El
 .Sh FILES
 .Bl -tag -width /etc/man.conf -compact
@@ -301,20 +309,24 @@ default man configuration file
 See
 .Xr mandoc 1
 for details.
+.Sh EXAMPLES
+Format a page for pasting extracts into an email message \(em
+avoid printing any UTF-8 characters, reduce the width to ease
+quoting in replies, and remove markup:
+.Pp
+.Dl $ man -T ascii -O width=65 pledge | col -b
+.Pp
+Read a typeset page in a PDF viewer:
+.Pp
+.Dl $ MANPAGER=mupdf man -T pdf lpd
 .Sh SEE ALSO
 .Xr apropos 1 ,
-.Xr intro 1 ,
+.Xr col 1 ,
+.Xr mandoc 1 ,
+.Xr ul 1 ,
 .Xr whereis 1 ,
-.Xr intro 2 ,
-.Xr intro 3 ,
-.Xr intro 4 ,
-.Xr intro 5 ,
 .Xr man.conf 5 ,
-.Xr intro 6 ,
-.Xr intro 7 ,
-.Xr mdoc 7 ,
-.Xr intro 8 ,
-.Xr intro 9
+.Xr mdoc 7
 .Sh STANDARDS
 The
 .Nm

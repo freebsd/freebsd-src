@@ -16,6 +16,7 @@ compat_strcasestr.o: compat_strcasestr.c config.h
 compat_stringlist.o: compat_stringlist.c config.h compat_stringlist.h
 compat_strlcat.o: compat_strlcat.c config.h
 compat_strlcpy.o: compat_strlcpy.c config.h
+compat_strndup.o: compat_strndup.c config.h
 compat_strsep.o: compat_strsep.c config.h
 compat_strtonum.o: compat_strtonum.c config.h
 compat_vasprintf.o: compat_vasprintf.c config.h
@@ -29,7 +30,7 @@ demandoc.o: demandoc.c config.h mandoc.h roff.h man.h mdoc.h
 eqn.o: eqn.c config.h mandoc_aux.h mandoc.h roff.h libmandoc.h libroff.h
 eqn_html.o: eqn_html.c config.h mandoc.h out.h html.h
 eqn_term.o: eqn_term.c config.h mandoc.h out.h term.h
-html.o: html.c config.h mandoc_aux.h mandoc.h roff.h out.h html.h manconf.h main.h
+html.o: html.c config.h mandoc_aux.h mandoc_ohash.h compat_ohash.h mandoc.h roff.h out.h html.h manconf.h main.h
 lib.o: lib.c config.h mandoc.h roff.h mdoc.h libmdoc.h lib.in
 main.o: main.c config.h mandoc_aux.h mandoc.h mandoc_xr.h roff.h mdoc.h man.h tag.h main.h manconf.h mansearch.h
 man.o: man.c config.h mandoc_aux.h mandoc.h roff.h man.h libmandoc.h roff_int.h libman.h

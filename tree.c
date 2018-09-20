@@ -1,7 +1,7 @@
-/*	$Id: tree.c,v 1.77 2017/07/08 14:51:05 schwarze Exp $ */
+/*	$Id: tree.c,v 1.78 2018/04/11 17:11:13 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013,2014,2015,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -115,6 +115,9 @@ print_mdoc(const struct roff_node *n, int indent)
 	case ROFFT_TEXT:
 		t = "text";
 		break;
+	case ROFFT_COMMENT:
+		t = "comment";
+		break;
 	case ROFFT_TBL:
 		break;
 	case ROFFT_EQN:
@@ -126,6 +129,7 @@ print_mdoc(const struct roff_node *n, int indent)
 
 	switch (n->type) {
 	case ROFFT_TEXT:
+	case ROFFT_COMMENT:
 		p = n->string;
 		break;
 	case ROFFT_BODY:
@@ -231,6 +235,9 @@ print_man(const struct roff_node *n, int indent)
 	case ROFFT_TEXT:
 		t = "text";
 		break;
+	case ROFFT_COMMENT:
+		t = "comment";
+		break;
 	case ROFFT_BLOCK:
 		t = "block";
 		break;
@@ -251,6 +258,7 @@ print_man(const struct roff_node *n, int indent)
 
 	switch (n->type) {
 	case ROFFT_TEXT:
+	case ROFFT_COMMENT:
 		p = n->string;
 		break;
 	case ROFFT_ELEM:

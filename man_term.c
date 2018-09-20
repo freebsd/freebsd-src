@@ -1,7 +1,7 @@
-/*	$Id: man_term.c,v 1.209 2017/07/31 15:19:06 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.211 2018/06/10 15:12:35 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2015, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -675,7 +675,8 @@ pre_SS(DECL_ARGS)
 			n = n->prev;
 		} while (n != NULL && n->tok >= MAN_TH &&
 		    termacts[n->tok].flags & MAN_NOTEXT);
-		if (n == NULL || (n->tok == MAN_SS && n->body->child == NULL))
+		if (n == NULL || n->type == ROFFT_COMMENT ||
+		    (n->tok == MAN_SS && n->body->child == NULL))
 			break;
 
 		for (i = 0; i < mt->pardist; i++)
@@ -737,7 +738,8 @@ pre_SH(DECL_ARGS)
 			n = n->prev;
 		} while (n != NULL && n->tok >= MAN_TH &&
 		    termacts[n->tok].flags & MAN_NOTEXT);
-		if (n == NULL || (n->tok == MAN_SH && n->body->child == NULL))
+		if (n == NULL || n->type == ROFFT_COMMENT ||
+		    (n->tok == MAN_SH && n->body->child == NULL))
 			break;
 
 		for (i = 0; i < mt->pardist; i++)
@@ -885,7 +887,8 @@ print_man_node(DECL_ARGS)
 
 		term_word(p, n->string);
 		goto out;
-
+	case ROFFT_COMMENT:
+		return;
 	case ROFFT_EQN:
 		if ( ! (n->flags & NODE_LINE))
 			p->flags |= TERMP_NOSPACE;
@@ -1029,6 +1032,18 @@ print_man_foot(struct termp *p, const struct roff_meta *meta)
 
 	term_word(p, title);
 	term_flushln(p);
+
+	/*
+	 * Reset the terminal state for more output after the footer:
+	 * Some output modes, in particular PostScript and PDF, print
+	 * the header and the footer into a buffer such that it can be
+	 * reused for multiple output pages, then go on to format the
+	 * main text.
+	 */
+
+        p->tcol->offset = 0;
+        p->flags = 0;
+
 	free(title);
 }
 

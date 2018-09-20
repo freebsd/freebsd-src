@@ -1,7 +1,7 @@
-.\"	$Id: roff.7,v 1.94 2017/07/05 12:25:17 schwarze Exp $
+.\"	$Id: roff.7,v 1.96 2018/04/10 00:52:30 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010,2011,2013-2015,2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010-2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 5 2017 $
+.Dd $Mdocdate: April 10 2018 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -1348,7 +1348,7 @@ Currently unsupported.
 .It Ic \&nop Ar body
 Execute the rest of the input line as a request or macro line.
 Currently unsupported.
-.It Ic \&nr Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar expression
+.It Ic \&nr Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar expression Op Ar stepsize
 Define or change a register.
 A register is an arbitrary string value that defines some sort of state,
 which influences parsing and/or formatting.
@@ -1359,6 +1359,14 @@ see
 below.
 If it is prefixed by a sign, the register will be
 incremented or decremented instead of assigned to.
+.Pp
+The
+.Ar stepsize
+is used by the
+.Ic \en+
+auto-increment feature.
+It remains unchanged when omitted while changing an existing register,
+and it defaults to 0 when defining a new register.
 .Pp
 The following
 .Ar register
@@ -1471,7 +1479,7 @@ This is a groff extension and currently ignored.
 .It Ic \&rchar Ar glyph ...
 Remove glyph definitions.
 Currently unsupported.
-.It Ic \&rd Op Ar prompt Op Ar agument ...
+.It Ic \&rd Op Ar prompt Op Ar argument ...
 Read from standard input.
 Currently ignored.
 .It Ic \&recursionlimit Ar maxrec maxtail
@@ -1996,13 +2004,19 @@ and
 Character
 .Ar number
 on the current font.
-.Ss \en Ns Bq Ar name
+.Ss \en Ns Oo +|- Oc Ns Bq Ar name
 Interpolate the number register
 .Ar name .
 For short names, there are variants
 .No \en Ns Ar c
 and
 .No \en( Ns Ar cc .
+If the optional sign is specified,
+the register is first incremented or decremented by the
+.Ar stepsize
+that was specified in the relevant
+.Ic \&nr
+request, and the changed value is interpolated.
 .Ss \eo\(aq Ns Ar string Ns \(aq
 Overstrike, writing all the characters contained in the
 .Ar string

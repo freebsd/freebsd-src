@@ -1,7 +1,7 @@
-/*	$Id: mdoc_validate.c,v 1.352 2017/08/02 13:29:04 schwarze Exp $ */
+/*	$Id: mdoc_validate.c,v 1.360 2018/08/01 16:00:58 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2018 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010 Joerg Sonnenberger <joerg@netbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -53,10 +53,11 @@ enum	check_ineq {
 typedef	void	(*v_post)(POST_ARGS);
 
 static	int	 build_list(struct roff_man *, int);
-static	void	 check_text(struct roff_man *, int, int, char *);
 static	void	 check_argv(struct roff_man *,
 			struct roff_node *, struct mdoc_argv *);
 static	void	 check_args(struct roff_man *, struct roff_node *);
+static	void	 check_text(struct roff_man *, int, int, char *);
+static	void	 check_text_em(struct roff_man *, int, int, char *);
 static	void	 check_toptext(struct roff_man *, int, int, const char *);
 static	int	 child_an(const struct roff_node *);
 static	size_t		macro2len(enum roff_tok);
@@ -169,12 +170,12 @@ static	const v_post __mdoc_valids[MDOC_MAX - MDOC_Dd] = {
 	post_hyph,	/* %T */ /* FIXME: can be used outside Rs/Re. */
 	NULL,		/* %V */
 	NULL,		/* Ac */
-	post_delim_nb,	/* Ao */
+	NULL,		/* Ao */
 	post_delim_nb,	/* Aq */
 	post_at,	/* At */
 	NULL,		/* Bc */
 	post_bf,	/* Bf */
-	post_delim_nb,	/* Bo */
+	NULL,		/* Bo */
 	NULL,		/* Bq */
 	post_xx,	/* Bsx */
 	post_bx,	/* Bx */
@@ -194,16 +195,16 @@ static	const v_post __mdoc_valids[MDOC_MAX - MDOC_Dd] = {
 	post_xx,	/* Ox */
 	NULL,		/* Pc */
 	NULL,		/* Pf */
-	post_delim_nb,	/* Po */
+	NULL,		/* Po */
 	post_delim_nb,	/* Pq */
 	NULL,		/* Qc */
 	post_delim_nb,	/* Ql */
-	post_delim_nb,	/* Qo */
+	NULL,		/* Qo */
 	post_delim_nb,	/* Qq */
 	NULL,		/* Re */
 	post_rs,	/* Rs */
 	NULL,		/* Sc */
-	post_delim_nb,	/* So */
+	NULL,		/* So */
 	post_delim_nb,	/* Sq */
 	post_sm,	/* Sm */
 	post_sx,	/* Sx */
@@ -214,7 +215,7 @@ static	const v_post __mdoc_valids[MDOC_MAX - MDOC_Dd] = {
 	NULL,		/* Xo */
 	post_fo,	/* Fo */
 	NULL,		/* Fc */
-	post_delim_nb,	/* Oo */
+	NULL,		/* Oo */
 	NULL,		/* Oc */
 	post_bk,	/* Bk */
 	NULL,		/* Ek */
@@ -227,7 +228,7 @@ static	const v_post __mdoc_valids[MDOC_MAX - MDOC_Dd] = {
 	post_delim_nb,	/* Lk */
 	post_defaults,	/* Mt */
 	post_delim_nb,	/* Brq */
-	post_delim_nb,	/* Bro */
+	NULL,		/* Bro */
 	NULL,		/* Brc */
 	NULL,		/* %C */
 	post_es,	/* Es */
@@ -288,7 +289,7 @@ static	const char * const secnames[SEC__MAX] = {
 void
 mdoc_node_validate(struct roff_man *mdoc)
 {
-	struct roff_node *n;
+	struct roff_node *n, *np;
 	const v_post *p;
 
 	n = mdoc->last;
@@ -305,15 +306,21 @@ mdoc_node_validate(struct roff_man *mdoc)
 	mdoc->next = ROFF_NEXT_SIBLING;
 	switch (n->type) {
 	case ROFFT_TEXT:
+		np = n->parent;
 		if (n->sec != SEC_SYNOPSIS ||
-		    (n->parent->tok != MDOC_Cd && n->parent->tok != MDOC_Fd))
+		    (np->tok != MDOC_Cd && np->tok != MDOC_Fd))
 			check_text(mdoc, n->line, n->pos, n->string);
-		if (n->parent->tok == MDOC_It ||
-		    (n->parent->type == ROFFT_BODY &&
-		     (n->parent->tok == MDOC_Sh ||
-		      n->parent->tok == MDOC_Ss)))
+		if (np->tok != MDOC_Ql && np->tok != MDOC_Dl &&
+		    (np->tok != MDOC_Bd ||
+		     (mdoc->flags & MDOC_LITERAL) == 0) &&
+		    (np->tok != MDOC_It || np->type != ROFFT_HEAD ||
+		     np->parent->parent->norm->Bl.type != LIST_diag))
+			check_text_em(mdoc, n->line, n->pos, n->string);
+		if (np->tok == MDOC_It || (np->type == ROFFT_BODY &&
+		    (np->tok == MDOC_Sh || np->tok == MDOC_Ss)))
 			check_toptext(mdoc, n->line, n->pos, n->string);
 		break;
+	case ROFFT_COMMENT:
 	case ROFFT_EQN:
 	case ROFFT_TBL:
 		break;
@@ -392,6 +399,57 @@ check_text(struct roff_man *mdoc, int ln, int pos, char *p)
 	for (cp = p; NULL != (p = strchr(p, '\t')); p++)
 		mandoc_msg(MANDOCERR_FI_TAB, mdoc->parse,
 		    ln, pos + (int)(p - cp), NULL);
+}
+
+static void
+check_text_em(struct roff_man *mdoc, int ln, int pos, char *p)
+{
+	const struct roff_node	*np, *nn;
+	char			*cp;
+
+	np = mdoc->last->prev;
+	nn = mdoc->last->next;
+
+	/* Look for em-dashes wrongly encoded as "--". */
+
+	for (cp = p; *cp != '\0'; cp++) {
+		if (cp[0] != '-' || cp[1] != '-')
+			continue;
+		cp++;
+
+		/* Skip input sequences of more than two '-'. */
+
+		if (cp[1] == '-') {
+			while (cp[1] == '-')
+				cp++;
+			continue;
+		}
+
+		/* Skip "--" directly attached to something else. */
+
+		if ((cp - p > 1 && cp[-2] != ' ') ||
+		    (cp[1] != '\0' && cp[1] != ' '))
+			continue;
+
+		/* Require a letter right before or right afterwards. */
+
+		if ((cp - p > 2 ?
+		     isalpha((unsigned char)cp[-3]) :
+		     np != NULL &&
+		     np->type == ROFFT_TEXT &&
+		     *np->string != '\0' &&
+		     isalpha((unsigned char)np->string[
+		       strlen(np->string) - 1])) ||
+		    (cp[1] != '\0' && cp[2] != '\0' ?
+		     isalpha((unsigned char)cp[2]) :
+		     nn != NULL &&
+		     nn->type == ROFFT_TEXT &&
+		     isalpha((unsigned char)*nn->string))) {
+			mandoc_msg(MANDOCERR_DASHDASH, mdoc->parse,
+			    ln, pos + (int)(cp - p) - 1, NULL);
+			break;
+		}
+	}
 }
 
 static void
@@ -530,8 +588,7 @@ post_delim_nb(POST_ARGS)
 
 	/* At least three alphabetic words with a sentence ending. */
 	if (strchr("!.:?", *lc) != NULL && (tok == MDOC_Em ||
-	    tok == MDOC_Li || tok == MDOC_Po || tok == MDOC_Pq ||
-	    tok == MDOC_Sy)) {
+	    tok == MDOC_Li || tok == MDOC_Pq || tok == MDOC_Sy)) {
 		nw = 0;
 		for (cp = lc - 1; cp >= nch->string; cp--) {
 			if (*cp == ' ') {
@@ -947,10 +1004,10 @@ post_lb(POST_ARGS)
 
 	roff_word_alloc(mdoc, n->line, n->pos, "library");
 	mdoc->last->flags = NODE_NOSRC;
-	roff_word_alloc(mdoc, n->line, n->pos, "\\(Lq");
+	roff_word_alloc(mdoc, n->line, n->pos, "\\(lq");
 	mdoc->last->flags = NODE_DELIMO | NODE_NOSRC;
 	mdoc->last = mdoc->last->next;
-	roff_word_alloc(mdoc, n->line, n->pos, "\\(Rq");
+	roff_word_alloc(mdoc, n->line, n->pos, "\\(rq");
 	mdoc->last->flags = NODE_DELIMC | NODE_NOSRC;
 	mdoc->last = n;
 }
@@ -1914,7 +1971,10 @@ post_root(POST_ARGS)
 			arch++;
 		if (*arch == NULL) {
 			n = mdoc->first->child;
-			while (n->tok != MDOC_Dt)
+			while (n->tok != MDOC_Dt ||
+			    n->child == NULL ||
+			    n->child->next == NULL ||
+			    n->child->next->next == NULL)
 				n = n->next;
 			n = n->child->next->next;
 			mandoc_vmsg(MANDOCERR_ARCH_BAD,
@@ -1928,8 +1988,10 @@ post_root(POST_ARGS)
 	/* Check that we begin with a proper `Sh'. */
 
 	n = mdoc->first->child;
-	while (n != NULL && n->tok >= MDOC_Dd &&
-	    mdoc_macros[n->tok].flags & MDOC_PROLOGUE)
+	while (n != NULL &&
+	    (n->type == ROFFT_COMMENT ||
+	     (n->tok >= MDOC_Dd &&
+	      mdoc_macros[n->tok].flags & MDOC_PROLOGUE)))
 		n = n->next;
 
 	if (n == NULL)

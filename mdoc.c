@@ -1,4 +1,4 @@
-/*	$Id: mdoc.c,v 1.267 2017/06/17 13:06:16 schwarze Exp $ */
+/*	$Id: mdoc.c,v 1.268 2017/08/11 16:56:21 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010, 2012-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -297,8 +297,8 @@ mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 		if (end - c < 3)
 			break;
 		if (c[1] != ' ' ||
-		    isalpha((unsigned char)c[-2]) == 0 ||
-		    isalpha((unsigned char)c[-1]) == 0 ||
+		    isalnum((unsigned char)c[-2]) == 0 ||
+		    isalnum((unsigned char)c[-1]) == 0 ||
 		    (c[-2] == 'n' && c[-1] == 'c') ||
 		    (c[-2] == 'v' && c[-1] == 's'))
 			continue;

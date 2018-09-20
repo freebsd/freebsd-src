@@ -1,4 +1,4 @@
-/*	$Id: out.h,v 1.31 2017/06/27 18:25:02 schwarze Exp $ */
+/*	$Id: out.h,v 1.32 2018/06/25 16:54:59 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -53,11 +53,6 @@ struct	rofftbl {
 	struct roffcol	*cols; /* master column specifiers */
 	void		*arg; /* passed to sulen, slen, and len */
 };
-
-#define	SCALE_VS_INIT(p, v) \
-	do { (p)->unit = SCALE_VS; \
-	     (p)->scale = (v); } \
-	while (/* CONSTCOND */ 0)
 
 #define	SCALE_HS_INIT(p, v) \
 	do { (p)->unit = SCALE_EN; \

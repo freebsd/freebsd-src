@@ -1,4 +1,4 @@
-.\"	$Id: man.conf.5,v 1.4 2016/12/28 22:52:17 schwarze Exp $
+.\"	$Id: man.conf.5,v 1.5 2017/08/22 18:17:52 schwarze Exp $
 .\"
 .\" Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 28 2016 $
+.Dd $Mdocdate: August 22 2017 $
 .Dt MAN.CONF 5
 .Os
 .Sh NAME
@@ -74,8 +74,12 @@ in each directory configured with
 .Ic manpath
 is recommended and necessary for
 .Xr apropos 1
-to work, but not strictly required for
-.Xr man 1 .
+to work, and also for
+.Xr man 1
+on operating systems like
+.Ox
+that install each manual page with only one file name in the file system,
+even if it documents multiple utilities or functions.
 .It Ic output Ar option Op Ar value
 Configure the default value of an output option.
 These directives are overridden by the

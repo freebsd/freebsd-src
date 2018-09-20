@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.246 2017/07/24 11:15:12 schwarze Exp $
+* $Id: TODO,v 1.258 2018/08/06 14:16:30 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -38,6 +38,18 @@ are mere guesses, and some may be wrong.
 
 --- missing roff features ----------------------------------------------
 
+- .nop prints its arguments as text,
+  see groff(7) for an example
+
+- .ft CB selects constant-width bold font
+  see groff_out(7) for examples
+
+- \*(.T prints the device being used,
+  see groff_char(7) for an example
+
+- \[charNN], \[charNNN] prints a single-byte codepoint
+  see groff_char(7) for examples
+
 - .ad (adjust margins)
   .ad l -- adjust left margin only (flush left)
   .ad r -- adjust right margin only (flush right)
@@ -52,10 +64,6 @@ are mere guesses, and some may be wrong.
   found by naddy@ in xloadimage(1)
   loc **  exist ***  algo *  size *  imp *
 
-- .nr third argument (auto-increment step size, requires \n+)
-  found by bentley@ in sbcl(1)  Mon, 9 Dec 2013 18:36:57 -0700
-  loc *  exist *  algo *  size *  imp **
-
 - .ns (no-space mode) occurs in xine-config(1)
   when implementing this, also let .TH set it
   reported by brad@  Sat, 15 Jan 2011 15:45:23 -0500
@@ -64,10 +72,6 @@ are mere guesses, and some may be wrong.
 - .while and .shift
   found by jca@ in ratpoison(1)  Sun, 30 Jun 2013 12:01:09 +0200
   loc *  exist **  algo **  size **  imp **
-
-- \n+ and \n- numerical register increment and decrement
-  found by bentley@ in sbcl(1)  Mon, 9 Dec 2013 18:36:57 -0700
-  loc *  exist *  algo *  size *  imp **
 
 - \w'' improve width measurements
   would not be very useful without an expression parser, see below
@@ -87,9 +91,11 @@ are mere guesses, and some may be wrong.
   Found by naddy@ in devel/cutils cobfusc(1)  Mon, 16 Feb 2015 19:10:52 +0100
   loc ***  exist ***  algo ***  size **  imp *
 
-- using undefined strings or macros defines them to be empty
-  wl@  Mon, 14 Nov 2011 14:37:01 +0000
-  loc *  exist *  algo *  size *  imp *
+- check for missing roff escape sequences, implement those that are
+  trivial even if not usually appearing in manual pages, gracefully
+  ignore the non-trivial ones, document what they are supposed to do
+  and what mandoc does instead
+  loc *  exist **  algo *  size *  imp *
 
 --- missing mdoc features ----------------------------------------------
 
@@ -146,10 +152,6 @@ are mere guesses, and some may be wrong.
   is not safe, e.g. `.Bl -column .It Pf a b .' gives "ab."
   but should give "ab ."
 
-- check whether it is correct that `D1' uses INDENT+1;
-  does it need its own constant?
-  loc *  exist **  algo **  size *  imp **
-
 - prohibit `Nm' from having non-text HEAD children
   (e.g., NetBSD mDNSShared/dns-sd.1)
   (mdoc_html.c and mdoc_term.c `Nm' handlers can be slightly simplified)
@@ -170,12 +172,38 @@ are mere guesses, and some may be wrong.
   uqs@  Thu, 2 Jun 2011 11:33:35 +0200
   loc *  exist **  algo ***  size *  imp **
 
+--- missing man features -----------------------------------------------
+
+- .SY and .YS,
+  used by many groff manual pages
+
+- preserve punctuation following .ME,
+  see ditroff(7) for an example
+
+- .TQ tagged paragraph continuation,
+  see groff_diff(7) for examples
+
+- groff_www(7) .MTO and .URL
+  These macros were used by the GNU grep(1) man page.
+  The groff_www(7) manual page itself uses them, too.
+  We should probably *not* add them to mandoc.
+  Just mentioning this here to keep track of the abuse.
+  Laura Morales <lauretas at mail dot com> 20 Apr 2018 07:33:02 +0200
+  loc **  exist *  algo *  size **  imp *
+
 --- missing tbl features -----------------------------------------------
 
 - the "s" layout column specifier is used for placement of data
   into columns, but ignored during column width calculations
   synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
   loc *  exist **  algo ***  size *  imp **
+
+- vertical centering in cells vertically spanned with ^
+  pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
+  loc *  exist ***  algo ***  size **  imp *
+
+- support .ds requests inside tbl(7) code,
+  see tbl(1) for an example
 
 - support mdoc(7) and man(7) macros inside tbl(7) code;
   probably requires the parser reorg and letting tbl(7)
@@ -194,6 +222,18 @@ are mere guesses, and some may be wrong.
   in tbl(7) -Tutf-8 output
   suggested by bentley@  Tue, 14 Oct 2014 04:10:55 -0600
   loc *  exist **  algo *  size *  imp **
+
+- implement horizontal and vertical alignment in HTML output
+  pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
+  loc *  exist *  algo *  size *  imp ***
+
+- implement cell spanning in HTML output
+  pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
+  loc *  exist *  algo **  size **  imp **
+
+- implement table borders in HTML output
+  pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
+  loc *  exist *  algo **  size **  imp **
 
 --- missing eqn features -----------------------------------------------
 
@@ -219,11 +259,14 @@ are mere guesses, and some may be wrong.
   surrounded by blanks, not when it is part of an unquoted word.
   Also, check whether there are more such cases (e.g., +?).
   reported by bentley@  20 Jun 2017 02:04:29 -0600
+  loc *  exist **  algo **  size *  imp *
 
 - Primes, opprime, and '
   bentley@  Thu, 13 Jul 2017 23:14:20 -0600
 
 --- missing misc features ----------------------------------------------
+
+- man -ks 1,8 route; kn@ Jul 13, 2018 orally
 
 - italic correction (\/) in PostScript mode
   Werner LEMBERG on groff at gnu dot org  Sun, 10 Nov 2013 12:47:46
@@ -297,6 +340,9 @@ are mere guesses, and some may be wrong.
 ************************************************************************
 * formatting issues: ugly output
 ************************************************************************
+
+- .UR can nest inside .TP,
+  see roff(7) for examples
 
 - revisit empty in-line macros
   look at the difference between "Em x Em ." and "Sq x Em ."
@@ -374,6 +420,17 @@ are mere guesses, and some may be wrong.
   loc *  exist **  algo **  size *  imp **
 
 --- HTML issues --------------------------------------------------------
+
+- wrap Sh and Ss content into <div>
+  Laura Morales <lauretas at mail dot com> 21 Apr 2018 18:10:48 +0200
+  (Evaluate whether this is really useful and has no adverse
+   side effects before implementing; if it is possible,
+   it does seem cleaner.)
+  loc **  exist **  algo *  size *  imp ***
+
+- format ".IP *" etc. as <ul> rather than <dl>
+  https://github.com/Debian/debiman/issues/67
+  loc ** exist ** algo ** size * imp ***
 
 - .Bf at the beginning of a paragraph inserts a bogus 1ex horizontal
   space, see for example random(3).  Introduced in
@@ -471,6 +528,10 @@ are mere guesses, and some may be wrong.
 * warning issues
 ************************************************************************
 
+- warn about duplicate .Sh/.Ss heads
+  gre(4): Rename duplicate sections 20 Apr 2018 15:27:33 +0200
+  loc *  exist *  algo *  size *  imp **
+
 - style message about macros inside .Bd -literal and .Dl, in particular
   font changing macros like .Cm, .Ar, .Fa (from the mdoclint TODO)
 
@@ -508,6 +569,10 @@ are mere guesses, and some may be wrong.
 - mandoc_special does not really check the escape sequence,
   but just the overall format
   loc **  exist **  algo ***  size **  imp **
+
+- makewhatis -p complains about language subdirectories:
+  /usr/local/man//ru: Unknown directory part
+
 
 ************************************************************************
 * documentation issues
@@ -562,7 +627,7 @@ are mere guesses, and some may be wrong.
 
  - Enable HTTP compression by detecting gzip encoding and filtering
    output through libz.
- - Sandbox (see OpenSSH).
+ - Privilege separation (see OpenSSH).
  - Enable caching support via HTTP 304 and If-Modified-Since.
  - Have Mac OSX systems automatically disable -static compilation of the
    CGI: -static isn't supported.
@@ -570,6 +635,16 @@ are mere guesses, and some may be wrong.
 ************************************************************************
 * to improve in the groff_mdoc(7) macros
 ************************************************************************
+
+- .Cd # arch1, arch2 in section 4 pages:
+  find better way to indicate multiple architectures, maybe:
+  allow .Dt vgafb 4 "macppc sparc64"
+  already shown as "Device Drivers Manual (macppc sparc64)"
+  for apropos, make that "vgafb(4) - macppc # sparc64" instead of "- all"
+  groff can be made to show multiple arches, too, but it is
+  tedious to do the string parsing in roff code...
+  jmc@ 23 Apr 2018 07:24:52 +0100 [man for vgafb(4)...]
+  loc **  exist **  algo *  size *  imp ***
 
 - use uname(1) to set doc-default-operating-system at install time
   tobimensch  Mon, 1 Dec 2014 00:25:07 +0100

@@ -1,7 +1,7 @@
 /*	$OpenBSD$ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -120,6 +120,7 @@ man_node_validate(struct roff_man *man)
 	case ROFFT_ROOT:
 		check_root(man, n);
 		break;
+	case ROFFT_COMMENT:
 	case ROFFT_EQN:
 	case ROFFT_TBL:
 		break;
@@ -149,10 +150,9 @@ man_node_validate(struct roff_man *man)
 static void
 check_root(CHKARGS)
 {
-
 	assert((man->flags & (MAN_BLINE | MAN_ELINE)) == 0);
 
-	if (NULL == man->first->child)
+	if (n->last == NULL || n->last->type == ROFFT_COMMENT)
 		mandoc_msg(MANDOCERR_DOC_EMPTY, man->parse,
 		    n->line, n->pos, NULL);
 	else
