@@ -281,62 +281,30 @@ END(fillw)
  * returns to *curpcb->pcb_onfault instead of the function.
  */
 
+.macro SMAP_DISABLE smap
+.if	\smap
+	stac
+.endif
+.endmacro
+
+
+.macro SMAP_ENABLE smap
+.if	\smap
+	clac
+.endif
+.endmacro
+
 /*
  * copyout(from_kernel, to_user, len)
  *         %rdi,        %rsi,    %rdx
  */
-ENTRY(copyout_nosmap)
-	PUSH_FRAME_POINTER
-	movq	PCPU(CURPCB),%rax
-	movq	$copyout_fault,PCB_ONFAULT(%rax)
-	testq	%rdx,%rdx			/* anything to do? */
-	jz	done_copyout
-
-	/*
-	 * Check explicitly for non-user addresses.  This check is essential
-	 * because it prevents usermode from writing into the kernel.  We do
-	 * not verify anywhere else that the user did not specify a rogue
-	 * address.
-	 */
-	/*
-	 * First, prevent address wrapping.
-	 */
-	movq	%rsi,%rax
-	addq	%rdx,%rax
-	jc	copyout_fault
-/*
- * XXX STOP USING VM_MAXUSER_ADDRESS.
- * It is an end address, not a max, so every time it is used correctly it
- * looks like there is an off by one error, and of course it caused an off
- * by one error in several places.
- */
-	movq	$VM_MAXUSER_ADDRESS,%rcx
-	cmpq	%rcx,%rax
-	ja	copyout_fault
-
-	xchgq	%rdi,%rsi
-	/* bcopy(%rsi, %rdi, %rdx) */
-	movq	%rdx,%rcx
-
-	shrq	$3,%rcx
-	rep
-	movsq
-	movb	%dl,%cl
-	andb	$7,%cl
-	je	done_copyout
-	rep
-	movsb
-
-	jmp	done_copyout
-END(copyout_nosmap)
-
-ENTRY(copyout_smap)
+.macro	COPYOUT smap erms
 	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rax
 	/* Trap entry clears PSL.AC */
 	movq	$copyout_fault,PCB_ONFAULT(%rax)
 	testq	%rdx,%rdx			/* anything to do? */
-	jz	done_copyout
+	jz	2f
 
 	/*
 	 * Check explicitly for non-user addresses.  If 486 write protection
@@ -365,23 +333,42 @@ ENTRY(copyout_smap)
 	/* bcopy(%rsi, %rdi, %rdx) */
 	movq	%rdx,%rcx
 
+	SMAP_DISABLE \smap
+.if	\erms == 0
 	shrq	$3,%rcx
-	stac
 	rep
 	movsq
 	movb	%dl,%cl
 	andb	$7,%cl
 	je	1f
+.endif
 	rep
 	movsb
-1:	clac
-
-done_copyout:
+1:
+	SMAP_ENABLE \smap
+2:
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rdx
 	movq	%rax,PCB_ONFAULT(%rdx)
 	POP_FRAME_POINTER
 	ret
+.endmacro
+
+ENTRY(copyout_nosmap_std)
+	COPYOUT smap=0 erms=0
+END(copyout_nosmap_std)
+
+ENTRY(copyout_smap_std)
+	COPYOUT smap=1 erms=0
+END(copyout_smap_std)
+
+ENTRY(copyout_nosmap_erms)
+	COPYOUT smap=0 erms=1
+END(copyout_nosmap_erms)
+
+ENTRY(copyout_smap_erms)
+	COPYOUT smap=1 erms=1
+END(copyout_smap_erms)
 
 	ALIGN_TEXT
 copyout_fault:
@@ -390,18 +377,17 @@ copyout_fault:
 	movq	$EFAULT,%rax
 	POP_FRAME_POINTER
 	ret
-END(copyout_smap)
 
 /*
  * copyin(from_user, to_kernel, len)
  *        %rdi,      %rsi,      %rdx
  */
-ENTRY(copyin_nosmap)
+.macro	COPYIN smap erms
 	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rax
 	movq	$copyin_fault,PCB_ONFAULT(%rax)
 	testq	%rdx,%rdx			/* anything to do? */
-	jz	done_copyin
+	jz	2f
 
 	/*
 	 * make sure address is valid
@@ -416,56 +402,44 @@ ENTRY(copyin_nosmap)
 	xchgq	%rdi,%rsi
 	movq	%rdx,%rcx
 	movb	%cl,%al
+
+	SMAP_DISABLE \smap
+.if \erms == 0
 	shrq	$3,%rcx				/* copy longword-wise */
 	rep
 	movsq
 	movb	%al,%cl
 	andb	$7,%cl				/* copy remaining bytes */
-	je	done_copyin
+	je	1
+.endif
 	rep
 	movsb
 
-	jmp	done_copyin
-END(copyin_nosmap)
-
-ENTRY(copyin_smap)
-	PUSH_FRAME_POINTER
-	movq	PCPU(CURPCB),%rax
-	movq	$copyin_fault,PCB_ONFAULT(%rax)
-	testq	%rdx,%rdx			/* anything to do? */
-	jz	done_copyin
-
-	/*
-	 * make sure address is valid
-	 */
-	movq	%rdi,%rax
-	addq	%rdx,%rax
-	jc	copyin_fault
-	movq	$VM_MAXUSER_ADDRESS,%rcx
-	cmpq	%rcx,%rax
-	ja	copyin_fault
-
-	xchgq	%rdi,%rsi
-	movq	%rdx,%rcx
-	movb	%cl,%al
-	shrq	$3,%rcx				/* copy longword-wise */
-	stac
-	rep
-	movsq
-	movb	%al,%cl
-	andb	$7,%cl				/* copy remaining bytes */
-	je	1f
-	rep
-	movsb
-1:	clac
-
-done_copyin:
+1:
+	SMAP_ENABLE \smap
+2:
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rdx
 	movq	%rax,PCB_ONFAULT(%rdx)
 	POP_FRAME_POINTER
 	ret
-END(copyin_smap)
+.endmacro
+
+ENTRY(copyin_nosmap_std)
+	COPYIN smap=0 erms=0
+END(copyin_nosmap_std)
+
+ENTRY(copyin_smap_std)
+	COPYIN smap=1 erms=0
+END(copyin_smap_std)
+
+ENTRY(copyin_nosmap_erms)
+	COPYIN smap=0 erms=1
+END(copyin_nosmap_erms)
+
+ENTRY(copyin_smap_erms)
+	COPYIN smap=1 erms=1
+END(copyin_smap_erms)
 
 	ALIGN_TEXT
 copyin_fault:
