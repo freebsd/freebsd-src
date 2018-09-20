@@ -1,4 +1,4 @@
-/*	$Id: mandocdb.c,v 1.253 2017/07/28 14:48:25 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.258 2018/02/23 18:25:57 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -19,8 +19,8 @@
 #include "config.h"
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -139,6 +139,8 @@ static	void	 parse_mdoc(struct mpage *, const struct roff_meta *,
 			const struct roff_node *);
 static	int	 parse_mdoc_head(struct mpage *, const struct roff_meta *,
 			const struct roff_node *);
+static	int	 parse_mdoc_Fa(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
 static	int	 parse_mdoc_Fd(struct mpage *, const struct roff_meta *,
 			const struct roff_node *);
 static	void	 parse_mdoc_fname(struct mpage *, const struct roff_node *);
@@ -207,11 +209,11 @@ static	const struct mdoc_handler __mdocs[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, TYPE_Er, 0 },  /* Er */
 	{ NULL, TYPE_Ev, 0 },  /* Ev */
 	{ NULL, 0, 0 },  /* Ex */
-	{ NULL, TYPE_Fa, 0 },  /* Fa */
+	{ parse_mdoc_Fa, 0, 0 },  /* Fa */
 	{ parse_mdoc_Fd, 0, 0 },  /* Fd */
 	{ NULL, TYPE_Fl, 0 },  /* Fl */
 	{ parse_mdoc_Fn, 0, 0 },  /* Fn */
-	{ NULL, TYPE_Ft, 0 },  /* Ft */
+	{ NULL, TYPE_Ft | TYPE_Vt, 0 },  /* Ft */
 	{ NULL, TYPE_Ic, 0 },  /* Ic */
 	{ NULL, TYPE_In, 0 },  /* In */
 	{ NULL, TYPE_Li, 0 },  /* Li */
@@ -319,7 +321,7 @@ mandocdb(int argc, char *argv[])
 	int		  ch, i;
 
 #if HAVE_PLEDGE
-	if (pledge("stdio rpath wpath cpath fattr flock proc exec", NULL) == -1) {
+	if (pledge("stdio rpath wpath cpath", NULL) == -1) {
 		warn("pledge");
 		return (int)MANDOCLEVEL_SYSERR;
 	}
@@ -440,15 +442,6 @@ mandocdb(int argc, char *argv[])
 			 * The existing database is usable.  Process
 			 * all files specified on the command-line.
 			 */
-#if HAVE_PLEDGE
-			if (!nodb) {
-				if (pledge("stdio rpath wpath cpath fattr flock", NULL) == -1) {
-					warn("pledge");
-					exitcode = (int)MANDOCLEVEL_SYSERR;
-					goto out;
-				}
-			}
-#endif
 			use_all = 1;
 			for (i = 0; i < argc; i++)
 				filescan(argv[i]);
@@ -1382,7 +1375,12 @@ parse_cat(struct mpage *mpage, int fd)
 		plen -= 2;
 	}
 
-	mpage->desc = mandoc_strdup(p);
+	/*
+	 * Cut off excessive one-line descriptions.
+	 * Bad pages are not worth better heuristics.
+	 */
+
+	mpage->desc = mandoc_strndup(p, 150);
 	fclose(stream);
 	free(title);
 }
@@ -1526,7 +1524,12 @@ parse_man(struct mpage *mpage, const struct roff_meta *meta,
 			while (' ' == *start)
 				start++;
 
-			mpage->desc = mandoc_strdup(start);
+			/*
+			 * Cut off excessive one-line descriptions.
+			 * Bad pages are not worth better heuristics.
+			 */
+
+			mpage->desc = mandoc_strndup(start, 150);
 			free(title);
 			return;
 		}
@@ -1569,6 +1572,20 @@ parse_mdoc(struct mpage *mpage, const struct roff_meta *meta,
 		if (NULL != n->child)
 			parse_mdoc(mpage, meta, n);
 	}
+}
+
+static int
+parse_mdoc_Fa(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
+{
+	uint64_t mask;
+
+	mask = TYPE_Fa;
+	if (n->sec == SEC_SYNOPSIS)
+		mask |= TYPE_Vt;
+
+	putmdockey(mpage, n->child, mask, 0);
+	return 0;
 }
 
 static int
@@ -1640,15 +1657,20 @@ static int
 parse_mdoc_Fn(struct mpage *mpage, const struct roff_meta *meta,
 	const struct roff_node *n)
 {
+	uint64_t mask;
 
 	if (n->child == NULL)
 		return 0;
 
 	parse_mdoc_fname(mpage, n->child);
 
-	for (n = n->child->next; n != NULL; n = n->next)
-		if (n->type == ROFFT_TEXT)
-			putkey(mpage, n->string, TYPE_Fa);
+	n = n->child->next;
+	if (n != NULL && n->type == ROFFT_TEXT) {
+		mask = TYPE_Fa;
+		if (n->sec == SEC_SYNOPSIS)
+			mask |= TYPE_Vt;
+		putmdockey(mpage, n, mask, 0);
+	}
 
 	return 0;
 }
@@ -2119,9 +2141,10 @@ dbprune(struct dba *dba)
 static void
 dbwrite(struct dba *dba)
 {
-	char		 tfn[32];
-	int		 status;
-	pid_t		 child;
+	struct stat	 sb1, sb2;
+	char		 tfn[33], *cp1, *cp2;
+	off_t		 i;
+	int		 fd1, fd2;
 
 	/*
 	 * Do not write empty databases, and delete existing ones
@@ -2160,59 +2183,62 @@ dbwrite(struct dba *dba)
 		say("", "&%s", tfn);
 		return;
 	}
-
+	cp1 = cp2 = MAP_FAILED;
+	fd1 = fd2 = -1;
 	(void)strlcat(tfn, "/" MANDOC_DB, sizeof(tfn));
 	if (dba_write(tfn, dba) == -1) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say(tfn, "&dba_write");
-		goto out;
+		goto err;
 	}
+	if ((fd1 = open(MANDOC_DB, O_RDONLY, 0)) == -1) {
+		say(MANDOC_DB, "&open");
+		goto err;
+	}
+	if ((fd2 = open(tfn, O_RDONLY, 0)) == -1) {
+		say(tfn, "&open");
+		goto err;
+	}
+	if (fstat(fd1, &sb1) == -1) {
+		say(MANDOC_DB, "&fstat");
+		goto err;
+	}
+	if (fstat(fd2, &sb2) == -1) {
+		say(tfn, "&fstat");
+		goto err;
+	}
+	if (sb1.st_size != sb2.st_size)
+		goto err;
+	if ((cp1 = mmap(NULL, sb1.st_size, PROT_READ, MAP_PRIVATE,
+	    fd1, 0)) == MAP_FAILED) {
+		say(MANDOC_DB, "&mmap");
+		goto err;
+	}
+	if ((cp2 = mmap(NULL, sb2.st_size, PROT_READ, MAP_PRIVATE,
+	    fd2, 0)) == MAP_FAILED) {
+		say(tfn, "&mmap");
+		goto err;
+	}
+	for (i = 0; i < sb1.st_size; i++)
+		if (cp1[i] != cp2[i])
+			goto err;
+	goto out;
 
-	switch (child = fork()) {
-	case -1:
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "&fork cmp");
-		return;
-	case 0:
-		execlp("cmp", "cmp", "-s", tfn, MANDOC_DB, (char *)NULL);
-		say("", "&exec cmp");
-		exit(0);
-	default:
-		break;
-	}
-	if (waitpid(child, &status, 0) == -1) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "&wait cmp");
-	} else if (WIFSIGNALED(status)) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "cmp died from signal %d", WTERMSIG(status));
-	} else if (WEXITSTATUS(status)) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say(MANDOC_DB,
-		    "Data changed, but cannot replace database");
-	}
+err:
+	exitcode = (int)MANDOCLEVEL_SYSERR;
+	say(MANDOC_DB, "Data changed, but cannot replace database");
 
 out:
+	if (cp1 != MAP_FAILED)
+		munmap(cp1, sb1.st_size);
+	if (cp2 != MAP_FAILED)
+		munmap(cp2, sb2.st_size);
+	if (fd1 != -1)
+		close(fd1);
+	if (fd2 != -1)
+		close(fd2);
+	unlink(tfn);
 	*strrchr(tfn, '/') = '\0';
-	switch (child = fork()) {
-	case -1:
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "&fork rm");
-		return;
-	case 0:
-		execlp("rm", "rm", "-rf", tfn, (char *)NULL);
-		say("", "&exec rm");
-		exit((int)MANDOCLEVEL_SYSERR);
-	default:
-		break;
-	}
-	if (waitpid(child, &status, 0) == -1) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "&wait rm");
-	} else if (WIFSIGNALED(status) || WEXITSTATUS(status)) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "%s: Cannot remove temporary directory", tfn);
-	}
+	rmdir(tfn);
 }
 
 static int

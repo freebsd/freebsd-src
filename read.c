@@ -1,7 +1,7 @@
-/*	$Id: read.c,v 1.192 2017/07/20 14:36:36 schwarze Exp $ */
+/*	$Id: read.c,v 1.196 2018/07/28 18:34:15 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2018 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2012 Joerg Sonnenberger <joerg@netbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -94,9 +94,10 @@ static	const char * const	mandocerrs[MANDOCERR_MAX] = {
 	"generic style suggestion",
 
 	"legacy man(7) date format",
+	"normalizing date format to",
 	"lower case character in document title",
 	"duplicate RCS id",
-	"typo in section name",
+	"possible typo in section name",
 	"unterminated quoted argument",
 	"useless macro",
 	"consider using OS macro",
@@ -106,6 +107,7 @@ static	const char * const	mandocerrs[MANDOCERR_MAX] = {
 	"no blank before trailing delimiter",
 	"fill mode already enabled, skipping",
 	"fill mode already disabled, skipping",
+	"verbatim \"--\", maybe consider using \\(em",
 	"function name without markup",
 	"whitespace at end of input line",
 	"bad comment style",
@@ -556,6 +558,7 @@ read_whole_file(struct mparse *curp, const char *file, int fd,
 	gzFile		 gz;
 	size_t		 off;
 	ssize_t		 ssz;
+	int		 gzerrnum, retval;
 
 	if (fstat(fd, &st) == -1) {
 		mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0,
@@ -583,9 +586,22 @@ read_whole_file(struct mparse *curp, const char *file, int fd,
 	}
 
 	if (curp->gzip) {
+		/*
+		 * Duplicating the file descriptor is required
+		 * because we will have to call gzclose(3)
+		 * to free memory used internally by zlib,
+		 * but that will also close the file descriptor,
+		 * which this function must not do.
+		 */
+		if ((fd = dup(fd)) == -1) {
+			mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0,
+			    "dup: %s", strerror(errno));
+			return 0;
+		}
 		if ((gz = gzdopen(fd, "rb")) == NULL) {
 			mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0,
 			    "gzdopen: %s", strerror(errno));
+			close(fd);
 			return 0;
 		}
 	} else
@@ -598,6 +614,7 @@ read_whole_file(struct mparse *curp, const char *file, int fd,
 
 	*with_mmap = 0;
 	off = 0;
+	retval = 0;
 	fb->sz = 0;
 	fb->buf = NULL;
 	for (;;) {
@@ -614,19 +631,29 @@ read_whole_file(struct mparse *curp, const char *file, int fd,
 		    read(fd, fb->buf + (int)off, fb->sz - off);
 		if (ssz == 0) {
 			fb->sz = off;
-			return 1;
+			retval = 1;
+			break;
 		}
 		if (ssz == -1) {
-			mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0,
-			    "read: %s", strerror(errno));
+			if (curp->gzip)
+				(void)gzerror(gz, &gzerrnum);
+			mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0, "read: %s",
+			    curp->gzip && gzerrnum != Z_ERRNO ?
+			    zError(gzerrnum) : strerror(errno));
 			break;
 		}
 		off += (size_t)ssz;
 	}
 
-	free(fb->buf);
-	fb->buf = NULL;
-	return 0;
+	if (curp->gzip && (gzerrnum = gzclose(gz)) != Z_OK)
+		mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0, "gzclose: %s",
+		    gzerrnum == Z_ERRNO ? strerror(errno) :
+		    zError(gzerrnum));
+	if (retval == 0) {
+		free(fb->buf);
+		fb->buf = NULL;
+	}
+	return retval;
 }
 
 static void

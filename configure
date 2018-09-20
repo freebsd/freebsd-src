@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# $Id: configure,v 1.64 2017/07/01 09:47:30 schwarze Exp $
+# $Id: configure,v 1.66 2018/07/31 15:34:00 schwarze Exp $
 #
-# Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014,2015,2016,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -27,7 +27,7 @@ set -e
 # 3: config.log
 
 exec 3> config.log
-echo "config.log: writing..."
+echo "file config.log: writing..."
 
 # --- default settings -------------------------------------------------
 # Initialize all variables here,
@@ -41,14 +41,13 @@ OSNAME=
 UTF8_LOCALE=
 
 CC=`printf "all:\\n\\t@echo \\\$(CC)\\n" | env -i make -sf -`
-CFLAGS="-g -W -Wall -Wmissing-prototypes -Wstrict-prototypes -Wwrite-strings"
-CFLAGS="${CFLAGS} -Wno-unused-parameter"
+CFLAGS=
 LDADD=
 LDFLAGS=
 LD_NANOSLEEP=
 LD_OHASH=
 LD_RECVMSG=
-STATIC="-static"
+STATIC=
 
 BUILD_CGI=0
 BUILD_CATMAN=0
@@ -83,6 +82,7 @@ HAVE_STRCASESTR=
 HAVE_STRINGLIST=
 HAVE_STRLCAT=
 HAVE_STRLCPY=
+HAVE_STRNDUP=
 HAVE_STRPTIME=
 HAVE_STRSEP=
 HAVE_STRTONUM=
@@ -126,27 +126,25 @@ LN="ln -f"
 # --- manual settings from configure.local -----------------------------
 
 if [ -r ./configure.local ]; then
-	echo "configure.local: reading..." 1>&2
-	echo "configure.local: reading..." 1>&3
+	echo "file configure.local: reading..." 1>&2
+	echo "file configure.local: reading..." 1>&3
 	cat ./configure.local 1>&3
 	. ./configure.local
 else
-	echo "configure.local: no (fully automatic configuration)" 1>&2
-	echo "configure.local: no (fully automatic configuration)" 1>&3
+	echo "file configure.local: no (fully automatic configuration)" 1>&2
+	echo "file configure.local: no (fully automatic configuration)" 1>&3
 fi
 echo 1>&3
 
-# --- tests for config.h  ----------------------------------------------
-
-COMP="${CC} ${CFLAGS} -Wno-unused -Werror"
+# --- tests functions --------------------------------------------------
 
 # Check whether this HAVE_ setting is manually overridden.
 # If yes, use the override, if no, do not decide anything yet.
-# Arguments: lower-case test name, manual value
+# Arguments: test file name, test var name, manual value
 ismanual() {
 	[ -z "${3}" ] && return 1
-	echo "${1}: manual (HAVE_${2}=${3})" 1>&2
-	echo "${1}: manual (HAVE_${2}=${3})" 1>&3
+	echo "tested ${1}: HAVE_${2}=${3} (manual)" 1>&2
+	echo "tested ${1}: HAVE_${2}=${3} (manual)" 1>&3
 	echo 1>&3
 	return 0
 }
@@ -154,31 +152,33 @@ ismanual() {
 # Run a single autoconfiguration test.
 # In case of success, enable the feature.
 # In case of failure, do not decide anything yet.
-# Arguments: lower-case test name, upper-case test name, additional CFLAGS
+# Arguments: test file name, test var name, additional CFLAGS
 singletest() {
 	cat 1>&3 << __HEREDOC__
-${1}${3}: testing...
+testing ${1}${3} ...
 ${COMP} -o test-${1} test-${1}.c ${3}
 __HEREDOC__
 
 	if ${COMP} -o "test-${1}" "${SOURCEDIR}/test-${1}.c" ${3} 1>&3 2>&3
 	then
-		echo "${1}${3}: ${CC} succeeded" 1>&3
+		echo "partial result of ${1}${3}: ${CC} succeeded" 1>&3
 	else
-		echo "${1}${3}: ${CC} failed with $?" 1>&3
+		echo "result of ${1}${3}: ${CC} failed with exit status $?" 1>&3
+		echo "result of compiling ${1}${3}: no" 1>&3
 		echo 1>&3
 		return 1
 	fi
 
 	if ./test-${1} 1>&3 2>&3; then
-		echo "${1}${3}: yes" 1>&2
-		echo "${1}${3}: yes" 1>&3
+		echo "tested ${1}${3}: yes" 1>&2
+		echo "result of running ${1}${3}: yes" 1>&3
 		echo 1>&3
 		eval HAVE_${2}=1
 		rm "test-${1}"
 		return 0
 	else
-		echo "${1}${3}: execution failed with $?" 1>&3
+		echo "result of ${1}${3}: execution failed with exit status $?" 1>&3
+		echo "result of running ${1}${3}: no" 1>&3
 		echo 1>&3
 		rm "test-${1}"
 		return 1
@@ -187,12 +187,12 @@ __HEREDOC__
 
 # Run a complete autoconfiguration test, including the check for
 # a manual override and disabling the feature on failure.
-# Arguments: lower case name, upper case name, additional CFLAGS
+# Arguments: test file name, test var name, additional CFLAGS
 runtest() {
 	eval _manual=\${HAVE_${2}}
 	ismanual "${1}" "${2}" "${_manual}" && return 0
 	singletest "${1}" "${2}" "${3}" && return 0
-	echo "${1}${3}: no" 1>&2
+	echo "tested ${1}${3}: no" 1>&2
 	eval HAVE_${2}=0
 	return 1
 }
@@ -201,18 +201,54 @@ runtest() {
 get_locale() {
 	[ -n "${HAVE_WCHAR}" ] && [ "${HAVE_WCHAR}" -eq 0 ] && return 0
 	ismanual UTF8_LOCALE UTF8_LOCALE "$UTF8_LOCALE" && return 0
-	echo "UTF8_LOCALE: testing..." 1>&3
+	echo "testing UTF8_LOCALE ..." 1>&3
 	UTF8_LOCALE=`locale -a | grep -i '^en_US\.UTF-*8$' | head -n 1`
 	if [ -z "${UTF8_LOCALE}" ]; then
 		UTF8_LOCALE=`locale -a | grep -i '\.UTF-*8' | head -n 1`
 		[ -n "${UTF8_LOCALE}" ] || return 1
 	fi
-	echo "UTF8_LOCALE=${UTF8_LOCALE}" 1>&2
-	echo "UTF8_LOCALE=${UTF8_LOCALE}" 1>&3
+	echo "selected UTF8_LOCALE=${UTF8_LOCALE}" 1>&2
+	echo "selected UTF8_LOCALE=${UTF8_LOCALE}" 1>&3
 	echo 1>&3
 	return 0;
 }
 
+# --- compiler options -------------------------------------------------
+
+if [ -n "${CFLAGS}" ]; then
+	COMP="${CC} ${CFLAGS}"
+	echo "selected CFLAGS=\"${CFLAGS}\" (manual)" 1>&2
+	echo "selected CFLAGS=\"${CFLAGS}\" (manual)" 1>&3
+	echo 1>&3
+else
+	CFLAGS="-g -W -Wall -Wmissing-prototypes -Wstrict-prototypes"
+	CFLAGS="${CFLAGS} -Wwrite-strings -Wno-unused-parameter"
+	COMP="${CC} ${CFLAGS} -Wno-unused -Werror"
+	echo -n "tested ${CC} -W: " 1>&2
+	echo -n "testing ${CC} -W: " 1>&3
+	runtest noop WFLAG || true
+	if [ "${HAVE_WFLAG}" -eq 0 ]; then
+		CFLAGS="-g"
+		COMP="${CC} ${CFLAGS}"
+	fi
+	echo "selected CFLAGS=\"${CFLAGS}\"" 1>&2
+	echo "selected CFLAGS=\"${CFLAGS}\"" 1>&3
+	echo 1>&3
+fi
+
+if [ -n "${STATIC}" ]; then
+	echo "selected STATIC=\"${STATIC}\" (manual)" 1>&2
+	echo "selected STATIC=\"${STATIC}\" (manual)" 1>&3
+	echo 1>&3
+else
+	runtest noop STATIC -static || true
+	[ ${HAVE_STATIC} -eq 0 ] || STATIC="-static"
+	echo "selected STATIC=\"${STATIC}\"" 1>&2
+	echo "selected STATIC=\"${STATIC}\"" 1>&3
+	echo 1>&3
+fi
+
+# --- tests for config.h  ----------------------------------------------
 
 # --- library functions ---
 runtest dirent-namlen	DIRENT_NAMLEN	|| true
@@ -238,6 +274,7 @@ runtest strcasestr	STRCASESTR	|| true
 runtest stringlist	STRINGLIST	|| true
 runtest strlcat		STRLCAT		|| true
 runtest strlcpy		STRLCPY		|| true
+runtest strndup		STRNDUP		|| true
 runtest strptime	STRPTIME	|| true
 runtest strsep		STRSEP		|| true
 runtest strtonum	STRTONUM	|| true
@@ -264,8 +301,9 @@ if get_locale; then
 	runtest wchar WCHAR -DUTF8_LOCALE=\"${UTF8_LOCALE}\" || true
 else
 	HAVE_WCHAR=0
-	echo "wchar: no (no UTF8_LOCALE)" 1>&2
-	echo "wchar: no (no UTF8_LOCALE)" 1>&3
+	echo "tested wchar: no (no UTF8_LOCALE)" 1>&2
+	echo "tested wchar: no (no UTF8_LOCALE)" 1>&3
+	echo 1>&3
 fi
 
 # --- nanosleep ---
@@ -328,8 +366,8 @@ fi
 
 # --- LDADD ---
 LDADD="${LDADD} ${LD_NANOSLEEP} ${LD_RECVMSG} ${LD_OHASH} -lz"
-echo "LDADD=\"${LDADD}\"" 1>&2
-echo "LDADD=\"${LDADD}\"" 1>&3
+echo "selected LDADD=\"${LDADD}\"" 1>&2
+echo "selected LDADD=\"${LDADD}\"" 1>&3
 echo 1>&3
 
 # --- write config.h ---
@@ -353,7 +391,8 @@ __HEREDOC__
 
 [ ${HAVE_GETLINE} -eq 0 -o \
   ${HAVE_REALLOCARRAY} -eq 0 -o ${HAVE_RECALLOCARRAY} -eq 0 -o \
-  ${HAVE_STRLCAT} -eq 0 -o ${HAVE_STRLCPY} -eq 0 ] \
+  ${HAVE_STRLCAT} -eq 0 -o ${HAVE_STRLCPY} -eq 0 -o \
+  ${HAVE_STRNDUP} -eq 0 ] \
 	&& echo "#include <sys/types.h>"
 [ ${HAVE_VASPRINTF} -eq 0 ] && echo "#include <stdarg.h>"
 [ ${HAVE_GETLINE} -eq 0 ] && echo "#include <stdio.h>"
@@ -396,6 +435,7 @@ cat << __HEREDOC__
 #define HAVE_STRINGLIST ${HAVE_STRINGLIST}
 #define HAVE_STRLCAT ${HAVE_STRLCAT}
 #define HAVE_STRLCPY ${HAVE_STRLCPY}
+#define HAVE_STRNDUP ${HAVE_STRNDUP}
 #define HAVE_STRPTIME ${HAVE_STRPTIME}
 #define HAVE_STRSEP ${HAVE_STRSEP}
 #define HAVE_STRTONUM ${HAVE_STRTONUM}
@@ -452,6 +492,9 @@ fi
 [ ${HAVE_STRLCPY} -eq 0 ] && \
 	echo "extern	size_t	  strlcpy(char *, const char *, size_t);"
 
+[ ${HAVE_STRNDUP} -eq 0 ] && \
+	echo "extern	char	 *strndup(const char *, size_t);"
+
 [ ${HAVE_STRSEP} -eq 0 ] && \
 	echo "extern	char	 *strsep(char **, const char *);"
 
@@ -461,8 +504,8 @@ fi
 [ ${HAVE_VASPRINTF} -eq 0 ] && \
 	echo "extern	int	  vasprintf(char **, const char *, va_list);"
 
-echo "config.h: written" 1>&2
-echo "config.h: written" 1>&3
+echo "file config.h: written" 1>&2
+echo "file config.h: written" 1>&3
 
 # --- tests for Makefile.local -----------------------------------------
 
@@ -531,7 +574,7 @@ INSTALL_DATA	= ${INSTALL_DATA}
 LN		= ${LN}
 __HEREDOC__
 
-echo "Makefile.local: written" 1>&2
-echo "Makefile.local: written" 1>&3
+echo "file Makefile.local: written" 1>&2
+echo "file Makefile.local: written" 1>&3
 
 exit 0

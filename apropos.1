@@ -1,4 +1,4 @@
-.\"	$Id: apropos.1,v 1.46 2017/07/04 23:40:01 schwarze Exp $
+.\"	$Id: apropos.1,v 1.47 2018/02/23 18:54:02 schwarze Exp $
 .\"
 .\" Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2011, 2012, 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 4 2017 $
+.Dd $Mdocdate: February 23 2018 $
 .Dt APROPOS 1
 .Os
 .Sh NAME
@@ -327,6 +327,29 @@ Text production:
 .It Li \&Fx Ta Fx No version reference
 .It Li \&Ox Ta Ox No version reference
 .It Li \&Dx Ta Dx No version reference
+.El
+.Pp
+In general, macro keys are supposed to yield complete results without
+expecting the user to consider actual macro usage.
+For example, results include:
+.Pp
+.Bl -tag -width 3n -offset 3n -compact
+.It Li \&Fa
+function arguments appearing on
+.Ic \&Fn
+lines
+.It Li \&Fn
+fuction names marked up with
+.Ic \&Fo
+macros
+.It Li \&In
+include file names marked up with
+.Ic \&Fd
+macros
+.It Li \&Vt
+types appearing as function return types and
+.It \&
+types appearing in function arguments in the SYNOPSIS
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width MANPAGER

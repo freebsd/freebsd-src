@@ -1,4 +1,4 @@
-/*	$Id: tbl_html.c,v 1.23 2017/07/31 16:14:10 schwarze Exp $ */
+/*	$Id: tbl_html.c,v 1.24 2018/06/25 13:45:57 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -79,23 +79,14 @@ html_tbl_sulen(const struct roffsu *su, void *arg)
 static void
 html_tblopen(struct html *h, const struct tbl_span *sp)
 {
-	struct tag	*t;
-	int		 ic;
-
 	if (h->tbl.cols == NULL) {
 		h->tbl.len = html_tbl_len;
 		h->tbl.slen = html_tbl_strlen;
 		h->tbl.sulen = html_tbl_sulen;
 		tblcalc(&h->tbl, sp, 0, 0);
 	}
-
 	assert(NULL == h->tblt);
 	h->tblt = print_otag(h, TAG_TABLE, "c", "tbl");
-
-	t = print_otag(h, TAG_COLGROUP, "");
-	for (ic = 0; ic < sp->opts->cols; ic++)
-		print_otag(h, TAG_COL, "shw", h->tbl.cols[ic].width);
-	print_tagq(h, t);
 }
 
 void

@@ -1,4 +1,4 @@
-.\"	$Id: man.7,v 1.136 2017/06/25 11:42:02 schwarze Exp $
+.\"	$Id: man.7,v 1.137 2018/04/05 22:12:33 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: June 25 2017 $
+.Dd $Mdocdate: April 5 2018 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -273,7 +273,6 @@ in the alphabetical reference below.
 .Bl -column "PP, LP, P" description
 .It Sx B Ta boldface font
 .It Sx I Ta italic font
-.It Sx R Ta roman (default) font
 .It Sx SB Ta small boldface font
 .It Sx SM Ta small roman font
 .It Sx BI Ta alternate between boldface and italic fonts
@@ -297,9 +296,7 @@ The optional arguments specify which release it is from.
 Text is rendered in bold face.
 .Pp
 See also
-.Sx \&I
-and
-.Sx \&R .
+.Sx \&I .
 .Ss \&BI
 Text is rendered alternately in bold face and italic.
 Thus,
@@ -393,9 +390,7 @@ and
 Text is rendered in italics.
 .Pp
 See also
-.Sx \&B
-and
-.Sx \&R .
+.Sx \&B .
 .Ss \&IB
 Text is rendered alternately in italics and bold face.
 Whitespace between arguments is omitted in output.
@@ -546,13 +541,6 @@ See also
 .Sx \&P ,
 and
 .Sx \&TP .
-.Ss \&R
-Text is rendered in roman (the default font).
-.Pp
-See also
-.Sx \&I
-and
-.Sx \&B .
 .Ss \&RB
 Text is rendered alternately in roman (the default font) and bold face.
 Whitespace between arguments is omitted in output.
@@ -790,7 +778,6 @@ The syntax is as follows:
 .It Sx \&IR  Ta    n         Ta    current   Ta    \&
 .It Sx \&OP  Ta    0, 1      Ta    current   Ta    compat
 .It Sx \&PD  Ta    1         Ta    current   Ta    \&
-.It Sx \&R   Ta    n         Ta    next-line Ta    \&
 .It Sx \&RB  Ta    n         Ta    current   Ta    \&
 .It Sx \&RI  Ta    n         Ta    current   Ta    \&
 .It Sx \&SB  Ta    n         Ta    next-line Ta    \&

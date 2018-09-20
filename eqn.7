@@ -1,4 +1,4 @@
-.\"	$Id: eqn.7,v 1.36 2017/07/20 11:07:27 schwarze Exp $
+.\"	$Id: eqn.7,v 1.37 2017/09/04 10:35:27 schwarze Exp $
 .\"
 .\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 20 2017 $
+.Dd $Mdocdate: September 4 2017 $
 .Dt EQN 7
 .Os
 .Sh NAME
@@ -83,7 +83,7 @@ box     : text
         | \(dqsqrt\(dq box
         | box pos box
         | box mark
-        | \(dqmatrix\(dq \(dq{\(dq [col \(dq{\(dq list \(dq}\(dq ]*
+        | \(dqmatrix\(dq \(dq{\(dq [col \(dq{\(dq list \(dq}\(dq]* \(dq}\(dq
         | pile \(dq{\(dq list \(dq}\(dq
         | font box
         | \(dqsize\(dq text box

@@ -1,4 +1,4 @@
-/*	$Id: tag.c,v 1.18 2017/02/17 14:31:52 schwarze Exp $ */
+/*	$Id: tag.c,v 1.19 2018/02/23 16:47:10 schwarze Exp $ */
 /*
  * Copyright (c) 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -213,6 +213,9 @@ tag_write(void)
 	ohash_delete(&tag_data);
 	if (stream != NULL)
 		fclose(stream);
+	else
+		close(tag_files.tfd);
+	tag_files.tfd = -1;
 }
 
 void

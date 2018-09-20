@@ -1,4 +1,4 @@
-/*	$Id: roff.h,v 1.58 2017/07/08 14:51:05 schwarze Exp $	*/
+/*	$Id: roff.h,v 1.59 2018/04/11 17:11:13 schwarze Exp $	*/
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -61,6 +61,7 @@ enum	roff_type {
 	ROFFT_TAIL,
 	ROFFT_ELEM,
 	ROFFT_TEXT,
+	ROFFT_COMMENT,
 	ROFFT_TBL,
 	ROFFT_EQN
 };

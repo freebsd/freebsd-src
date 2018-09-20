@@ -1,4 +1,4 @@
-/*	$Id: libmandoc.h,v 1.70 2017/07/08 17:52:49 schwarze Exp $ */
+/*	$Id: libmandoc.h,v 1.71 2018/04/09 22:27:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -66,7 +66,7 @@ void		 roff_man_reset(struct roff_man *);
 enum rofferr	 roff_parseln(struct roff *, int, struct buf *, int *);
 void		 roff_endparse(struct roff *);
 void		 roff_setreg(struct roff *, const char *, int, char sign);
-int		 roff_getreg(const struct roff *, const char *);
+int		 roff_getreg(struct roff *, const char *);
 char		*roff_strdup(const struct roff *, const char *);
 int		 roff_getcontrol(const struct roff *,
 			const char *, int *);

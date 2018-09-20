@@ -1,4 +1,4 @@
-/*	$Id: mdoc_markdown.c,v 1.23 2017/06/14 01:31:26 schwarze Exp $ */
+/*	$Id: mdoc_markdown.c,v 1.24 2018/04/11 17:11:13 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -294,7 +294,7 @@ md_node(struct roff_node *n)
 	const struct md_act	*act;
 	int			 cond, process_children;
 
-	if (n->flags & NODE_NOPRT)
+	if (n->type == ROFFT_COMMENT || n->flags & NODE_NOPRT)
 		return;
 
 	if (outflags & MD_nonl)

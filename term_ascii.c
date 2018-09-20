@@ -1,7 +1,7 @@
-/*	$Id: term_ascii.c,v 1.58 2017/06/14 14:24:20 schwarze Exp $ */
+/*	$Id: term_ascii.c,v 1.61 2018/05/20 21:37:34 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,11 +21,13 @@
 
 #include <assert.h>
 #if HAVE_WCHAR
+#include <langinfo.h>
 #include <locale.h>
 #endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #if HAVE_WCHAR
 #include <wchar.h>
@@ -100,7 +102,17 @@ ascii_init(enum termenc enc, const struct manoutput *outopts)
 		v = TERMENC_LOCALE == enc ?
 		    setlocale(LC_CTYPE, "") :
 		    setlocale(LC_CTYPE, UTF8_LOCALE);
-		if (NULL != v && MB_CUR_MAX > 1) {
+
+		/*
+		 * We only support UTF-8,
+		 * so revert to ASCII for anything else.
+		 */
+
+		if (v != NULL &&
+		    strcmp(nl_langinfo(CODESET), "UTF-8") != 0)
+			v = setlocale(LC_CTYPE, "C");
+
+		if (v != NULL && MB_CUR_MAX > 1) {
 			p->enc = enc;
 			p->advance = locale_advance;
 			p->endline = locale_endline;
@@ -121,6 +133,8 @@ ascii_init(enum termenc enc, const struct manoutput *outopts)
 	if (outopts->synopsisonly)
 		p->synopsisonly = 1;
 
+	assert(p->defindent < UINT16_MAX);
+	assert(p->defrmargin < UINT16_MAX);
 	return p;
 }
 
@@ -159,6 +173,8 @@ ascii_setwidth(struct termp *p, int iop, int width)
 		p->defrmargin -= width;
 	else
 		p->defrmargin = 0;
+	if (p->defrmargin > 1000)
+		p->defrmargin = 1000;
 	p->lastrmargin = p->tcol->rmargin;
 	p->tcol->rmargin = p->maxrmargin = p->defrmargin;
 }
@@ -227,6 +243,7 @@ ascii_advance(struct termp *p, size_t len)
 {
 	size_t		i;
 
+	assert(len < UINT16_MAX);
 	for (i = 0; i < len; i++)
 		putchar(' ');
 }
@@ -294,17 +311,17 @@ ascii_uc2str(int uc)
 	"<88>",	"<89>",	"<8A>",	"<8B>",	"<8C>",	"<8D>",	"<8E>",	"<8F>",
 	"<90>",	"<91>",	"<92>",	"<93>",	"<94>",	"<95>",	"<96>",	"<97>",
 	"<98>",	"<99>",	"<9A>",	"<9B>",	"<9C>",	"<9D>",	"<9E>",	"<9F>",
-	nbrsp,	"!",	"/\bc",	"GBP",	"o\bx",	"=\bY",	"|",	"<sec>",
+	nbrsp,	"!",	"/\bc",	"GBP",	"o\bx",	"=\bY",	"|",	"<section>",
 	"\"",	"(C)",	"_\ba",	"<<",	"~",	"",	"(R)",	"-",
-	"<deg>","+-",	"2",	"3",	"'",	",\bu",	"<par>",".",
-	",",	"1",	"_\bo",	">>",	"1/4",	"1/2",	"3/4",	"?",
+	"<degree>","+-","^2",	"^3",	"'","<micro>","<paragraph>",".",
+	",",	"^1",	"_\bo",	">>",	"1/4",	"1/2",	"3/4",	"?",
 	"`\bA",	"'\bA",	"^\bA",	"~\bA",	"\"\bA","o\bA",	"AE",	",\bC",
 	"`\bE",	"'\bE",	"^\bE",	"\"\bE","`\bI",	"'\bI",	"^\bI",	"\"\bI",
-	"-\bD",	"~\bN",	"`\bO",	"'\bO",	"^\bO",	"~\bO",	"\"\bO","x",
+	"Dh",	"~\bN",	"`\bO",	"'\bO",	"^\bO",	"~\bO",	"\"\bO","x",
 	"/\bO",	"`\bU",	"'\bU",	"^\bU",	"\"\bU","'\bY",	"Th",	"ss",
 	"`\ba",	"'\ba",	"^\ba",	"~\ba",	"\"\ba","o\ba",	"ae",	",\bc",
 	"`\be",	"'\be",	"^\be",	"\"\be","`\bi",	"'\bi",	"^\bi",	"\"\bi",
-	"d",	"~\bn",	"`\bo",	"'\bo",	"^\bo",	"~\bo",	"\"\bo","-:-",
+	"dh",	"~\bn",	"`\bo",	"'\bo",	"^\bo",	"~\bo",	"\"\bo","/",
 	"/\bo",	"`\bu",	"'\bu",	"^\bu",	"\"\bu","'\by",	"th",	"\"\by",
 	"A",	"a",	"A",	"a",	"A",	"a",	"'\bC",	"'\bc",
 	"^\bC",	"^\bc",	"C",	"c",	"C",	"c",	"D",	"d",
@@ -364,6 +381,7 @@ locale_advance(struct termp *p, size_t len)
 {
 	size_t		i;
 
+	assert(len < UINT16_MAX);
 	for (i = 0; i < len; i++)
 		putwchar(L' ');
 }
