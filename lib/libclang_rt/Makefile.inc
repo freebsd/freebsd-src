@@ -9,6 +9,7 @@ CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 CLANGDIR=	/usr/lib/clang/6.0.1
 LIBDIR=		${CLANGDIR}/lib/freebsd
+SHLIBDIR=	${LIBDIR}
 
 NO_PIC=
 MK_PROFILE=	no
