@@ -122,11 +122,12 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
     "Max kernel address");
 
 #if VM_NRESERVLEVEL > 0
-#define	KVA_QUANTUM	(1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT))
+#define	KVA_QUANTUM_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT)
 #else
 /* On non-superpage architectures want large import sizes. */
-#define	KVA_QUANTUM	(PAGE_SIZE * 1024)
+#define	KVA_QUANTUM_SHIFT	(10 + PAGE_SHIFT)
 #endif
+#define	KVA_QUANTUM		(1 << KVA_QUANTUM_SHIFT)
 
 /*
  *	kva_alloc:
@@ -416,9 +417,10 @@ kmem_malloc(vm_size_t size, int flags)
 }
 
 /*
- *	kmem_back:
+ *	kmem_back_domain:
  *
- *	Allocate physical pages for the specified virtual address range.
+ *	Allocate physical pages from the specified domain for the specified
+ *	virtual address range.
  */
 int
 kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
@@ -479,24 +481,39 @@ retry:
 	return (KERN_SUCCESS);
 }
 
+/*
+ *	kmem_back:
+ *
+ *	Allocate physical pages for the specified virtual address range.
+ */
 int
 kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 {
-	struct vm_domainset_iter di;
-	int domain;
-	int ret;
+	vm_offset_t end, next, start;
+	int domain, rv;
 
 	KASSERT(object == kernel_object,
 	    ("kmem_back: only supports kernel object."));
 
-	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
-	do {
-		ret = kmem_back_domain(domain, object, addr, size, flags);
-		if (ret == KERN_SUCCESS)
+	for (start = addr, end = addr + size; addr < end; addr = next) {
+		/*
+		 * We must ensure that pages backing a given large virtual page
+		 * all come from the same physical domain.
+		 */
+		if (vm_ndomains > 1) {
+			domain = (addr >> KVA_QUANTUM_SHIFT) % vm_ndomains;
+			next = roundup2(addr + 1, KVA_QUANTUM);
+			if (next > end || next < start)
+				next = end;
+		} else
+			next = end;
+		rv = kmem_back_domain(domain, object, addr, next - addr, flags);
+		if (rv != KERN_SUCCESS) {
+			kmem_unback(object, start, addr - start);
 			break;
-	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
-
-	return (ret);
+		}
+	}
+	return (rv);
 }
 
 /*
