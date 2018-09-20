@@ -4100,9 +4100,10 @@ iflib_if_qflush(if_t ifp)
 }
 
 
-#define IFCAP_FLAGS (IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM_IPV6 | IFCAP_HWCSUM | IFCAP_LRO | \
-		     IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTAGGING | IFCAP_HWSTATS | \
-		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_HWTSO)
+#define IFCAP_FLAGS (IFCAP_HWCSUM_IPV6 | IFCAP_HWCSUM | IFCAP_LRO | \
+		     IFCAP_TSO | IFCAP_VLAN_HWTAGGING | IFCAP_HWSTATS | \
+		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | \
+		     IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM)
 
 static int
 iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
@@ -4223,39 +4224,51 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 	}
 	case SIOCSIFCAP:
 	{
-		int mask, setmask;
+		int mask, setmask, oldmask;
 
-		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
+		oldmask = if_getcapenable(ifp);
+		mask = ifr->ifr_reqcap ^ oldmask;
+		mask &= ctx->ifc_softc_ctx.isc_capabilities;
 		setmask = 0;
 #ifdef TCP_OFFLOAD
 		setmask |= mask & (IFCAP_TOE4|IFCAP_TOE6);
 #endif
 		setmask |= (mask & IFCAP_FLAGS);
+		setmask |= (mask & IFCAP_WOL);
 
-		if (setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
-			setmask |= (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
-		if ((mask & IFCAP_WOL) &&
-		    (if_getcapabilities(ifp) & IFCAP_WOL) != 0)
-			setmask |= (mask & (IFCAP_WOL_MCAST|IFCAP_WOL_MAGIC));
-		if_vlancap(ifp);
+		/*
+		 * If we're disabling any RX csum, disable all the ones
+		 * the driver supports.  This assumes all supported are
+		 * enabled.
+		 * 
+		 * Otherwise, if they've changed, enable all of them.
+		 */
+		if ((setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) <
+		    (oldmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)))
+			setmask &= ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		else if ((setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) !=
+		    (oldmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)))
+			setmask |= (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6));
+
 		/*
 		 * want to ensure that traffic has stopped before we change any of the flags
 		 */
 		if (setmask) {
 			CTX_LOCK(ctx);
 			bits = if_getdrvflags(ifp);
-			if (bits & IFF_DRV_RUNNING)
+			if (bits & IFF_DRV_RUNNING && setmask & ~IFCAP_WOL)
 				iflib_stop(ctx);
 			STATE_LOCK(ctx);
 			if_togglecapenable(ifp, setmask);
 			STATE_UNLOCK(ctx);
-			if (bits & IFF_DRV_RUNNING)
+			if (bits & IFF_DRV_RUNNING && setmask & ~IFCAP_WOL)
 				iflib_init_locked(ctx);
 			STATE_LOCK(ctx);
 			if_setdrvflags(ifp, bits);
 			STATE_UNLOCK(ctx);
 			CTX_UNLOCK(ctx);
 		}
+		if_vlancap(ifp);
 		break;
 	}
 	case SIOCGPRIVATE_0:
