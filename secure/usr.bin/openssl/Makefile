@@ -2,7 +2,7 @@
 
 PROG=	openssl
 
-LIBADD=	ssl crypto pthread
+LIBADD=	ssl crypto
 
 .if exists(Makefile.man)
 .include "Makefile.man"
