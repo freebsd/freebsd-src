@@ -21,6 +21,8 @@ SRCS+=	mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c o_str.c
 SRCS+=	o_time.c threads_pthread.c uid.c
 .if defined(ASM_amd64)
 SRCS+=	x86_64cpuid.S
+.elif defined(ASM_i386)
+SRCS+=	x86cpuid.S
 .else
 SRCS+=	mem_clr.c
 .endif
@@ -30,6 +32,8 @@ SRCS+=	aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 .if defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S
 SRCS+=	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	aes-586.S aesni-x86.S vpaes-x86.S
 .else
 SRCS+=	aes_cbc.c aes_core.c
 .endif
@@ -54,7 +58,12 @@ SRCS+=	x_val.c
 SRCS+=	async.c async_err.c async_posix.c async_wait.c
 
 # bf
-SRCS+=	bf_cfb64.c bf_ecb.c bf_enc.c bf_ofb64.c bf_skey.c
+SRCS+=	bf_cfb64.c bf_ecb.c bf_ofb64.c bf_skey.c
+.if defined(ASM_i386)
+SRCS+=	bf-586.S
+.else
+SRCS+=	bf_enc.c
+.endif
 
 # bio
 SRCS+=	b_addr.c b_dump.c b_print.c b_sock.c b_sock2.c bf_buff.c bf_lbuf.c
@@ -74,6 +83,8 @@ SRCS+=	bn_srp.c bn_word.c bn_x931p.c
 .if defined(ASM_amd64)
 SRCS+=	rsaz-avx2.S rsaz-x86_64.S rsaz_exp.c x86_64-gcc.c x86_64-gf2m.S
 SRCS+=	x86_64-mont.S x86_64-mont5.S
+.elif defined(ASM_i386)
+SRCS+=	bn-586.S co-586.S x86-gf2m.S x86-mont.S
 .else
 SRCS+=	bn_asm.c
 .endif
@@ -82,11 +93,13 @@ SRCS+=	bn_asm.c
 SRCS+=	buf_err.c buffer.c
 
 # camellia
-SRCS+=	cmll_cfb.c cmll_ctr.c cmll_ecb.c cmll_misc.c cmll_ofb.c
+SRCS+=	cmll_cfb.c cmll_ctr.c cmll_ecb.c cmll_ofb.c
 .if defined(ASM_amd64)
-SRCS+=	cmll-x86_64.S
+SRCS+=	cmll-x86_64.S cmll_misc.c
+.elif defined(ASM_i386)
+SRCS+=	cmll-x86.S
 .else
-SRCS+=	camellia.c cmll_cbc.c
+SRCS+=	camellia.c cmll_cbc.c cmll_misc.c
 .endif
 
 # cast
@@ -95,6 +108,8 @@ SRCS+=	c_cfb64.c c_ecb.c c_enc.c c_ofb64.c c_skey.c
 # chacha
 .if defined(ASM_amd64)
 SRCS+=	chacha-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	chacha-x86.S
 .else
 SRCS+=	chacha_enc.c
 .endif
@@ -119,10 +134,14 @@ SRCS+=	ct_b64.c ct_err.c ct_log.c ct_oct.c ct_policy.c ct_prn.c ct_sct.c
 SRCS+=	ct_sct_ctx.c ct_vfy.c ct_x509v3.c
 
 # des
-SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c des_enc.c
-SRCS+=	ecb3_enc.c ecb_enc.c fcrypt.c fcrypt_b.c ofb64ede.c ofb64enc.c
-SRCS+=	ofb_enc.c pcbc_enc.c qud_cksm.c rand_key.c set_key.c str2key.c
-SRCS+=	xcbc_enc.c
+SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c ecb3_enc.c
+SRCS+=	ecb_enc.c fcrypt.c ofb64ede.c ofb64enc.c ofb_enc.c pcbc_enc.c
+SRCS+=	qud_cksm.c rand_key.c set_key.c str2key.c xcbc_enc.c
+.if defined(ASM_i386)
+SRCS+=	crypt586.S des-586.S
+.else
+SRCS+=	des_enc.c fcrypt_b.c
+.endif
 
 # dh
 SRCS+=	dh_ameth.c dh_asn1.c dh_check.c dh_depr.c dh_err.c dh_gen.c dh_kdf.c
@@ -146,6 +165,8 @@ SRCS+=	ecdsa_vrf.c eck_prn.c ecp_mont.c ecp_nist.c ecp_oct.c ecp_smpl.c
 SRCS+=	ecx_meth.c eddsa.c f_generic.c f_impl.c scalar.c
 .if defined(ASM_amd64)
 SRCS+=	ecp_nistz256-x86_64.S ecp_nistz256.c x25519-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	ecp_nistz256.c ecp_nistz256-x86.S
 .endif
 
 # engine
@@ -188,6 +209,8 @@ SRCS+=	md4_dgst.c md4_one.c
 SRCS+=	md5_dgst.c md5_one.c
 .if defined(ASM_amd64)
 SRCS+=	md5-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	md5-586.S
 .endif
 
 # mdc2
@@ -198,6 +221,8 @@ SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ocb128.c
 SRCS+=	ofb128.c wrap128.c xts128.c
 .if defined(ASM_amd64)
 SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	ghash-x86.S
 .endif
 
 # objects
@@ -224,6 +249,8 @@ SRCS+=	pk7_smime.c pkcs7err.c
 SRCS+=	poly1305.c poly1305_ameth.c poly1305_pmeth.c
 .if defined(ASM_amd64)
 SRCS+=	poly1305-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	poly1305-x86.S
 .endif
 
 # rand
@@ -235,15 +262,25 @@ SRCS+=	rc2_cbc.c rc2_ecb.c rc2_skey.c rc2cfb64.c rc2ofb64.c
 # rc4
 .if defined(ASM_amd64)
 SRCS+=	rc4-md5-x86_64.S rc4-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	rc4-586.S
 .else
 SRCS+=	rc4_enc.c rc4_skey.c
 .endif
 
 # rc5
-SRCS+=	rc5_ecb.c rc5_enc.c rc5_skey.c rc5cfb64.c rc5ofb64.c
+SRCS+=	rc5_ecb.c rc5_skey.c rc5cfb64.c rc5ofb64.c
+.if defined(ASM_i386)
+SRCS+=	rc5-586.S
+.else
+SRCS+=	rc5_enc.c
+.endif
 
 # ripemd
 SRCS+=	rmd_dgst.c rmd_one.c
+.if defined(ASM_i386)
+SRCS+=	rmd-586.S
+.endif
 
 # rsa
 SRCS+=	rsa_ameth.c rsa_asn1.c rsa_chk.c rsa_crpt.c rsa_depr.c rsa_err.c
@@ -259,8 +296,8 @@ SRCS+=	sha1_one.c sha1dgst.c sha256.c sha512.c
 .if defined(ASM_amd64)
 SRCS+=	keccak1600-x86_64.S sha1-mb-x86_64.S sha1-x86_64.S
 SRCS+=	sha256-mb-x86_64.S sha256-x86_64.S sha512-x86_64.S
-.else
-SRCS+=	keccak1600.c
+.elif defined(ASM_i386)
+SRCS+=	keccak1600.c sha1-586.S sha256-586.S sha512-586.S
 .endif
 
 # siphash
@@ -300,6 +337,8 @@ SRCS+=	ui_err.c ui_lib.c ui_null.c ui_openssl.c ui_util.c
 SRCS+=	wp_dgst.c
 .if defined(ASM_amd64)
 SRCS+=	wp-x86_64.S
+.elif defined(ASM_i386)
+SRCS+=	wp-mmx.S wp_block.c
 .else
 SRCS+=	wp_block.c
 .endif
