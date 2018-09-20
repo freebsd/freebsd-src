@@ -250,6 +250,18 @@ bn_GF2m_mul_2x2:
 	movl	4(%edx),%edx
 	testl	$8388608,%eax
 	jz	.L001ialu
+	testl	$16777216,%eax
+	jz	.L002mmx
+	testl	$2,%edx
+	jz	.L002mmx
+	movups	8(%esp),%xmm0
+	shufps	$177,%xmm0,%xmm0
+.byte	102,15,58,68,192,1
+	movl	4(%esp),%eax
+	movups	%xmm0,(%eax)
+	ret
+.align	16
+.L002mmx:
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -581,6 +593,18 @@ bn_GF2m_mul_2x2:
 	movl	4(%edx),%edx
 	testl	$8388608,%eax
 	jz	.L000ialu
+	testl	$16777216,%eax
+	jz	.L001mmx
+	testl	$2,%edx
+	jz	.L001mmx
+	movups	8(%esp),%xmm0
+	shufps	$177,%xmm0,%xmm0
+.byte	102,15,58,68,192,1
+	movl	4(%esp),%eax
+	movups	%xmm0,(%eax)
+	ret
+.align	16
+.L001mmx:
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

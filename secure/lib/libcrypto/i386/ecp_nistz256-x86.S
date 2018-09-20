@@ -2746,6 +2746,8 @@ ecp_nistz256_to_mont:
 	call	_picup_eax
 .L000pic:
 	leal	.LRR-.L000pic(%eax),%ebp
+	leal	OPENSSL_ia32cap_P-.L000pic(%eax),%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	call	_ecp_nistz256_mul_mont
 	popl	%edi
@@ -2767,6 +2769,8 @@ ecp_nistz256_from_mont:
 	call	_picup_eax
 .L001pic:
 	leal	.LONE-.L001pic(%eax),%ebp
+	leal	OPENSSL_ia32cap_P-.L001pic(%eax),%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	call	_ecp_nistz256_mul_mont
 	popl	%edi
@@ -2786,6 +2790,10 @@ ecp_nistz256_mul_mont:
 	pushl	%edi
 	movl	24(%esp),%esi
 	movl	28(%esp),%ebp
+	call	_picup_eax
+.L002pic:
+	leal	OPENSSL_ia32cap_P-.L002pic(%eax),%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	call	_ecp_nistz256_mul_mont
 	popl	%edi
@@ -2804,6 +2812,10 @@ ecp_nistz256_sqr_mont:
 	pushl	%esi
 	pushl	%edi
 	movl	24(%esp),%esi
+	call	_picup_eax
+.L003pic:
+	leal	OPENSSL_ia32cap_P-.L003pic(%eax),%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	movl	%esi,%ebp
 	call	_ecp_nistz256_mul_mont
@@ -2816,6 +2828,265 @@ ecp_nistz256_sqr_mont:
 .type	_ecp_nistz256_mul_mont,@function
 .align	16
 _ecp_nistz256_mul_mont:
+	andl	$83886080,%eax
+	cmpl	$83886080,%eax
+	jne	.L004mul_mont_ialu
+	movl	%esp,%edx
+	subl	$256,%esp
+	movd	(%ebp),%xmm7
+	leal	4(%ebp),%ebp
+	pcmpeqd	%xmm6,%xmm6
+	psrlq	$48,%xmm6
+	pshuflw	$220,%xmm7,%xmm7
+	andl	$-64,%esp
+	pshufd	$220,%xmm7,%xmm7
+	leal	128(%esp),%ebx
+	movd	(%esi),%xmm0
+	pshufd	$204,%xmm0,%xmm0
+	movd	4(%esi),%xmm1
+	movdqa	%xmm0,(%ebx)
+	pmuludq	%xmm7,%xmm0
+	movd	8(%esi),%xmm2
+	pshufd	$204,%xmm1,%xmm1
+	movdqa	%xmm1,16(%ebx)
+	pmuludq	%xmm7,%xmm1
+	movq	%xmm0,%xmm4
+	pslldq	$6,%xmm4
+	paddq	%xmm0,%xmm4
+	movdqa	%xmm4,%xmm5
+	psrldq	$10,%xmm4
+	pand	%xmm6,%xmm5
+	movd	12(%esi),%xmm3
+	pshufd	$204,%xmm2,%xmm2
+	movdqa	%xmm2,32(%ebx)
+	pmuludq	%xmm7,%xmm2
+	paddq	%xmm4,%xmm1
+	movdqa	%xmm1,(%esp)
+	movd	16(%esi),%xmm0
+	pshufd	$204,%xmm3,%xmm3
+	movdqa	%xmm3,48(%ebx)
+	pmuludq	%xmm7,%xmm3
+	movdqa	%xmm2,16(%esp)
+	movd	20(%esi),%xmm1
+	pshufd	$204,%xmm0,%xmm0
+	movdqa	%xmm0,64(%ebx)
+	pmuludq	%xmm7,%xmm0
+	paddq	%xmm5,%xmm3
+	movdqa	%xmm3,32(%esp)
+	movd	24(%esi),%xmm2
+	pshufd	$204,%xmm1,%xmm1
+	movdqa	%xmm1,80(%ebx)
+	pmuludq	%xmm7,%xmm1
+	movdqa	%xmm0,48(%esp)
+	pshufd	$177,%xmm5,%xmm4
+	movd	28(%esi),%xmm3
+	pshufd	$204,%xmm2,%xmm2
+	movdqa	%xmm2,96(%ebx)
+	pmuludq	%xmm7,%xmm2
+	movdqa	%xmm1,64(%esp)
+	psubq	%xmm5,%xmm4
+	movd	(%ebp),%xmm0
+	pshufd	$204,%xmm3,%xmm3
+	movdqa	%xmm3,112(%ebx)
+	pmuludq	%xmm7,%xmm3
+	pshuflw	$220,%xmm0,%xmm7
+	movdqa	(%ebx),%xmm0
+	pshufd	$220,%xmm7,%xmm7
+	movl	$6,%ecx
+	leal	4(%ebp),%ebp
+	jmp	.L005madd_sse2
+.align	16
+.L005madd_sse2:
+	paddq	%xmm5,%xmm2
+	paddq	%xmm4,%xmm3
+	movdqa	16(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	movdqa	%xmm2,80(%esp)
+	movdqa	32(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	movdqa	%xmm3,96(%esp)
+	paddq	(%esp),%xmm0
+	movdqa	48(%ebx),%xmm3
+	pmuludq	%xmm7,%xmm2
+	movq	%xmm0,%xmm4
+	pslldq	$6,%xmm4
+	paddq	16(%esp),%xmm1
+	paddq	%xmm0,%xmm4
+	movdqa	%xmm4,%xmm5
+	psrldq	$10,%xmm4
+	movdqa	64(%ebx),%xmm0
+	pmuludq	%xmm7,%xmm3
+	paddq	%xmm4,%xmm1
+	paddq	32(%esp),%xmm2
+	movdqa	%xmm1,(%esp)
+	movdqa	80(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	paddq	48(%esp),%xmm3
+	movdqa	%xmm2,16(%esp)
+	pand	%xmm6,%xmm5
+	movdqa	96(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	paddq	%xmm5,%xmm3
+	paddq	64(%esp),%xmm0
+	movdqa	%xmm3,32(%esp)
+	pshufd	$177,%xmm5,%xmm4
+	movdqa	%xmm7,%xmm3
+	pmuludq	%xmm7,%xmm2
+	movd	(%ebp),%xmm7
+	leal	4(%ebp),%ebp
+	paddq	80(%esp),%xmm1
+	psubq	%xmm5,%xmm4
+	movdqa	%xmm0,48(%esp)
+	pshuflw	$220,%xmm7,%xmm7
+	pmuludq	112(%ebx),%xmm3
+	pshufd	$220,%xmm7,%xmm7
+	movdqa	(%ebx),%xmm0
+	movdqa	%xmm1,64(%esp)
+	paddq	96(%esp),%xmm2
+	decl	%ecx
+	jnz	.L005madd_sse2
+	paddq	%xmm5,%xmm2
+	paddq	%xmm4,%xmm3
+	movdqa	16(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	movdqa	%xmm2,80(%esp)
+	movdqa	32(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	movdqa	%xmm3,96(%esp)
+	paddq	(%esp),%xmm0
+	movdqa	48(%ebx),%xmm3
+	pmuludq	%xmm7,%xmm2
+	movq	%xmm0,%xmm4
+	pslldq	$6,%xmm4
+	paddq	16(%esp),%xmm1
+	paddq	%xmm0,%xmm4
+	movdqa	%xmm4,%xmm5
+	psrldq	$10,%xmm4
+	movdqa	64(%ebx),%xmm0
+	pmuludq	%xmm7,%xmm3
+	paddq	%xmm4,%xmm1
+	paddq	32(%esp),%xmm2
+	movdqa	%xmm1,(%esp)
+	movdqa	80(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	paddq	48(%esp),%xmm3
+	movdqa	%xmm2,16(%esp)
+	pand	%xmm6,%xmm5
+	movdqa	96(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	paddq	%xmm5,%xmm3
+	paddq	64(%esp),%xmm0
+	movdqa	%xmm3,32(%esp)
+	pshufd	$177,%xmm5,%xmm4
+	movdqa	112(%ebx),%xmm3
+	pmuludq	%xmm7,%xmm2
+	paddq	80(%esp),%xmm1
+	psubq	%xmm5,%xmm4
+	movdqa	%xmm0,48(%esp)
+	pmuludq	%xmm7,%xmm3
+	pcmpeqd	%xmm7,%xmm7
+	movdqa	(%esp),%xmm0
+	pslldq	$8,%xmm7
+	movdqa	%xmm1,64(%esp)
+	paddq	96(%esp),%xmm2
+	paddq	%xmm5,%xmm2
+	paddq	%xmm4,%xmm3
+	movdqa	%xmm2,80(%esp)
+	movdqa	%xmm3,96(%esp)
+	movdqa	16(%esp),%xmm1
+	movdqa	32(%esp),%xmm2
+	movdqa	48(%esp),%xmm3
+	movq	%xmm0,%xmm4
+	pand	%xmm7,%xmm0
+	xorl	%ebp,%ebp
+	pslldq	$6,%xmm4
+	movq	%xmm1,%xmm5
+	paddq	%xmm4,%xmm0
+	pand	%xmm7,%xmm1
+	psrldq	$6,%xmm0
+	movd	%xmm0,%eax
+	psrldq	$4,%xmm0
+	paddq	%xmm0,%xmm5
+	movdqa	64(%esp),%xmm0
+	subl	$-1,%eax
+	pslldq	$6,%xmm5
+	movq	%xmm2,%xmm4
+	paddq	%xmm5,%xmm1
+	pand	%xmm7,%xmm2
+	psrldq	$6,%xmm1
+	movl	%eax,(%edi)
+	movd	%xmm1,%eax
+	psrldq	$4,%xmm1
+	paddq	%xmm1,%xmm4
+	movdqa	80(%esp),%xmm1
+	sbbl	$-1,%eax
+	pslldq	$6,%xmm4
+	movq	%xmm3,%xmm5
+	paddq	%xmm4,%xmm2
+	pand	%xmm7,%xmm3
+	psrldq	$6,%xmm2
+	movl	%eax,4(%edi)
+	movd	%xmm2,%eax
+	psrldq	$4,%xmm2
+	paddq	%xmm2,%xmm5
+	movdqa	96(%esp),%xmm2
+	sbbl	$-1,%eax
+	pslldq	$6,%xmm5
+	movq	%xmm0,%xmm4
+	paddq	%xmm5,%xmm3
+	pand	%xmm7,%xmm0
+	psrldq	$6,%xmm3
+	movl	%eax,8(%edi)
+	movd	%xmm3,%eax
+	psrldq	$4,%xmm3
+	paddq	%xmm3,%xmm4
+	sbbl	$0,%eax
+	pslldq	$6,%xmm4
+	movq	%xmm1,%xmm5
+	paddq	%xmm4,%xmm0
+	pand	%xmm7,%xmm1
+	psrldq	$6,%xmm0
+	movl	%eax,12(%edi)
+	movd	%xmm0,%eax
+	psrldq	$4,%xmm0
+	paddq	%xmm0,%xmm5
+	sbbl	$0,%eax
+	pslldq	$6,%xmm5
+	movq	%xmm2,%xmm4
+	paddq	%xmm5,%xmm1
+	pand	%xmm7,%xmm2
+	psrldq	$6,%xmm1
+	movd	%xmm1,%ebx
+	psrldq	$4,%xmm1
+	movl	%edx,%esp
+	paddq	%xmm1,%xmm4
+	pslldq	$6,%xmm4
+	paddq	%xmm4,%xmm2
+	psrldq	$6,%xmm2
+	movd	%xmm2,%ecx
+	psrldq	$4,%xmm2
+	sbbl	$0,%ebx
+	movd	%xmm2,%edx
+	pextrw	$2,%xmm2,%esi
+	sbbl	$1,%ecx
+	sbbl	$-1,%edx
+	sbbl	$0,%esi
+	subl	%esi,%ebp
+	addl	%esi,(%edi)
+	adcl	%esi,4(%edi)
+	adcl	%esi,8(%edi)
+	adcl	$0,12(%edi)
+	adcl	$0,%eax
+	adcl	$0,%ebx
+	movl	%eax,16(%edi)
+	adcl	%ebp,%ecx
+	movl	%ebx,20(%edi)
+	adcl	%esi,%edx
+	movl	%ecx,24(%edi)
+	movl	%edx,28(%edi)
+	ret
+.align	16
+.L004mul_mont_ialu:
 	subl	$40,%esp
 	movl	(%esi),%eax
 	movl	(%ebp),%ebx
@@ -3463,7 +3734,7 @@ ecp_nistz256_scatter_w5:
 	movl	28(%esp),%ebp
 	leal	124(%edi,%ebp,4),%edi
 	movl	$6,%ebp
-.L002scatter_w5_loop:
+.L006scatter_w5_loop:
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
 	movl	8(%esi),%ecx
@@ -3475,7 +3746,7 @@ ecp_nistz256_scatter_w5:
 	movl	%edx,64(%edi)
 	leal	256(%edi),%edi
 	decl	%ebp
-	jnz	.L002scatter_w5_loop
+	jnz	.L006scatter_w5_loop
 	popl	%edi
 	popl	%esi
 	popl	%ebx
@@ -3590,7 +3861,7 @@ ecp_nistz256_scatter_w7:
 	movl	28(%esp),%ebp
 	leal	(%edi,%ebp,1),%edi
 	movl	$16,%ebp
-.L003scatter_w7_loop:
+.L007scatter_w7_loop:
 	movl	(%esi),%eax
 	leal	4(%esi),%esi
 	movb	%al,(%edi)
@@ -3600,7 +3871,7 @@ ecp_nistz256_scatter_w7:
 	movb	%ah,192(%edi)
 	leal	256(%edi),%edi
 	decl	%ebp
-	jnz	.L003scatter_w7_loop
+	jnz	.L007scatter_w7_loop
 	popl	%edi
 	popl	%esi
 	popl	%ebx
@@ -3832,6 +4103,10 @@ ecp_nistz256_point_double:
 	pushl	%edi
 	movl	24(%esp),%esi
 	subl	$164,%esp
+	call	_picup_eax
+.L008pic:
+	leal	OPENSSL_ia32cap_P-.L008pic(%eax),%edx
+	movl	(%edx),%ebp
 .Lpoint_double_shortcut:
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
@@ -3954,6 +4229,10 @@ ecp_nistz256_point_add:
 	pushl	%edi
 	movl	28(%esp),%esi
 	subl	$596,%esp
+	call	_picup_eax
+.L009pic:
+	leal	OPENSSL_ia32cap_P-.L009pic(%eax),%edx
+	movl	(%edx),%ebp
 	leal	192(%esp),%edi
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
@@ -4144,26 +4423,26 @@ ecp_nistz256_point_add:
 	orl	8(%edi),%eax
 	orl	12(%edi),%eax
 .byte	62
-	jnz	.L004add_proceed
+	jnz	.L010add_proceed
 	movl	576(%esp),%eax
 	andl	580(%esp),%eax
 	movl	584(%esp),%ebx
-	jz	.L004add_proceed
+	jz	.L010add_proceed
 	testl	%ebx,%ebx
-	jz	.L005add_double
+	jz	.L011add_double
 	movl	616(%esp),%edi
 	xorl	%eax,%eax
 	movl	$24,%ecx
 .byte	252,243,171
-	jmp	.L006add_done
+	jmp	.L012add_done
 .align	16
-.L005add_double:
+.L011add_double:
 	movl	620(%esp),%esi
 	movl	588(%esp),%ebp
 	addl	$432,%esp
 	jmp	.Lpoint_double_shortcut
 .align	16
-.L004add_proceed:
+.L010add_proceed:
 	movl	588(%esp),%eax
 	leal	352(%esp),%esi
 	leal	352(%esp),%ebp
@@ -4448,7 +4727,7 @@ ecp_nistz256_point_add:
 	orl	%ebx,%eax
 	orl	%ecx,%eax
 	movl	%eax,60(%edi)
-.L006add_done:
+.L012add_done:
 	addl	$596,%esp
 	popl	%edi
 	popl	%esi
@@ -4467,6 +4746,10 @@ ecp_nistz256_point_add_affine:
 	pushl	%edi
 	movl	24(%esp),%esi
 	subl	$492,%esp
+	call	_picup_eax
+.L013pic:
+	leal	OPENSSL_ia32cap_P-.L013pic(%eax),%edx
+	movl	(%edx),%ebp
 	leal	96(%esp),%edi
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
@@ -4884,6 +5167,7 @@ ecp_nistz256_point_add_affine:
 	popl	%ebp
 	ret
 .size	ecp_nistz256_point_add_affine,.-.L_ecp_nistz256_point_add_affine_begin
+.comm	OPENSSL_ia32cap_P,16,4
 #else
 .text
 .globl	ecp_nistz256_precomputed
@@ -7630,6 +7914,8 @@ ecp_nistz256_to_mont:
 	call	_picup_eax
 .L000pic:
 	leal	.LRR-.L000pic(%eax),%ebp
+	leal	OPENSSL_ia32cap_P,%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	call	_ecp_nistz256_mul_mont
 	popl	%edi
@@ -7651,6 +7937,8 @@ ecp_nistz256_from_mont:
 	call	_picup_eax
 .L001pic:
 	leal	.LONE-.L001pic(%eax),%ebp
+	leal	OPENSSL_ia32cap_P,%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	call	_ecp_nistz256_mul_mont
 	popl	%edi
@@ -7670,6 +7958,10 @@ ecp_nistz256_mul_mont:
 	pushl	%edi
 	movl	24(%esp),%esi
 	movl	28(%esp),%ebp
+	call	_picup_eax
+.L002pic:
+	leal	OPENSSL_ia32cap_P,%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	call	_ecp_nistz256_mul_mont
 	popl	%edi
@@ -7688,6 +7980,10 @@ ecp_nistz256_sqr_mont:
 	pushl	%esi
 	pushl	%edi
 	movl	24(%esp),%esi
+	call	_picup_eax
+.L003pic:
+	leal	OPENSSL_ia32cap_P,%eax
+	movl	(%eax),%eax
 	movl	20(%esp),%edi
 	movl	%esi,%ebp
 	call	_ecp_nistz256_mul_mont
@@ -7700,6 +7996,265 @@ ecp_nistz256_sqr_mont:
 .type	_ecp_nistz256_mul_mont,@function
 .align	16
 _ecp_nistz256_mul_mont:
+	andl	$83886080,%eax
+	cmpl	$83886080,%eax
+	jne	.L004mul_mont_ialu
+	movl	%esp,%edx
+	subl	$256,%esp
+	movd	(%ebp),%xmm7
+	leal	4(%ebp),%ebp
+	pcmpeqd	%xmm6,%xmm6
+	psrlq	$48,%xmm6
+	pshuflw	$220,%xmm7,%xmm7
+	andl	$-64,%esp
+	pshufd	$220,%xmm7,%xmm7
+	leal	128(%esp),%ebx
+	movd	(%esi),%xmm0
+	pshufd	$204,%xmm0,%xmm0
+	movd	4(%esi),%xmm1
+	movdqa	%xmm0,(%ebx)
+	pmuludq	%xmm7,%xmm0
+	movd	8(%esi),%xmm2
+	pshufd	$204,%xmm1,%xmm1
+	movdqa	%xmm1,16(%ebx)
+	pmuludq	%xmm7,%xmm1
+	movq	%xmm0,%xmm4
+	pslldq	$6,%xmm4
+	paddq	%xmm0,%xmm4
+	movdqa	%xmm4,%xmm5
+	psrldq	$10,%xmm4
+	pand	%xmm6,%xmm5
+	movd	12(%esi),%xmm3
+	pshufd	$204,%xmm2,%xmm2
+	movdqa	%xmm2,32(%ebx)
+	pmuludq	%xmm7,%xmm2
+	paddq	%xmm4,%xmm1
+	movdqa	%xmm1,(%esp)
+	movd	16(%esi),%xmm0
+	pshufd	$204,%xmm3,%xmm3
+	movdqa	%xmm3,48(%ebx)
+	pmuludq	%xmm7,%xmm3
+	movdqa	%xmm2,16(%esp)
+	movd	20(%esi),%xmm1
+	pshufd	$204,%xmm0,%xmm0
+	movdqa	%xmm0,64(%ebx)
+	pmuludq	%xmm7,%xmm0
+	paddq	%xmm5,%xmm3
+	movdqa	%xmm3,32(%esp)
+	movd	24(%esi),%xmm2
+	pshufd	$204,%xmm1,%xmm1
+	movdqa	%xmm1,80(%ebx)
+	pmuludq	%xmm7,%xmm1
+	movdqa	%xmm0,48(%esp)
+	pshufd	$177,%xmm5,%xmm4
+	movd	28(%esi),%xmm3
+	pshufd	$204,%xmm2,%xmm2
+	movdqa	%xmm2,96(%ebx)
+	pmuludq	%xmm7,%xmm2
+	movdqa	%xmm1,64(%esp)
+	psubq	%xmm5,%xmm4
+	movd	(%ebp),%xmm0
+	pshufd	$204,%xmm3,%xmm3
+	movdqa	%xmm3,112(%ebx)
+	pmuludq	%xmm7,%xmm3
+	pshuflw	$220,%xmm0,%xmm7
+	movdqa	(%ebx),%xmm0
+	pshufd	$220,%xmm7,%xmm7
+	movl	$6,%ecx
+	leal	4(%ebp),%ebp
+	jmp	.L005madd_sse2
+.align	16
+.L005madd_sse2:
+	paddq	%xmm5,%xmm2
+	paddq	%xmm4,%xmm3
+	movdqa	16(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	movdqa	%xmm2,80(%esp)
+	movdqa	32(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	movdqa	%xmm3,96(%esp)
+	paddq	(%esp),%xmm0
+	movdqa	48(%ebx),%xmm3
+	pmuludq	%xmm7,%xmm2
+	movq	%xmm0,%xmm4
+	pslldq	$6,%xmm4
+	paddq	16(%esp),%xmm1
+	paddq	%xmm0,%xmm4
+	movdqa	%xmm4,%xmm5
+	psrldq	$10,%xmm4
+	movdqa	64(%ebx),%xmm0
+	pmuludq	%xmm7,%xmm3
+	paddq	%xmm4,%xmm1
+	paddq	32(%esp),%xmm2
+	movdqa	%xmm1,(%esp)
+	movdqa	80(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	paddq	48(%esp),%xmm3
+	movdqa	%xmm2,16(%esp)
+	pand	%xmm6,%xmm5
+	movdqa	96(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	paddq	%xmm5,%xmm3
+	paddq	64(%esp),%xmm0
+	movdqa	%xmm3,32(%esp)
+	pshufd	$177,%xmm5,%xmm4
+	movdqa	%xmm7,%xmm3
+	pmuludq	%xmm7,%xmm2
+	movd	(%ebp),%xmm7
+	leal	4(%ebp),%ebp
+	paddq	80(%esp),%xmm1
+	psubq	%xmm5,%xmm4
+	movdqa	%xmm0,48(%esp)
+	pshuflw	$220,%xmm7,%xmm7
+	pmuludq	112(%ebx),%xmm3
+	pshufd	$220,%xmm7,%xmm7
+	movdqa	(%ebx),%xmm0
+	movdqa	%xmm1,64(%esp)
+	paddq	96(%esp),%xmm2
+	decl	%ecx
+	jnz	.L005madd_sse2
+	paddq	%xmm5,%xmm2
+	paddq	%xmm4,%xmm3
+	movdqa	16(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	movdqa	%xmm2,80(%esp)
+	movdqa	32(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	movdqa	%xmm3,96(%esp)
+	paddq	(%esp),%xmm0
+	movdqa	48(%ebx),%xmm3
+	pmuludq	%xmm7,%xmm2
+	movq	%xmm0,%xmm4
+	pslldq	$6,%xmm4
+	paddq	16(%esp),%xmm1
+	paddq	%xmm0,%xmm4
+	movdqa	%xmm4,%xmm5
+	psrldq	$10,%xmm4
+	movdqa	64(%ebx),%xmm0
+	pmuludq	%xmm7,%xmm3
+	paddq	%xmm4,%xmm1
+	paddq	32(%esp),%xmm2
+	movdqa	%xmm1,(%esp)
+	movdqa	80(%ebx),%xmm1
+	pmuludq	%xmm7,%xmm0
+	paddq	48(%esp),%xmm3
+	movdqa	%xmm2,16(%esp)
+	pand	%xmm6,%xmm5
+	movdqa	96(%ebx),%xmm2
+	pmuludq	%xmm7,%xmm1
+	paddq	%xmm5,%xmm3
+	paddq	64(%esp),%xmm0
+	movdqa	%xmm3,32(%esp)
+	pshufd	$177,%xmm5,%xmm4
+	movdqa	112(%ebx),%xmm3
+	pmuludq	%xmm7,%xmm2
+	paddq	80(%esp),%xmm1
+	psubq	%xmm5,%xmm4
+	movdqa	%xmm0,48(%esp)
+	pmuludq	%xmm7,%xmm3
+	pcmpeqd	%xmm7,%xmm7
+	movdqa	(%esp),%xmm0
+	pslldq	$8,%xmm7
+	movdqa	%xmm1,64(%esp)
+	paddq	96(%esp),%xmm2
+	paddq	%xmm5,%xmm2
+	paddq	%xmm4,%xmm3
+	movdqa	%xmm2,80(%esp)
+	movdqa	%xmm3,96(%esp)
+	movdqa	16(%esp),%xmm1
+	movdqa	32(%esp),%xmm2
+	movdqa	48(%esp),%xmm3
+	movq	%xmm0,%xmm4
+	pand	%xmm7,%xmm0
+	xorl	%ebp,%ebp
+	pslldq	$6,%xmm4
+	movq	%xmm1,%xmm5
+	paddq	%xmm4,%xmm0
+	pand	%xmm7,%xmm1
+	psrldq	$6,%xmm0
+	movd	%xmm0,%eax
+	psrldq	$4,%xmm0
+	paddq	%xmm0,%xmm5
+	movdqa	64(%esp),%xmm0
+	subl	$-1,%eax
+	pslldq	$6,%xmm5
+	movq	%xmm2,%xmm4
+	paddq	%xmm5,%xmm1
+	pand	%xmm7,%xmm2
+	psrldq	$6,%xmm1
+	movl	%eax,(%edi)
+	movd	%xmm1,%eax
+	psrldq	$4,%xmm1
+	paddq	%xmm1,%xmm4
+	movdqa	80(%esp),%xmm1
+	sbbl	$-1,%eax
+	pslldq	$6,%xmm4
+	movq	%xmm3,%xmm5
+	paddq	%xmm4,%xmm2
+	pand	%xmm7,%xmm3
+	psrldq	$6,%xmm2
+	movl	%eax,4(%edi)
+	movd	%xmm2,%eax
+	psrldq	$4,%xmm2
+	paddq	%xmm2,%xmm5
+	movdqa	96(%esp),%xmm2
+	sbbl	$-1,%eax
+	pslldq	$6,%xmm5
+	movq	%xmm0,%xmm4
+	paddq	%xmm5,%xmm3
+	pand	%xmm7,%xmm0
+	psrldq	$6,%xmm3
+	movl	%eax,8(%edi)
+	movd	%xmm3,%eax
+	psrldq	$4,%xmm3
+	paddq	%xmm3,%xmm4
+	sbbl	$0,%eax
+	pslldq	$6,%xmm4
+	movq	%xmm1,%xmm5
+	paddq	%xmm4,%xmm0
+	pand	%xmm7,%xmm1
+	psrldq	$6,%xmm0
+	movl	%eax,12(%edi)
+	movd	%xmm0,%eax
+	psrldq	$4,%xmm0
+	paddq	%xmm0,%xmm5
+	sbbl	$0,%eax
+	pslldq	$6,%xmm5
+	movq	%xmm2,%xmm4
+	paddq	%xmm5,%xmm1
+	pand	%xmm7,%xmm2
+	psrldq	$6,%xmm1
+	movd	%xmm1,%ebx
+	psrldq	$4,%xmm1
+	movl	%edx,%esp
+	paddq	%xmm1,%xmm4
+	pslldq	$6,%xmm4
+	paddq	%xmm4,%xmm2
+	psrldq	$6,%xmm2
+	movd	%xmm2,%ecx
+	psrldq	$4,%xmm2
+	sbbl	$0,%ebx
+	movd	%xmm2,%edx
+	pextrw	$2,%xmm2,%esi
+	sbbl	$1,%ecx
+	sbbl	$-1,%edx
+	sbbl	$0,%esi
+	subl	%esi,%ebp
+	addl	%esi,(%edi)
+	adcl	%esi,4(%edi)
+	adcl	%esi,8(%edi)
+	adcl	$0,12(%edi)
+	adcl	$0,%eax
+	adcl	$0,%ebx
+	movl	%eax,16(%edi)
+	adcl	%ebp,%ecx
+	movl	%ebx,20(%edi)
+	adcl	%esi,%edx
+	movl	%ecx,24(%edi)
+	movl	%edx,28(%edi)
+	ret
+.align	16
+.L004mul_mont_ialu:
 	subl	$40,%esp
 	movl	(%esi),%eax
 	movl	(%ebp),%ebx
@@ -8347,7 +8902,7 @@ ecp_nistz256_scatter_w5:
 	movl	28(%esp),%ebp
 	leal	124(%edi,%ebp,4),%edi
 	movl	$6,%ebp
-.L002scatter_w5_loop:
+.L006scatter_w5_loop:
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
 	movl	8(%esi),%ecx
@@ -8359,7 +8914,7 @@ ecp_nistz256_scatter_w5:
 	movl	%edx,64(%edi)
 	leal	256(%edi),%edi
 	decl	%ebp
-	jnz	.L002scatter_w5_loop
+	jnz	.L006scatter_w5_loop
 	popl	%edi
 	popl	%esi
 	popl	%ebx
@@ -8474,7 +9029,7 @@ ecp_nistz256_scatter_w7:
 	movl	28(%esp),%ebp
 	leal	(%edi,%ebp,1),%edi
 	movl	$16,%ebp
-.L003scatter_w7_loop:
+.L007scatter_w7_loop:
 	movl	(%esi),%eax
 	leal	4(%esi),%esi
 	movb	%al,(%edi)
@@ -8484,7 +9039,7 @@ ecp_nistz256_scatter_w7:
 	movb	%ah,192(%edi)
 	leal	256(%edi),%edi
 	decl	%ebp
-	jnz	.L003scatter_w7_loop
+	jnz	.L007scatter_w7_loop
 	popl	%edi
 	popl	%esi
 	popl	%ebx
@@ -8716,6 +9271,10 @@ ecp_nistz256_point_double:
 	pushl	%edi
 	movl	24(%esp),%esi
 	subl	$164,%esp
+	call	_picup_eax
+.L008pic:
+	leal	OPENSSL_ia32cap_P,%edx
+	movl	(%edx),%ebp
 .Lpoint_double_shortcut:
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
@@ -8838,6 +9397,10 @@ ecp_nistz256_point_add:
 	pushl	%edi
 	movl	28(%esp),%esi
 	subl	$596,%esp
+	call	_picup_eax
+.L009pic:
+	leal	OPENSSL_ia32cap_P,%edx
+	movl	(%edx),%ebp
 	leal	192(%esp),%edi
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
@@ -9028,26 +9591,26 @@ ecp_nistz256_point_add:
 	orl	8(%edi),%eax
 	orl	12(%edi),%eax
 .byte	62
-	jnz	.L004add_proceed
+	jnz	.L010add_proceed
 	movl	576(%esp),%eax
 	andl	580(%esp),%eax
 	movl	584(%esp),%ebx
-	jz	.L004add_proceed
+	jz	.L010add_proceed
 	testl	%ebx,%ebx
-	jz	.L005add_double
+	jz	.L011add_double
 	movl	616(%esp),%edi
 	xorl	%eax,%eax
 	movl	$24,%ecx
 .byte	252,243,171
-	jmp	.L006add_done
+	jmp	.L012add_done
 .align	16
-.L005add_double:
+.L011add_double:
 	movl	620(%esp),%esi
 	movl	588(%esp),%ebp
 	addl	$432,%esp
 	jmp	.Lpoint_double_shortcut
 .align	16
-.L004add_proceed:
+.L010add_proceed:
 	movl	588(%esp),%eax
 	leal	352(%esp),%esi
 	leal	352(%esp),%ebp
@@ -9332,7 +9895,7 @@ ecp_nistz256_point_add:
 	orl	%ebx,%eax
 	orl	%ecx,%eax
 	movl	%eax,60(%edi)
-.L006add_done:
+.L012add_done:
 	addl	$596,%esp
 	popl	%edi
 	popl	%esi
@@ -9351,6 +9914,10 @@ ecp_nistz256_point_add_affine:
 	pushl	%edi
 	movl	24(%esp),%esi
 	subl	$492,%esp
+	call	_picup_eax
+.L013pic:
+	leal	OPENSSL_ia32cap_P,%edx
+	movl	(%edx),%ebp
 	leal	96(%esp),%edi
 	movl	(%esi),%eax
 	movl	4(%esi),%ebx
@@ -9768,4 +10335,5 @@ ecp_nistz256_point_add_affine:
 	popl	%ebp
 	ret
 .size	ecp_nistz256_point_add_affine,.-.L_ecp_nistz256_point_add_affine_begin
+.comm	OPENSSL_ia32cap_P,16,4
 #endif
