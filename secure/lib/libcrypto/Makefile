@@ -337,8 +337,6 @@ INCS+=	x509v3.h x509v3err.h
 
 INCSDIR=	${INCLUDEDIR}/openssl
 
-CSTD=	gnu89
-
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448/arch_32
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/modes
