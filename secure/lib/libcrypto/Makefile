@@ -166,7 +166,7 @@ SRCS+=	ecx_meth.c eddsa.c f_generic.c f_impl.c scalar.c
 .if defined(ASM_amd64)
 SRCS+=	ecp_nistz256-x86_64.S ecp_nistz256.c x25519-x86_64.S
 .elif defined(ASM_i386)
-SRCS+=	ecp_nistz256.c ecp_nistz256-x86.S
+SRCS+=	ecp_nistz256-x86.S ecp_nistz256.c
 .endif
 
 # engine
