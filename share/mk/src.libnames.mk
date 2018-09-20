@@ -217,6 +217,7 @@ _DP_zstd=	pthread
 .if ${MK_BLACKLIST} != "no"
 _DP_blacklist+=	pthread
 .endif
+_DP_crypto=	pthread
 .if ${MK_OPENSSL} != "no"
 _DP_archive+=	crypto
 .else
