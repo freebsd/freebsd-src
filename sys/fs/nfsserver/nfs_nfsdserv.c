@@ -4662,7 +4662,8 @@ nfsrvd_layouterror(struct nfsrv_descript *nd, __unused int isdgram,
 {
 	uint32_t *tl;
 	nfsv4stateid_t stateid;
-	int cnt, error = 0, i, opnum, stat;
+	int cnt, error = 0, i, stat;
+	int opnum __unused;
 	char devid[NFSX_V4DEVICEID];
 	uint64_t offset, len;
 
@@ -4713,6 +4714,68 @@ nfsrvd_layouterror(struct nfsrv_descript *nd, __unused int isdgram,
 		if (stat != NFSERR_ACCES && stat != NFSERR_STALE)
 			nfsrv_delds(devid, p);
 	}
+nfsmout:
+	vput(vp);
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
+ * nfsv4 layout stats service
+ */
+APPLESTATIC int
+nfsrvd_layoutstats(struct nfsrv_descript *nd, __unused int isdgram,
+    vnode_t vp, NFSPROC_T *p, struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	nfsv4stateid_t stateid;
+	int cnt, error = 0;
+	int layouttype __unused;
+	char devid[NFSX_V4DEVICEID] __unused;
+	uint64_t offset, len, readcount, readbytes, writecount, writebytes
+	    __unused;
+
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, 6 * NFSX_HYPER + NFSX_STATEID +
+	    NFSX_V4DEVICEID + 2 * NFSX_UNSIGNED);
+	offset = fxdr_hyper(tl); tl += 2;
+	len = fxdr_hyper(tl); tl += 2;
+	stateid.seqid = fxdr_unsigned(uint32_t, *tl++);
+	NFSBCOPY(tl, stateid.other, NFSX_STATEIDOTHER);
+	tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
+	readcount = fxdr_hyper(tl); tl += 2;
+	readbytes = fxdr_hyper(tl); tl += 2;
+	writecount = fxdr_hyper(tl); tl += 2;
+	writebytes = fxdr_hyper(tl); tl += 2;
+	NFSBCOPY(tl, devid, NFSX_V4DEVICEID);
+	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+	layouttype = fxdr_unsigned(int, *tl++);
+	cnt = fxdr_unsigned(int, *tl);
+	error = nfsm_advance(nd, NFSM_RNDUP(cnt), -1);
+	if (error != 0)
+		goto nfsmout;
+	NFSD_DEBUG(4, "layoutstats cnt=%d\n", cnt);
+	/*
+	 * For the special stateid of other all 0s and seqid == 1, set
+	 * the stateid to the current stateid, if it is set.
+	 */
+	if (stateid.seqid == 1 && stateid.other[0] == 0 &&
+	    stateid.other[1] == 0 && stateid.other[2] == 0) {
+		if ((nd->nd_flag & ND_CURSTATEID) != 0) {
+			stateid = nd->nd_curstateid;
+			stateid.seqid = 0;
+		} else {
+			nd->nd_repstat = NFSERR_BADSTATEID;
+			goto nfsmout;
+		}
+	}
+
+	/*
+	 * No use for the stats for now.
+	 */
 nfsmout:
 	vput(vp);
 	NFSEXITCODE2(error, nd);
