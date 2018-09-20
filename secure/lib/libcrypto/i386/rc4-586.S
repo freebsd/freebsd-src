@@ -1,7 +1,6 @@
 /* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from rc4-586.pl. */
 #ifdef PIC
-.file	"rc4-586.S"
 .text
 .globl	RC4
 .type	RC4,@function
@@ -269,11 +268,11 @@ RC4:
 	popl	%ebp
 	ret
 .size	RC4,.-.L_RC4_begin
-.globl	private_RC4_set_key
-.type	private_RC4_set_key,@function
+.globl	RC4_set_key
+.type	RC4_set_key,@function
 .align	16
-private_RC4_set_key:
-.L_private_RC4_set_key_begin:
+RC4_set_key:
+.L_RC4_set_key_begin:
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -346,7 +345,7 @@ private_RC4_set_key:
 	popl	%ebx
 	popl	%ebp
 	ret
-.size	private_RC4_set_key,.-.L_private_RC4_set_key_begin
+.size	RC4_set_key,.-.L_RC4_set_key_begin
 .globl	RC4_options
 .type	RC4_options,@function
 .align	16
@@ -383,7 +382,6 @@ RC4_options:
 .size	RC4_options,.-.L_RC4_options_begin
 .comm	OPENSSL_ia32cap_P,16,4
 #else
-.file	"rc4-586.S"
 .text
 .globl	RC4
 .type	RC4,@function
@@ -648,11 +646,11 @@ RC4:
 	popl	%ebp
 	ret
 .size	RC4,.-.L_RC4_begin
-.globl	private_RC4_set_key
-.type	private_RC4_set_key,@function
+.globl	RC4_set_key
+.type	RC4_set_key,@function
 .align	16
-private_RC4_set_key:
-.L_private_RC4_set_key_begin:
+RC4_set_key:
+.L_RC4_set_key_begin:
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -722,7 +720,7 @@ private_RC4_set_key:
 	popl	%ebx
 	popl	%ebp
 	ret
-.size	private_RC4_set_key,.-.L_private_RC4_set_key_begin
+.size	RC4_set_key,.-.L_RC4_set_key_begin
 .globl	RC4_options
 .type	RC4_options,@function
 .align	16
