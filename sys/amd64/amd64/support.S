@@ -755,16 +755,6 @@ ENTRY(fubyte_smap)
 	ret
 END(fubyte_smap)
 
-	ALIGN_TEXT
-	/* Fault entry clears PSL.AC */
-fusufault:
-	movq	PCPU(CURPCB),%rcx
-	xorl	%eax,%eax
-	movq	%rax,PCB_ONFAULT(%rcx)
-	decq	%rax
-	POP_FRAME_POINTER
-	ret
-
 /*
  * Store a 64-bit word, a 32-bit word, a 16-bit word, or an 8-bit byte to
  * user memory.
@@ -915,6 +905,16 @@ ENTRY(subyte_smap)
 	POP_FRAME_POINTER
 	ret
 END(subyte_smap)
+
+	ALIGN_TEXT
+	/* Fault entry clears PSL.AC */
+fusufault:
+	movq	PCPU(CURPCB),%rcx
+	xorl	%eax,%eax
+	movq	%rax,PCB_ONFAULT(%rcx)
+	decq	%rax
+	POP_FRAME_POINTER
+	ret
 
 /*
  * copyinstr(from, to, maxlen, int *lencopied)
