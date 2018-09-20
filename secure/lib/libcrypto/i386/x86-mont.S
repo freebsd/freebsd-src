@@ -59,6 +59,126 @@ bn_mul_mont:
 	movl	%esi,20(%esp)
 	leal	-3(%edi),%ebx
 	movl	%edx,24(%esp)
+	call	.L003PIC_me_up
+.L003PIC_me_up:
+	popl	%eax
+	leal	OPENSSL_ia32cap_P-.L003PIC_me_up(%eax),%eax
+	btl	$26,(%eax)
+	jnc	.L004non_sse2
+	movl	$-1,%eax
+	movd	%eax,%mm7
+	movl	8(%esp),%esi
+	movl	12(%esp),%edi
+	movl	16(%esp),%ebp
+	xorl	%edx,%edx
+	xorl	%ecx,%ecx
+	movd	(%edi),%mm4
+	movd	(%esi),%mm5
+	movd	(%ebp),%mm3
+	pmuludq	%mm4,%mm5
+	movq	%mm5,%mm2
+	movq	%mm5,%mm0
+	pand	%mm7,%mm0
+	pmuludq	20(%esp),%mm5
+	pmuludq	%mm5,%mm3
+	paddq	%mm0,%mm3
+	movd	4(%ebp),%mm1
+	movd	4(%esi),%mm0
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	incl	%ecx
+.align	16
+.L0051st:
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	pand	%mm7,%mm0
+	movd	4(%ebp,%ecx,4),%mm1
+	paddq	%mm0,%mm3
+	movd	4(%esi,%ecx,4),%mm0
+	psrlq	$32,%mm2
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm3
+	leal	1(%ecx),%ecx
+	cmpl	%ebx,%ecx
+	jl	.L0051st
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	pand	%mm7,%mm0
+	paddq	%mm0,%mm3
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	paddq	%mm2,%mm3
+	movq	%mm3,32(%esp,%ebx,4)
+	incl	%edx
+.L006outer:
+	xorl	%ecx,%ecx
+	movd	(%edi,%edx,4),%mm4
+	movd	(%esi),%mm5
+	movd	32(%esp),%mm6
+	movd	(%ebp),%mm3
+	pmuludq	%mm4,%mm5
+	paddq	%mm6,%mm5
+	movq	%mm5,%mm0
+	movq	%mm5,%mm2
+	pand	%mm7,%mm0
+	pmuludq	20(%esp),%mm5
+	pmuludq	%mm5,%mm3
+	paddq	%mm0,%mm3
+	movd	36(%esp),%mm6
+	movd	4(%ebp),%mm1
+	movd	4(%esi),%mm0
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	paddq	%mm6,%mm2
+	incl	%ecx
+	decl	%ebx
+.L007inner:
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	movd	36(%esp,%ecx,4),%mm6
+	pand	%mm7,%mm0
+	movd	4(%ebp,%ecx,4),%mm1
+	paddq	%mm0,%mm3
+	movd	4(%esi,%ecx,4),%mm0
+	psrlq	$32,%mm2
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm3
+	paddq	%mm6,%mm2
+	decl	%ebx
+	leal	1(%ecx),%ecx
+	jnz	.L007inner
+	movl	%ecx,%ebx
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	pand	%mm7,%mm0
+	paddq	%mm0,%mm3
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	movd	36(%esp,%ebx,4),%mm6
+	paddq	%mm2,%mm3
+	paddq	%mm6,%mm3
+	movq	%mm3,32(%esp,%ebx,4)
+	leal	1(%edx),%edx
+	cmpl	%ebx,%edx
+	jle	.L006outer
+	emms
+	jmp	.L008common_tail
+.align	16
+.L004non_sse2:
 	movl	8(%esp),%esi
 	leal	1(%ebx),%ebp
 	movl	12(%esp),%edi
@@ -69,12 +189,12 @@ bn_mul_mont:
 	leal	4(%edi,%ebx,4),%eax
 	orl	%edx,%ebp
 	movl	(%edi),%edi
-	jz	.L003bn_sqr_mont
+	jz	.L009bn_sqr_mont
 	movl	%eax,28(%esp)
 	movl	(%esi),%eax
 	xorl	%edx,%edx
 .align	16
-.L004mull:
+.L010mull:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	%eax,%ebp
@@ -83,7 +203,7 @@ bn_mul_mont:
 	movl	(%esi,%ecx,4),%eax
 	cmpl	%ebx,%ecx
 	movl	%ebp,28(%esp,%ecx,4)
-	jl	.L004mull
+	jl	.L010mull
 	movl	%edx,%ebp
 	mull	%edi
 	movl	20(%esp),%edi
@@ -101,9 +221,9 @@ bn_mul_mont:
 	movl	4(%esi),%eax
 	adcl	$0,%edx
 	incl	%ecx
-	jmp	.L0052ndmadd
+	jmp	.L0112ndmadd
 .align	16
-.L0061stmadd:
+.L0121stmadd:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ecx,4),%ebp
@@ -114,7 +234,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	cmpl	%ebx,%ecx
 	movl	%ebp,28(%esp,%ecx,4)
-	jl	.L0061stmadd
+	jl	.L0121stmadd
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ebx,4),%eax
@@ -137,7 +257,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	movl	$1,%ecx
 .align	16
-.L0052ndmadd:
+.L0112ndmadd:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ecx,4),%ebp
@@ -148,7 +268,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	cmpl	%ebx,%ecx
 	movl	%ebp,24(%esp,%ecx,4)
-	jl	.L0052ndmadd
+	jl	.L0112ndmadd
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ebx,4),%ebp
@@ -164,16 +284,16 @@ bn_mul_mont:
 	movl	%edx,32(%esp,%ebx,4)
 	cmpl	28(%esp),%ecx
 	movl	%eax,36(%esp,%ebx,4)
-	je	.L007common_tail
+	je	.L008common_tail
 	movl	(%ecx),%edi
 	movl	8(%esp),%esi
 	movl	%ecx,12(%esp)
 	xorl	%ecx,%ecx
 	xorl	%edx,%edx
 	movl	(%esi),%eax
-	jmp	.L0061stmadd
+	jmp	.L0121stmadd
 .align	16
-.L003bn_sqr_mont:
+.L009bn_sqr_mont:
 	movl	%ebx,(%esp)
 	movl	%ecx,12(%esp)
 	movl	%edi,%eax
@@ -184,7 +304,7 @@ bn_mul_mont:
 	andl	$1,%ebx
 	incl	%ecx
 .align	16
-.L008sqr:
+.L013sqr:
 	movl	(%esi,%ecx,4),%eax
 	movl	%edx,%ebp
 	mull	%edi
@@ -196,7 +316,7 @@ bn_mul_mont:
 	cmpl	(%esp),%ecx
 	movl	%eax,%ebx
 	movl	%ebp,28(%esp,%ecx,4)
-	jl	.L008sqr
+	jl	.L013sqr
 	movl	(%esi,%ecx,4),%eax
 	movl	%edx,%ebp
 	mull	%edi
@@ -220,7 +340,7 @@ bn_mul_mont:
 	movl	4(%esi),%eax
 	movl	$1,%ecx
 .align	16
-.L0093rdmadd:
+.L0143rdmadd:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ecx,4),%ebp
@@ -239,7 +359,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	cmpl	%ebx,%ecx
 	movl	%ebp,24(%esp,%ecx,4)
-	jl	.L0093rdmadd
+	jl	.L0143rdmadd
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ebx,4),%ebp
@@ -255,7 +375,7 @@ bn_mul_mont:
 	movl	%edx,32(%esp,%ebx,4)
 	cmpl	%ebx,%ecx
 	movl	%eax,36(%esp,%ebx,4)
-	je	.L007common_tail
+	je	.L008common_tail
 	movl	4(%esi,%ecx,4),%edi
 	leal	1(%ecx),%ecx
 	movl	%edi,%eax
@@ -267,12 +387,12 @@ bn_mul_mont:
 	xorl	%ebp,%ebp
 	cmpl	%ebx,%ecx
 	leal	1(%ecx),%ecx
-	je	.L010sqrlast
+	je	.L015sqrlast
 	movl	%edx,%ebx
 	shrl	$1,%edx
 	andl	$1,%ebx
 .align	16
-.L011sqradd:
+.L016sqradd:
 	movl	(%esi,%ecx,4),%eax
 	movl	%edx,%ebp
 	mull	%edi
@@ -288,13 +408,13 @@ bn_mul_mont:
 	cmpl	(%esp),%ecx
 	movl	%ebp,28(%esp,%ecx,4)
 	movl	%eax,%ebx
-	jle	.L011sqradd
+	jle	.L016sqradd
 	movl	%edx,%ebp
 	addl	%edx,%edx
 	shrl	$31,%ebp
 	addl	%ebx,%edx
 	adcl	$0,%ebp
-.L010sqrlast:
+.L015sqrlast:
 	movl	20(%esp),%edi
 	movl	16(%esp),%esi
 	imull	32(%esp),%edi
@@ -309,9 +429,9 @@ bn_mul_mont:
 	adcl	$0,%edx
 	movl	$1,%ecx
 	movl	4(%esi),%eax
-	jmp	.L0093rdmadd
+	jmp	.L0143rdmadd
 .align	16
-.L007common_tail:
+.L008common_tail:
 	movl	16(%esp),%ebp
 	movl	4(%esp),%edi
 	leal	32(%esp),%esi
@@ -319,19 +439,19 @@ bn_mul_mont:
 	movl	%ebx,%ecx
 	xorl	%edx,%edx
 .align	16
-.L012sub:
+.L017sub:
 	sbbl	(%ebp,%edx,4),%eax
 	movl	%eax,(%edi,%edx,4)
 	decl	%ecx
 	movl	4(%esi,%edx,4),%eax
 	leal	1(%edx),%edx
-	jge	.L012sub
+	jge	.L017sub
 	sbbl	$0,%eax
 	movl	$-1,%edx
 	xorl	%eax,%edx
-	jmp	.L013copy
+	jmp	.L018copy
 .align	16
-.L013copy:
+.L018copy:
 	movl	32(%esp,%ebx,4),%esi
 	movl	(%edi,%ebx,4),%ebp
 	movl	%ecx,32(%esp,%ebx,4)
@@ -340,7 +460,7 @@ bn_mul_mont:
 	orl	%esi,%ebp
 	movl	%ebp,(%edi,%ebx,4)
 	decl	%ebx
-	jge	.L013copy
+	jge	.L018copy
 	movl	24(%esp),%esp
 	movl	$1,%eax
 .L000just_leave:
@@ -355,6 +475,7 @@ bn_mul_mont:
 .byte	54,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121
 .byte	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
 .byte	111,114,103,62,0
+.comm	OPENSSL_ia32cap_P,16,4
 #else
 .text
 .globl	bn_mul_mont
@@ -414,6 +535,123 @@ bn_mul_mont:
 	movl	%esi,20(%esp)
 	leal	-3(%edi),%ebx
 	movl	%edx,24(%esp)
+	leal	OPENSSL_ia32cap_P,%eax
+	btl	$26,(%eax)
+	jnc	.L003non_sse2
+	movl	$-1,%eax
+	movd	%eax,%mm7
+	movl	8(%esp),%esi
+	movl	12(%esp),%edi
+	movl	16(%esp),%ebp
+	xorl	%edx,%edx
+	xorl	%ecx,%ecx
+	movd	(%edi),%mm4
+	movd	(%esi),%mm5
+	movd	(%ebp),%mm3
+	pmuludq	%mm4,%mm5
+	movq	%mm5,%mm2
+	movq	%mm5,%mm0
+	pand	%mm7,%mm0
+	pmuludq	20(%esp),%mm5
+	pmuludq	%mm5,%mm3
+	paddq	%mm0,%mm3
+	movd	4(%ebp),%mm1
+	movd	4(%esi),%mm0
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	incl	%ecx
+.align	16
+.L0041st:
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	pand	%mm7,%mm0
+	movd	4(%ebp,%ecx,4),%mm1
+	paddq	%mm0,%mm3
+	movd	4(%esi,%ecx,4),%mm0
+	psrlq	$32,%mm2
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm3
+	leal	1(%ecx),%ecx
+	cmpl	%ebx,%ecx
+	jl	.L0041st
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	pand	%mm7,%mm0
+	paddq	%mm0,%mm3
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	paddq	%mm2,%mm3
+	movq	%mm3,32(%esp,%ebx,4)
+	incl	%edx
+.L005outer:
+	xorl	%ecx,%ecx
+	movd	(%edi,%edx,4),%mm4
+	movd	(%esi),%mm5
+	movd	32(%esp),%mm6
+	movd	(%ebp),%mm3
+	pmuludq	%mm4,%mm5
+	paddq	%mm6,%mm5
+	movq	%mm5,%mm0
+	movq	%mm5,%mm2
+	pand	%mm7,%mm0
+	pmuludq	20(%esp),%mm5
+	pmuludq	%mm5,%mm3
+	paddq	%mm0,%mm3
+	movd	36(%esp),%mm6
+	movd	4(%ebp),%mm1
+	movd	4(%esi),%mm0
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	paddq	%mm6,%mm2
+	incl	%ecx
+	decl	%ebx
+.L006inner:
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	movd	36(%esp,%ecx,4),%mm6
+	pand	%mm7,%mm0
+	movd	4(%ebp,%ecx,4),%mm1
+	paddq	%mm0,%mm3
+	movd	4(%esi,%ecx,4),%mm0
+	psrlq	$32,%mm2
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm3
+	paddq	%mm6,%mm2
+	decl	%ebx
+	leal	1(%ecx),%ecx
+	jnz	.L006inner
+	movl	%ecx,%ebx
+	pmuludq	%mm4,%mm0
+	pmuludq	%mm5,%mm1
+	paddq	%mm0,%mm2
+	paddq	%mm1,%mm3
+	movq	%mm2,%mm0
+	pand	%mm7,%mm0
+	paddq	%mm0,%mm3
+	movd	%mm3,28(%esp,%ecx,4)
+	psrlq	$32,%mm2
+	psrlq	$32,%mm3
+	movd	36(%esp,%ebx,4),%mm6
+	paddq	%mm2,%mm3
+	paddq	%mm6,%mm3
+	movq	%mm3,32(%esp,%ebx,4)
+	leal	1(%edx),%edx
+	cmpl	%ebx,%edx
+	jle	.L005outer
+	emms
+	jmp	.L007common_tail
+.align	16
+.L003non_sse2:
 	movl	8(%esp),%esi
 	leal	1(%ebx),%ebp
 	movl	12(%esp),%edi
@@ -424,12 +662,12 @@ bn_mul_mont:
 	leal	4(%edi,%ebx,4),%eax
 	orl	%edx,%ebp
 	movl	(%edi),%edi
-	jz	.L003bn_sqr_mont
+	jz	.L008bn_sqr_mont
 	movl	%eax,28(%esp)
 	movl	(%esi),%eax
 	xorl	%edx,%edx
 .align	16
-.L004mull:
+.L009mull:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	%eax,%ebp
@@ -438,7 +676,7 @@ bn_mul_mont:
 	movl	(%esi,%ecx,4),%eax
 	cmpl	%ebx,%ecx
 	movl	%ebp,28(%esp,%ecx,4)
-	jl	.L004mull
+	jl	.L009mull
 	movl	%edx,%ebp
 	mull	%edi
 	movl	20(%esp),%edi
@@ -456,9 +694,9 @@ bn_mul_mont:
 	movl	4(%esi),%eax
 	adcl	$0,%edx
 	incl	%ecx
-	jmp	.L0052ndmadd
+	jmp	.L0102ndmadd
 .align	16
-.L0061stmadd:
+.L0111stmadd:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ecx,4),%ebp
@@ -469,7 +707,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	cmpl	%ebx,%ecx
 	movl	%ebp,28(%esp,%ecx,4)
-	jl	.L0061stmadd
+	jl	.L0111stmadd
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ebx,4),%eax
@@ -492,7 +730,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	movl	$1,%ecx
 .align	16
-.L0052ndmadd:
+.L0102ndmadd:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ecx,4),%ebp
@@ -503,7 +741,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	cmpl	%ebx,%ecx
 	movl	%ebp,24(%esp,%ecx,4)
-	jl	.L0052ndmadd
+	jl	.L0102ndmadd
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ebx,4),%ebp
@@ -526,9 +764,9 @@ bn_mul_mont:
 	xorl	%ecx,%ecx
 	xorl	%edx,%edx
 	movl	(%esi),%eax
-	jmp	.L0061stmadd
+	jmp	.L0111stmadd
 .align	16
-.L003bn_sqr_mont:
+.L008bn_sqr_mont:
 	movl	%ebx,(%esp)
 	movl	%ecx,12(%esp)
 	movl	%edi,%eax
@@ -539,7 +777,7 @@ bn_mul_mont:
 	andl	$1,%ebx
 	incl	%ecx
 .align	16
-.L008sqr:
+.L012sqr:
 	movl	(%esi,%ecx,4),%eax
 	movl	%edx,%ebp
 	mull	%edi
@@ -551,7 +789,7 @@ bn_mul_mont:
 	cmpl	(%esp),%ecx
 	movl	%eax,%ebx
 	movl	%ebp,28(%esp,%ecx,4)
-	jl	.L008sqr
+	jl	.L012sqr
 	movl	(%esi,%ecx,4),%eax
 	movl	%edx,%ebp
 	mull	%edi
@@ -575,7 +813,7 @@ bn_mul_mont:
 	movl	4(%esi),%eax
 	movl	$1,%ecx
 .align	16
-.L0093rdmadd:
+.L0133rdmadd:
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ecx,4),%ebp
@@ -594,7 +832,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	cmpl	%ebx,%ecx
 	movl	%ebp,24(%esp,%ecx,4)
-	jl	.L0093rdmadd
+	jl	.L0133rdmadd
 	movl	%edx,%ebp
 	mull	%edi
 	addl	32(%esp,%ebx,4),%ebp
@@ -622,12 +860,12 @@ bn_mul_mont:
 	xorl	%ebp,%ebp
 	cmpl	%ebx,%ecx
 	leal	1(%ecx),%ecx
-	je	.L010sqrlast
+	je	.L014sqrlast
 	movl	%edx,%ebx
 	shrl	$1,%edx
 	andl	$1,%ebx
 .align	16
-.L011sqradd:
+.L015sqradd:
 	movl	(%esi,%ecx,4),%eax
 	movl	%edx,%ebp
 	mull	%edi
@@ -643,13 +881,13 @@ bn_mul_mont:
 	cmpl	(%esp),%ecx
 	movl	%ebp,28(%esp,%ecx,4)
 	movl	%eax,%ebx
-	jle	.L011sqradd
+	jle	.L015sqradd
 	movl	%edx,%ebp
 	addl	%edx,%edx
 	shrl	$31,%ebp
 	addl	%ebx,%edx
 	adcl	$0,%ebp
-.L010sqrlast:
+.L014sqrlast:
 	movl	20(%esp),%edi
 	movl	16(%esp),%esi
 	imull	32(%esp),%edi
@@ -664,7 +902,7 @@ bn_mul_mont:
 	adcl	$0,%edx
 	movl	$1,%ecx
 	movl	4(%esi),%eax
-	jmp	.L0093rdmadd
+	jmp	.L0133rdmadd
 .align	16
 .L007common_tail:
 	movl	16(%esp),%ebp
@@ -674,19 +912,19 @@ bn_mul_mont:
 	movl	%ebx,%ecx
 	xorl	%edx,%edx
 .align	16
-.L012sub:
+.L016sub:
 	sbbl	(%ebp,%edx,4),%eax
 	movl	%eax,(%edi,%edx,4)
 	decl	%ecx
 	movl	4(%esi,%edx,4),%eax
 	leal	1(%edx),%edx
-	jge	.L012sub
+	jge	.L016sub
 	sbbl	$0,%eax
 	movl	$-1,%edx
 	xorl	%eax,%edx
-	jmp	.L013copy
+	jmp	.L017copy
 .align	16
-.L013copy:
+.L017copy:
 	movl	32(%esp,%ebx,4),%esi
 	movl	(%edi,%ebx,4),%ebp
 	movl	%ecx,32(%esp,%ebx,4)
@@ -695,7 +933,7 @@ bn_mul_mont:
 	orl	%esi,%ebp
 	movl	%ebp,(%edi,%ebx,4)
 	decl	%ebx
-	jge	.L013copy
+	jge	.L017copy
 	movl	24(%esp),%esp
 	movl	$1,%eax
 .L000just_leave:
@@ -710,4 +948,5 @@ bn_mul_mont:
 .byte	54,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121
 .byte	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
 .byte	111,114,103,62,0
+.comm	OPENSSL_ia32cap_P,16,4
 #endif
