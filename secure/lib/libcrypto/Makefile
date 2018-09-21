@@ -406,7 +406,7 @@ openssl/opensslconf.h: opensslconf.h
 	mkdir -p openssl
 	ln -fs ${.OBJDIR}/${.ALLSRC} ${.TARGET}
 
-opensslconf.h: opensslconf-${MACHINE_CPUARCH:C/^(amd64|i386)$/x86/}.h.in
+opensslconf.h: opensslconf.h.in
 .if defined(ASM_${MACHINE_CPUARCH})
 	sed 's/%%ASM%%//; /%%NO_ASM%%/d' ${.ALLSRC} > ${.TARGET}.tmp
 .else
