@@ -293,7 +293,7 @@ done
 shift $((OPTIND - 1))
 
 if [ -z "${include_metadata}" ]; then
-	VERINFO="${VERSION}${svn}${git}${hg}${p4version}"
+	VERINFO="${VERSION}${svn}${git}${hg}${p4version} ${i}"
 	VERSTR="${VERINFO}\\n"
 else
 	VERINFO="${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}"
