@@ -170,6 +170,13 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 }
 
 #ifndef __powerpc64__
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
