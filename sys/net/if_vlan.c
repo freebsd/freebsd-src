@@ -87,11 +87,11 @@ __FBSDID("$FreeBSD$");
 #define	UP_AND_RUNNING(ifp) \
     ((ifp)->if_flags & IFF_UP && (ifp)->if_drv_flags & IFF_DRV_RUNNING)
 
-LIST_HEAD(ifvlanhead, ifvlan);
+CK_SLIST_HEAD(ifvlanhead, ifvlan);
 
 struct ifvlantrunk {
 	struct	ifnet   *parent;	/* parent interface of this trunk */
-	struct	rmlock	lock;
+	struct	mtx	lock;
 #ifdef VLAN_ARRAY
 #define	VLAN_ARRAY_SIZE	(EVL_VLID_MASK + 1)
 	struct	ifvlan	*vlans[VLAN_ARRAY_SIZE]; /* static table */
@@ -117,7 +117,7 @@ struct ifvlantrunk {
 	struct ifvlan *_next; \
 	size_t _i; \
 	for (_i = 0; _i < (1 << (_trunk)->hwidth); _i++) \
-		LIST_FOREACH_SAFE((_ifv), &(_trunk)->hash[_i], ifv_list, _next)
+		CK_SLIST_FOREACH_SAFE((_ifv), &(_trunk)->hash[_i], ifv_list, _next)
 #endif /* VLAN_ARRAY */
 
 /*
@@ -146,13 +146,13 @@ struct ifvlantrunk {
 	for (_i = 0; \
 	    !(_cond) && _i < (1 << (_trunk)->hwidth); \
 	    _i = (_touch && ((_trunk) != NULL) ? 0 : _i + 1), _touch = false) \
-		if (((_ifv) = LIST_FIRST(&(_trunk)->hash[_i])) != NULL && \
+		if (((_ifv) = CK_SLIST_FIRST(&(_trunk)->hash[_i])) != NULL && \
 		    (_touch = true))
 #endif /* VLAN_ARRAY */
 
 struct vlan_mc_entry {
 	struct sockaddr_dl		mc_addr;
-	SLIST_ENTRY(vlan_mc_entry)	mc_entries;
+	CK_SLIST_ENTRY(vlan_mc_entry)	mc_entries;
 };
 
 struct	ifvlan {
@@ -173,9 +173,9 @@ struct	ifvlan {
 		uint8_t	ifvm_pcp;	/* Priority Code Point (PCP). */
 	}	ifv_mib;
 	struct task lladdr_task;
-	SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
+	CK_SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
 #ifndef VLAN_ARRAY
-	LIST_ENTRY(ifvlan) ifv_list;
+	CK_SLIST_ENTRY(ifvlan) ifv_list;
 #endif
 };
 #define	ifv_proto	ifv_mib.ifvm_proto
@@ -205,55 +205,36 @@ static eventhandler_tag ifdetach_tag;
 static eventhandler_tag iflladdr_tag;
 
 /*
- * if_vlan uses two module-level locks to allow concurrent modification of vlan
- * interfaces and (mostly) allow for vlans to be destroyed while they are being
- * used for tx/rx. To accomplish this in a way that has acceptable performance
- * and cooperation with other parts of the network stack there is a
- * non-sleepable rmlock(9) and an sx(9). Both locks are exclusively acquired
- * when destroying a vlan interface, i.e. when the if_vlantrunk field of struct
- * ifnet is de-allocated and NULL'd. Thus a reader holding either lock has a
- * guarantee that the struct ifvlantrunk references a valid vlan trunk.
+ * if_vlan uses two module-level synchronizations primitives to allow concurrent 
+ * modification of vlan interfaces and (mostly) allow for vlans to be destroyed 
+ * while they are being used for tx/rx. To accomplish this in a way that has 
+ * acceptable performance and cooperation with other parts of the network stack
+ * there is a non-sleepable epoch(9) and an sx(9).
  *
- * The performance-sensitive paths that warrant using the rmlock(9) are
+ * The performance-sensitive paths that warrant using the epoch(9) are
  * vlan_transmit and vlan_input. Both have to check for the vlan interface's
  * existence using if_vlantrunk, and being in the network tx/rx paths the use
- * of an rmlock(9) gives a measureable improvement in performance.
+ * of an epoch(9) gives a measureable improvement in performance.
  *
  * The reason for having an sx(9) is mostly because there are still areas that
  * must be sleepable and also have safe concurrent access to a vlan interface.
  * Since the sx(9) exists, it is used by default in most paths unless sleeping
  * is not permitted, or if it is not clear whether sleeping is permitted.
  *
- * Note that despite these protections, there is still an inherent race in the
- * destruction of vlans since there's no guarantee that the ifnet hasn't been
- * freed/reused when the tx/rx functions are called by the stack. This can only
- * be fixed by addressing ifnet's lifetime issues.
  */
-#define _VLAN_RM_ID ifv_rm_lock
 #define _VLAN_SX_ID ifv_sx
 
-static struct rmlock _VLAN_RM_ID;
 static struct sx _VLAN_SX_ID;
 
 #define VLAN_LOCKING_INIT() \
-	rm_init(&_VLAN_RM_ID, "vlan_rm"); \
 	sx_init(&_VLAN_SX_ID, "vlan_sx")
 
 #define VLAN_LOCKING_DESTROY() \
-	rm_destroy(&_VLAN_RM_ID); \
 	sx_destroy(&_VLAN_SX_ID)
 
-#define	_VLAN_RM_TRACKER		_vlan_rm_tracker
-#define	VLAN_RLOCK()			rm_rlock(&_VLAN_RM_ID, \
-					    &_VLAN_RM_TRACKER)
-#define	VLAN_RUNLOCK()			rm_runlock(&_VLAN_RM_ID, \
-					    &_VLAN_RM_TRACKER)
-#define	VLAN_WLOCK()			rm_wlock(&_VLAN_RM_ID)
-#define	VLAN_WUNLOCK()			rm_wunlock(&_VLAN_RM_ID)
-#define	VLAN_RLOCK_ASSERT()		rm_assert(&_VLAN_RM_ID, RA_RLOCKED)
-#define	VLAN_WLOCK_ASSERT()		rm_assert(&_VLAN_RM_ID, RA_WLOCKED)
-#define	VLAN_RWLOCK_ASSERT()		rm_assert(&_VLAN_RM_ID, RA_LOCKED)
-#define	VLAN_LOCK_READER		struct rm_priotracker _VLAN_RM_TRACKER
+#define	VLAN_RLOCK()			NET_EPOCH_ENTER();
+#define	VLAN_RUNLOCK()			NET_EPOCH_EXIT();
+#define	VLAN_RLOCK_ASSERT()		MPASS(in_epoch(net_epoch_preempt))
 
 #define	VLAN_SLOCK()			sx_slock(&_VLAN_SX_ID)
 #define	VLAN_SUNLOCK()			sx_sunlock(&_VLAN_SX_ID)
@@ -265,25 +246,18 @@ static struct sx _VLAN_SX_ID;
 
 
 /*
- * We also have a per-trunk rmlock(9), that is locked shared on packet
- * processing and exclusive when configuration is changed. Note: This should
- * only be acquired while there is a shared lock on either of the global locks
- * via VLAN_SLOCK or VLAN_RLOCK. Thus, an exclusive lock on the global locks
- * makes a call to TRUNK_RLOCK/TRUNK_WLOCK technically superfluous.
+ * We also have a per-trunk mutex that should be acquired when changing
+ * its state.
  */
-#define	_TRUNK_RM_TRACKER		_trunk_rm_tracker
-#define	TRUNK_LOCK_INIT(trunk)		rm_init(&(trunk)->lock, vlanname)
-#define	TRUNK_LOCK_DESTROY(trunk)	rm_destroy(&(trunk)->lock)
-#define	TRUNK_RLOCK(trunk)		rm_rlock(&(trunk)->lock, \
-    &_TRUNK_RM_TRACKER)
-#define	TRUNK_WLOCK(trunk)		rm_wlock(&(trunk)->lock)
-#define	TRUNK_RUNLOCK(trunk)		rm_runlock(&(trunk)->lock, \
-    &_TRUNK_RM_TRACKER)
-#define	TRUNK_WUNLOCK(trunk)		rm_wunlock(&(trunk)->lock)
-#define	TRUNK_RLOCK_ASSERT(trunk)	rm_assert(&(trunk)->lock, RA_RLOCKED)
-#define	TRUNK_LOCK_ASSERT(trunk)	rm_assert(&(trunk)->lock, RA_LOCKED)
-#define	TRUNK_WLOCK_ASSERT(trunk)	rm_assert(&(trunk)->lock, RA_WLOCKED)
-#define	TRUNK_LOCK_READER		struct rm_priotracker _TRUNK_RM_TRACKER
+#define	TRUNK_LOCK_INIT(trunk)		mtx_init(&(trunk)->lock, vlanname, NULL, MTX_DEF)
+#define	TRUNK_LOCK_DESTROY(trunk)	mtx_destroy(&(trunk)->lock)
+#define	TRUNK_RLOCK(trunk)		NET_EPOCH_ENTER()
+#define	TRUNK_WLOCK(trunk)		mtx_lock(&(trunk)->lock)
+#define	TRUNK_RUNLOCK(trunk)		NET_EPOCH_EXIT();
+#define	TRUNK_WUNLOCK(trunk)		mtx_unlock(&(trunk)->lock)
+#define	TRUNK_RLOCK_ASSERT(trunk)	MPASS(in_epoch(net_epoch_preempt))
+#define	TRUNK_LOCK_ASSERT(trunk)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(trunk)->lock))
+#define	TRUNK_WLOCK_ASSERT(trunk)	mtx_assert(&(trunk)->lock, MA_OWNED);
 
 /*
  * The VLAN_ARRAY substitutes the dynamic hash with a static array
@@ -361,7 +335,7 @@ vlan_inithash(struct ifvlantrunk *trunk)
 	trunk->hmask = n - 1;
 	trunk->hash = malloc(sizeof(struct ifvlanhead) * n, M_VLAN, M_WAITOK);
 	for (i = 0; i < n; i++)
-		LIST_INIT(&trunk->hash[i]);
+		CK_SLIST_INIT(&trunk->hash[i]);
 }
 
 static void
@@ -372,7 +346,7 @@ vlan_freehash(struct ifvlantrunk *trunk)
 
 	KASSERT(trunk->hwidth > 0, ("%s: hwidth not positive", __func__));
 	for (i = 0; i < (1 << trunk->hwidth); i++)
-		KASSERT(LIST_EMPTY(&trunk->hash[i]),
+		KASSERT(CK_SLIST_EMPTY(&trunk->hash[i]),
 		    ("%s: hash table not empty", __func__));
 #endif
 	free(trunk->hash, M_VLAN);
@@ -386,12 +360,12 @@ vlan_inshash(struct ifvlantrunk *trunk, struct ifvlan *ifv)
 	int i, b;
 	struct ifvlan *ifv2;
 
-	TRUNK_WLOCK_ASSERT(trunk);
+	VLAN_XLOCK_ASSERT();
 	KASSERT(trunk->hwidth > 0, ("%s: hwidth not positive", __func__));
 
 	b = 1 << trunk->hwidth;
 	i = HASH(ifv->ifv_vid, trunk->hmask);
-	LIST_FOREACH(ifv2, &trunk->hash[i], ifv_list)
+	CK_SLIST_FOREACH(ifv2, &trunk->hash[i], ifv_list)
 		if (ifv->ifv_vid == ifv2->ifv_vid)
 			return (EEXIST);
 
@@ -404,7 +378,7 @@ vlan_inshash(struct ifvlantrunk *trunk, struct ifvlan *ifv)
 		vlan_growhash(trunk, 1);
 		i = HASH(ifv->ifv_vid, trunk->hmask);
 	}
-	LIST_INSERT_HEAD(&trunk->hash[i], ifv, ifv_list);
+	CK_SLIST_INSERT_HEAD(&trunk->hash[i], ifv, ifv_list);
 	trunk->refcnt++;
 
 	return (0);
@@ -416,15 +390,15 @@ vlan_remhash(struct ifvlantrunk *trunk, struct ifvlan *ifv)
 	int i, b;
 	struct ifvlan *ifv2;
 
-	TRUNK_WLOCK_ASSERT(trunk);
+	VLAN_XLOCK_ASSERT();
 	KASSERT(trunk->hwidth > 0, ("%s: hwidth not positive", __func__));
 	
 	b = 1 << trunk->hwidth;
 	i = HASH(ifv->ifv_vid, trunk->hmask);
-	LIST_FOREACH(ifv2, &trunk->hash[i], ifv_list)
+	CK_SLIST_FOREACH(ifv2, &trunk->hash[i], ifv_list)
 		if (ifv2 == ifv) {
 			trunk->refcnt--;
-			LIST_REMOVE(ifv2, ifv_list);
+			CK_SLIST_REMOVE(&trunk->hash[i], ifv2, ifvlan, ifv_list);
 			if (trunk->refcnt < (b * b) / 2)
 				vlan_growhash(trunk, -1);
 			return (0);
@@ -444,7 +418,7 @@ vlan_growhash(struct ifvlantrunk *trunk, int howmuch)
 	struct ifvlanhead *hash2;
 	int hwidth2, i, j, n, n2;
 
-	TRUNK_WLOCK_ASSERT(trunk);
+	VLAN_XLOCK_ASSERT();
 	KASSERT(trunk->hwidth > 0, ("%s: hwidth not positive", __func__));
 
 	if (howmuch == 0) {
@@ -460,21 +434,21 @@ vlan_growhash(struct ifvlantrunk *trunk, int howmuch)
 	if (hwidth2 < VLAN_DEF_HWIDTH)
 		return;
 
-	/* M_NOWAIT because we're called with trunk mutex held */
-	hash2 = malloc(sizeof(struct ifvlanhead) * n2, M_VLAN, M_NOWAIT);
+	hash2 = malloc(sizeof(struct ifvlanhead) * n2, M_VLAN, M_WAITOK);
 	if (hash2 == NULL) {
 		printf("%s: out of memory -- hash size not changed\n",
 		    __func__);
 		return;		/* We can live with the old hash table */
 	}
 	for (j = 0; j < n2; j++)
-		LIST_INIT(&hash2[j]);
+		CK_SLIST_INIT(&hash2[j]);
 	for (i = 0; i < n; i++)
-		while ((ifv = LIST_FIRST(&trunk->hash[i])) != NULL) {
-			LIST_REMOVE(ifv, ifv_list);
+		while ((ifv = CK_SLIST_FIRST(&trunk->hash[i])) != NULL) {
+			CK_SLIST_REMOVE(&trunk->hash[i], ifv, ifvlan, ifv_list);
 			j = HASH(ifv->ifv_vid, n2 - 1);
-			LIST_INSERT_HEAD(&hash2[j], ifv, ifv_list);
+			CK_SLIST_INSERT_HEAD(&hash2[j], ifv, ifv_list);
 		}
+	NET_EPOCH_WAIT();
 	free(trunk->hash, M_VLAN);
 	trunk->hash = hash2;
 	trunk->hwidth = hwidth2;
@@ -492,7 +466,7 @@ vlan_gethash(struct ifvlantrunk *trunk, uint16_t vid)
 
 	TRUNK_RLOCK_ASSERT(trunk);
 
-	LIST_FOREACH(ifv, &trunk->hash[HASH(vid, trunk->hmask)], ifv_list)
+	CK_SLIST_FOREACH(ifv, &trunk->hash[HASH(vid, trunk->hmask)], ifv_list)
 		if (ifv->ifv_vid == vid)
 			return (ifv);
 	return (NULL);
@@ -508,7 +482,7 @@ vlan_dumphash(struct ifvlantrunk *trunk)
 
 	for (i = 0; i < (1 << trunk->hwidth); i++) {
 		printf("%d: ", i);
-		LIST_FOREACH(ifv, &trunk->hash[i], ifv_list)
+		CK_SLIST_FOREACH(ifv, &trunk->hash[i], ifv_list)
 			printf("%s ", ifv->ifv_ifp->if_xname);
 		printf("\n");
 	}
@@ -561,7 +535,6 @@ static void
 trunk_destroy(struct ifvlantrunk *trunk)
 {
 	VLAN_XLOCK_ASSERT();
-	VLAN_WLOCK_ASSERT();
 
 	vlan_freehash(trunk);
 	trunk->parent->if_vlantrunk = NULL;
@@ -587,23 +560,19 @@ vlan_setmulti(struct ifnet *ifp)
 	struct vlan_mc_entry	*mc;
 	int			error;
 
-	/*
-	 * XXX This stupidly needs the rmlock to avoid sleeping while holding
-	 * the in6_multi_mtx (see in6_mc_join_locked).
-	 */
-	VLAN_RWLOCK_ASSERT();
+	VLAN_XLOCK_ASSERT();
 
 	/* Find the parent. */
 	sc = ifp->if_softc;
-	TRUNK_WLOCK_ASSERT(TRUNK(sc));
 	ifp_p = PARENT(sc);
 
 	CURVNET_SET_QUIET(ifp_p->if_vnet);
 
 	/* First, remove any existing filter entries. */
-	while ((mc = SLIST_FIRST(&sc->vlan_mc_listhead)) != NULL) {
-		SLIST_REMOVE_HEAD(&sc->vlan_mc_listhead, mc_entries);
+	while ((mc = CK_SLIST_FIRST(&sc->vlan_mc_listhead)) != NULL) {
+		CK_SLIST_REMOVE_HEAD(&sc->vlan_mc_listhead, mc_entries);
 		(void)if_delmulti(ifp_p, (struct sockaddr *)&mc->mc_addr);
+		NET_EPOCH_WAIT();
 		free(mc, M_VLAN);
 	}
 
@@ -619,10 +588,10 @@ vlan_setmulti(struct ifnet *ifp)
 		}
 		bcopy(ifma->ifma_addr, &mc->mc_addr, ifma->ifma_addr->sa_len);
 		mc->mc_addr.sdl_index = ifp_p->if_index;
-		SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
+		CK_SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
 	}
 	IF_ADDR_WUNLOCK(ifp);
-	SLIST_FOREACH (mc, &sc->vlan_mc_listhead, mc_entries) {
+	CK_SLIST_FOREACH (mc, &sc->vlan_mc_listhead, mc_entries) {
 		error = if_addmulti(ifp_p, (struct sockaddr *)&mc->mc_addr,
 		    NULL);
 		if (error)
@@ -645,7 +614,6 @@ vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 	struct ifnet *ifv_ifp;
 	struct ifvlantrunk *trunk;
 	struct sockaddr_dl *sdl;
-	VLAN_LOCK_READER;
 
 	/* Need the rmlock since this is run on taskqueue_swi. */
 	VLAN_RLOCK();
@@ -724,12 +692,10 @@ static struct ifnet  *
 vlan_trunkdev(struct ifnet *ifp)
 {
 	struct ifvlan *ifv;
-	VLAN_LOCK_READER;
 
 	if (ifp->if_type != IFT_L2VLAN)
 		return (NULL);
 
-	/* Not clear if callers are sleepable, so acquire the rmlock. */
 	VLAN_RLOCK();
 	ifv = ifp->if_softc;
 	ifp = NULL;
@@ -809,10 +775,7 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
 {
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
-	VLAN_LOCK_READER;
-	TRUNK_LOCK_READER;
 
-	/* Not clear if callers are sleepable, so acquire the rmlock. */
 	VLAN_RLOCK();
 	trunk = ifp->if_vlantrunk;
 	if (trunk == NULL) {
@@ -820,11 +783,9 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
 		return (NULL);
 	}
 	ifp = NULL;
-	TRUNK_RLOCK(trunk);
 	ifv = vlan_gethash(trunk, vid);
 	if (ifv)
 		ifp = ifv->ifv_ifp;
-	TRUNK_RUNLOCK(trunk);
 	VLAN_RUNLOCK();
 	return (ifp);
 }
@@ -1076,7 +1037,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			if_rele(p);
 		return (ENOSPC);
 	}
-	SLIST_INIT(&ifv->vlan_mc_listhead);
+	CK_SLIST_INIT(&ifv->vlan_mc_listhead);
 	ifp->if_softc = ifv;
 	/*
 	 * Set the name manually rather than using if_initname because
@@ -1143,6 +1104,7 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	 * ifvlan.
 	 */
 	taskqueue_drain(taskqueue_thread, &ifv->lladdr_task);
+	NET_EPOCH_WAIT();
 	if_free(ifp);
 	free(ifv, M_VLAN);
 	ifc_free_unit(ifc, unit);
@@ -1167,7 +1129,6 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct ifvlan *ifv;
 	struct ifnet *p;
 	int error, len, mcast;
-	VLAN_LOCK_READER;
 
 	VLAN_RLOCK();
 	ifv = ifp->if_softc;
@@ -1227,8 +1188,6 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
-	VLAN_LOCK_READER;
-	TRUNK_LOCK_READER;
 	struct m_tag *mtag;
 	uint16_t vid, tag;
 
@@ -1289,16 +1248,13 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 
 	vid = EVL_VLANOFTAG(tag);
 
-	TRUNK_RLOCK(trunk);
 	ifv = vlan_gethash(trunk, vid);
 	if (ifv == NULL || !UP_AND_RUNNING(ifv->ifv_ifp)) {
-		TRUNK_RUNLOCK(trunk);
-		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 		VLAN_RUNLOCK();
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 		m_freem(m);
 		return;
 	}
-	TRUNK_RUNLOCK(trunk);
 
 	if (vlan_mtag_pcp) {
 		/*
@@ -1369,22 +1325,19 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	if (ifv->ifv_trunk)
 		return (EBUSY);
 
-	/* Acquire rmlock after the branch so we can M_WAITOK. */
 	VLAN_XLOCK();
 	if (p->if_vlantrunk == NULL) {
 		trunk = malloc(sizeof(struct ifvlantrunk),
 		    M_VLAN, M_WAITOK | M_ZERO);
 		vlan_inithash(trunk);
 		TRUNK_LOCK_INIT(trunk);
-		VLAN_WLOCK();
 		TRUNK_WLOCK(trunk);
 		p->if_vlantrunk = trunk;
 		trunk->parent = p;
 		if_ref(trunk->parent);
+		TRUNK_WUNLOCK(trunk);
 	} else {
-		VLAN_WLOCK();
 		trunk = p->if_vlantrunk;
-		TRUNK_WLOCK(trunk);
 	}
 
 	ifv->ifv_vid = vid;	/* must set this before vlan_inshash() */
@@ -1448,7 +1401,9 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 
 	ifp->if_link_state = p->if_link_state;
 
+	TRUNK_RLOCK(TRUNK(ifv));
 	vlan_capabilities(ifv);
+	TRUNK_RUNLOCK(TRUNK(ifv));
 
 	/*
 	 * Set up our interface address to reflect the underlying
@@ -1458,12 +1413,6 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	((struct sockaddr_dl *)ifp->if_addr->ifa_addr)->sdl_alen =
 	    p->if_addrlen;
 
-	/*
-	 * Configure multicast addresses that may already be
-	 * joined on the vlan device.
-	 */
-	(void)vlan_setmulti(ifp);
-
 	TASK_INIT(&ifv->lladdr_task, 0, vlan_lladdr_fn, ifv);
 
 	/* We are ready for operation now. */
@@ -1471,13 +1420,14 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 
 	/* Update flags on the parent, if necessary. */
 	vlan_setflags(ifp, 1);
-done:
+
 	/*
-	 * We need to drop the non-sleepable rmlock so that the underlying
-	 * devices can sleep in their vlan_config hooks.
+	 * Configure multicast addresses that may already be
+	 * joined on the vlan device.
 	 */
-	TRUNK_WUNLOCK(trunk);
-	VLAN_WUNLOCK();
+	(void)vlan_setmulti(ifp);
+
+done:
 	if (error == 0)
 		EVENTHANDLER_INVOKE(vlan_config, p, ifv->ifv_vid);
 	VLAN_XUNLOCK();
@@ -1510,13 +1460,6 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 	parent = NULL;
 
 	if (trunk != NULL) {
-		/*
-		 * Both vlan_transmit and vlan_input rely on the trunk fields
-		 * being NULL to determine whether to bail, so we need to get
-		 * an exclusive lock here to prevent them from using bad
-		 * ifvlans.
-		 */
-		VLAN_WLOCK();
 		parent = trunk->parent;
 
 		/*
@@ -1524,7 +1467,7 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 		 * empty the list of multicast groups that we may have joined
 		 * while we were alive from the parent's list.
 		 */
-		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
+		while ((mc = CK_SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			/*
 			 * If the parent interface is being detached,
 			 * all its multicast addresses have already
@@ -1541,19 +1484,14 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 		    "Failed to delete multicast address from parent: %d\n",
 					    error);
 			}
-			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
+			CK_SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
+			NET_EPOCH_WAIT();
 			free(mc, M_VLAN);
 		}
 
 		vlan_setflags(ifp, 0); /* clear special flags on parent */
 
-		/*
-		 * The trunk lock isn't actually required here, but
-		 * vlan_remhash expects it.
-		 */
-		TRUNK_WLOCK(trunk);
 		vlan_remhash(trunk, ifv);
-		TRUNK_WUNLOCK(trunk);
 		ifv->ifv_trunk = NULL;
 
 		/*
@@ -1561,9 +1499,9 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 		 */
 		if (trunk->refcnt == 0) {
 			parent->if_vlantrunk = NULL;
+			NET_EPOCH_WAIT();
 			trunk_destroy(trunk);
 		}
-		VLAN_WUNLOCK();
 	}
 
 	/* Disconnect from parent. */
@@ -1640,7 +1578,6 @@ vlan_link_state(struct ifnet *ifp)
 {
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
-	VLAN_LOCK_READER;
 
 	/* Called from a taskqueue_swi task, so we cannot sleep. */
 	VLAN_RLOCK();
@@ -1670,7 +1607,7 @@ vlan_capabilities(struct ifvlan *ifv)
 	u_long hwa = 0;
 
 	VLAN_SXLOCK_ASSERT();
-	TRUNK_WLOCK_ASSERT(TRUNK(ifv));
+	TRUNK_RLOCK_ASSERT(TRUNK(ifv));
 	p = PARENT(ifv);
 	ifp = ifv->ifv_ifp;
 
@@ -1771,11 +1708,11 @@ vlan_trunk_capabilities(struct ifnet *ifp)
 		VLAN_SUNLOCK();
 		return;
 	}
-	TRUNK_WLOCK(trunk);
+	TRUNK_RLOCK(trunk);
 	VLAN_FOREACH(ifv, trunk) {
 		vlan_capabilities(ifv);
 	}
-	TRUNK_WUNLOCK(trunk);
+	TRUNK_RUNLOCK(trunk);
 	VLAN_SUNLOCK();
 }
 
@@ -1789,7 +1726,6 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifvlantrunk *trunk;
 	struct vlanreq vlr;
 	int error = 0;
-	VLAN_LOCK_READER;
 
 	ifr = (struct ifreq *)data;
 	ifa = (struct ifaddr *) data;
@@ -1925,16 +1861,13 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * XXX We need the rmlock here to avoid sleeping while
 		 * holding in6_multi_mtx.
 		 */
-		VLAN_RLOCK();
+		VLAN_XLOCK();
 		trunk = TRUNK(ifv);
-		if (trunk != NULL) {
-			TRUNK_WLOCK(trunk);
+		if (trunk != NULL)
 			error = vlan_setmulti(ifp);
-			TRUNK_WUNLOCK(trunk);
-		}
-		VLAN_RUNLOCK();
-		break;
+		VLAN_XUNLOCK();
 
+		break;
 	case SIOCGVLANPCP:
 #ifdef VIMAGE
 		if (ifp->if_vnet != ifp->if_home_vnet) {
@@ -1971,9 +1904,9 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifv->ifv_capenable = ifr->ifr_reqcap;
 		trunk = TRUNK(ifv);
 		if (trunk != NULL) {
-			TRUNK_WLOCK(trunk);
+			TRUNK_RLOCK(trunk);
 			vlan_capabilities(ifv);
-			TRUNK_WUNLOCK(trunk);
+			TRUNK_RUNLOCK(trunk);
 		}
 		VLAN_SUNLOCK();
 		break;
