@@ -20,11 +20,14 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  */
-/* Copyright (c) 2013 by Saso Kiselkov. All rights reserved. */
-/* Copyright (c) 2013, Joyent, Inc. All rights reserved. */
-/* Copyright 2016 Nexenta Systems, Inc. All rights reserved. */
+/*
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright 2016 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2018 DilOS
+ */
 
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
@@ -51,6 +54,19 @@
 #include <sys/vmsystm.h>
 #include <sys/zfs_znode.h>
 #endif
+
+static xuio_stats_t xuio_stats = {
+	{ "onloan_read_buf",	KSTAT_DATA_UINT64 },
+	{ "onloan_write_buf",	KSTAT_DATA_UINT64 },
+	{ "read_buf_copied",	KSTAT_DATA_UINT64 },
+	{ "read_buf_nocopy",	KSTAT_DATA_UINT64 },
+	{ "write_buf_copied",	KSTAT_DATA_UINT64 },
+	{ "write_buf_nocopy",	KSTAT_DATA_UINT64 }
+};
+
+#define	XUIOSTAT_INCR(stat, val)	\
+	atomic_add_64(&xuio_stats.stat.value.ui64, (val))
+#define	XUIOSTAT_BUMP(stat)	XUIOSTAT_INCR(stat, 1)
 
 /*
  * Enable/disable nopwrite feature.

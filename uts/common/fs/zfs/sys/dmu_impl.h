@@ -25,6 +25,7 @@
 /*
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2018 DilOS
  */
 
 #ifndef _SYS_DMU_IMPL_H
@@ -253,19 +254,6 @@ typedef struct xuio_stats {
 	kstat_named_t xuiostat_wbuf_copied;
 	kstat_named_t xuiostat_wbuf_nocopy;
 } xuio_stats_t;
-
-static xuio_stats_t xuio_stats = {
-	{ "onloan_read_buf",	KSTAT_DATA_UINT64 },
-	{ "onloan_write_buf",	KSTAT_DATA_UINT64 },
-	{ "read_buf_copied",	KSTAT_DATA_UINT64 },
-	{ "read_buf_nocopy",	KSTAT_DATA_UINT64 },
-	{ "write_buf_copied",	KSTAT_DATA_UINT64 },
-	{ "write_buf_nocopy",	KSTAT_DATA_UINT64 }
-};
-
-#define	XUIOSTAT_INCR(stat, val)	\
-	atomic_add_64(&xuio_stats.stat.value.ui64, (val))
-#define	XUIOSTAT_BUMP(stat)	XUIOSTAT_INCR(stat, 1)
 
 /*
  * The list of data whose inclusion in a send stream can be pending from
