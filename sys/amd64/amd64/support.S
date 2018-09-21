@@ -294,14 +294,14 @@ END(fillw)
 .if	\smap
 	stac
 .endif
-.endmacro
+.endm
 
 
 .macro SMAP_ENABLE smap
 .if	\smap
 	clac
 .endif
-.endmacro
+.endm
 
 /*
  * copyout(from_kernel, to_user, len)
@@ -367,7 +367,7 @@ END(fillw)
 	movq	%rax,PCB_ONFAULT(%r9)
 	POP_FRAME_POINTER
 	ret
-.endmacro
+.endm
 
 ENTRY(copyout_nosmap_std)
 	COPYOUT smap=0 erms=0
@@ -436,7 +436,7 @@ END(copyout_smap_erms)
 	movq	%rax,PCB_ONFAULT(%r9)
 	POP_FRAME_POINTER
 	ret
-.endmacro
+.endm
 
 ENTRY(copyin_nosmap_std)
 	COPYIN smap=0 erms=0
