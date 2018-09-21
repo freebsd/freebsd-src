@@ -321,10 +321,7 @@ typedef enum {
  * Driver needs frames padded to some minimum length
  */
 #define IFLIB_NEED_ETHER_PAD	0x100
-/*
- * Interface needs admin task to ignore interface up/down status
- */
-#define IFLIB_ADMIN_ALWAYS_RUN	0x10000
+
 
 
 /*
