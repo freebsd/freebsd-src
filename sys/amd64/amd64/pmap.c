@@ -1704,14 +1704,93 @@ pmap_invalidate_ept(pmap_t pmap)
 	sched_unpin();
 }
 
-void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+static inline void
+pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va,
+    const bool invpcid_works1)
 {
-	cpuset_t *mask;
 	struct invpcid_descr d;
 	uint64_t kcr3, ucr3;
 	uint32_t pcid;
 	u_int cpuid, i;
+
+	cpuid = PCPU_GET(cpuid);
+	if (pmap == PCPU_GET(curpmap)) {
+		if (pmap->pm_ucr3 != PMAP_NO_CR3) {
+			/*
+			 * Because pm_pcid is recalculated on a
+			 * context switch, we must disable switching.
+			 * Otherwise, we might use a stale value
+			 * below.
+			 */
+			critical_enter();
+			pcid = pmap->pm_pcids[cpuid].pm_pcid;
+			if (invpcid_works1) {
+				d.pcid = pcid | PMAP_PCID_USER_PT;
+				d.pad = 0;
+				d.addr = va;
+				invpcid(&d, INVPCID_ADDR);
+			} else {
+				kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+				ucr3 = pmap->pm_ucr3 | pcid |
+				    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+				pmap_pti_pcid_invlpg(ucr3, kcr3, va);
+			}
+			critical_exit();
+		}
+	} else
+		pmap->pm_pcids[cpuid].pm_gen = 0;
+
+	CPU_FOREACH(i) {
+		if (cpuid != i)
+			pmap->pm_pcids[i].pm_gen = 0;
+	}
+
+	/*
+	 * The fence is between stores to pm_gen and the read of the
+	 * pm_active mask.  We need to ensure that it is impossible
+	 * for us to miss the bit update in pm_active and
+	 * simultaneously observe a non-zero pm_gen in
+	 * pmap_activate_sw(), otherwise TLB update is missed.
+	 * Without the fence, IA32 allows such an outcome.  Note that
+	 * pm_active is updated by a locked operation, which provides
+	 * the reciprocal fence.
+	 */
+	atomic_thread_fence_seq_cst();
+}
+
+static void
+pmap_invalidate_page_pcid_invpcid(pmap_t pmap, vm_offset_t va)
+{
+
+	pmap_invalidate_page_pcid(pmap, va, true);
+}
+
+static void
+pmap_invalidate_page_pcid_noinvpcid(pmap_t pmap, vm_offset_t va)
+{
+
+	pmap_invalidate_page_pcid(pmap, va, false);
+}
+
+static void
+pmap_invalidate_page_nopcid(pmap_t pmap, vm_offset_t va)
+{
+}
+
+DEFINE_IFUNC(static, void, pmap_invalidate_page_mode, (pmap_t, vm_offset_t),
+    static)
+{
+
+	if (pmap_pcid_enabled)
+		return (invpcid_works ? pmap_invalidate_page_pcid_invpcid :
+		    pmap_invalidate_page_pcid_noinvpcid);
+	return (pmap_invalidate_page_nopcid);
+}
+
+void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+{
+	cpuset_t *mask;
 
 	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
@@ -1726,52 +1805,9 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		invlpg(va);
 		mask = &all_cpus;
 	} else {
-		cpuid = PCPU_GET(cpuid);
-		if (pmap == PCPU_GET(curpmap)) {
+		if (pmap == PCPU_GET(curpmap))
 			invlpg(va);
-			if (pmap_pcid_enabled && pmap->pm_ucr3 != PMAP_NO_CR3) {
-				/*
-				 * Disable context switching. pm_pcid
-				 * is recalculated on switch, which
-				 * might make us use wrong pcid below.
-				 */
-				critical_enter();
-				pcid = pmap->pm_pcids[cpuid].pm_pcid;
-
-				if (invpcid_works) {
-					d.pcid = pcid | PMAP_PCID_USER_PT;
-					d.pad = 0;
-					d.addr = va;
-					invpcid(&d, INVPCID_ADDR);
-				} else {
-					kcr3 = pmap->pm_cr3 | pcid |
-					    CR3_PCID_SAVE;
-					ucr3 = pmap->pm_ucr3 | pcid |
-					    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
-					pmap_pti_pcid_invlpg(ucr3, kcr3, va);
-				}
-				critical_exit();
-			}
-		} else if (pmap_pcid_enabled)
-			pmap->pm_pcids[cpuid].pm_gen = 0;
-		if (pmap_pcid_enabled) {
-			CPU_FOREACH(i) {
-				if (cpuid != i)
-					pmap->pm_pcids[i].pm_gen = 0;
-			}
-
-			/*
-			 * The fence is between stores to pm_gen and the read of
-			 * the pm_active mask.  We need to ensure that it is
-			 * impossible for us to miss the bit update in pm_active
-			 * and simultaneously observe a non-zero pm_gen in
-			 * pmap_activate_sw(), otherwise TLB update is missed.
-			 * Without the fence, IA32 allows such an outcome.
-			 * Note that pm_active is updated by a locked operation,
-			 * which provides the reciprocal fence.
-			 */
-			atomic_thread_fence_seq_cst();
-		}
+		pmap_invalidate_page_mode(pmap, va);
 		mask = &pmap->pm_active;
 	}
 	smp_masked_invlpg(*mask, va, pmap);
@@ -1781,15 +1817,81 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 /* 4k PTEs -- Chosen to exceed the total size of Broadwell L2 TLB */
 #define	PMAP_INVLPG_THRESHOLD	(4 * 1024 * PAGE_SIZE)
 
+static void
+pmap_invalidate_range_pcid(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    const bool invpcid_works1)
+{
+	struct invpcid_descr d;
+	uint64_t kcr3, ucr3;
+	uint32_t pcid;
+	u_int cpuid, i;
+
+	cpuid = PCPU_GET(cpuid);
+	if (pmap == PCPU_GET(curpmap)) {
+		if (pmap->pm_ucr3 != PMAP_NO_CR3) {
+			critical_enter();
+			pcid = pmap->pm_pcids[cpuid].pm_pcid;
+			if (invpcid_works1) {
+				d.pcid = pcid | PMAP_PCID_USER_PT;
+				d.pad = 0;
+				d.addr = sva;
+				for (; d.addr < eva; d.addr += PAGE_SIZE)
+					invpcid(&d, INVPCID_ADDR);
+			} else {
+				kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+				ucr3 = pmap->pm_ucr3 | pcid |
+				    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+				pmap_pti_pcid_invlrng(ucr3, kcr3, sva, eva);
+			}
+			critical_exit();
+		}
+	} else
+		pmap->pm_pcids[cpuid].pm_gen = 0;
+
+	CPU_FOREACH(i) {
+		if (cpuid != i)
+			pmap->pm_pcids[i].pm_gen = 0;
+	}
+	/* See the comment in pmap_invalidate_page_pcid(). */
+	atomic_thread_fence_seq_cst();
+}
+
+static void
+pmap_invalidate_range_pcid_invpcid(pmap_t pmap, vm_offset_t sva,
+    vm_offset_t eva)
+{
+
+	pmap_invalidate_range_pcid(pmap, sva, eva, true);
+}
+
+static void
+pmap_invalidate_range_pcid_noinvpcid(pmap_t pmap, vm_offset_t sva,
+    vm_offset_t eva)
+{
+
+	pmap_invalidate_range_pcid(pmap, sva, eva, false);
+}
+
+static void
+pmap_invalidate_range_nopcid(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+}
+
+DEFINE_IFUNC(static, void, pmap_invalidate_range_mode, (pmap_t, vm_offset_t,
+    vm_offset_t), static)
+{
+
+	if (pmap_pcid_enabled)
+		return (invpcid_works ? pmap_invalidate_range_pcid_invpcid :
+		    pmap_invalidate_range_pcid_noinvpcid);
+	return (pmap_invalidate_range_nopcid);
+}
+
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	cpuset_t *mask;
-	struct invpcid_descr d;
 	vm_offset_t addr;
-	uint64_t kcr3, ucr3;
-	uint32_t pcid;
-	u_int cpuid, i;
 
 	if (eva - sva >= PMAP_INVLPG_THRESHOLD) {
 		pmap_invalidate_all(pmap);
@@ -1805,7 +1907,6 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	    ("pmap_invalidate_range: invalid type %d", pmap->pm_type));
 
 	sched_pin();
-	cpuid = PCPU_GET(cpuid);
 	if (pmap == kernel_pmap) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
@@ -1814,51 +1915,102 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (pmap == PCPU_GET(curpmap)) {
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
-			if (pmap_pcid_enabled && pmap->pm_ucr3 != PMAP_NO_CR3) {
-				critical_enter();
-				pcid = pmap->pm_pcids[cpuid].pm_pcid;
-				if (invpcid_works) {
-					d.pcid = pcid | PMAP_PCID_USER_PT;
-					d.pad = 0;
-					d.addr = sva;
-					for (; d.addr < eva; d.addr +=
-					    PAGE_SIZE)
-						invpcid(&d, INVPCID_ADDR);
-				} else {
-					kcr3 = pmap->pm_cr3 | pcid |
-					    CR3_PCID_SAVE;
-					ucr3 = pmap->pm_ucr3 | pcid |
-					    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
-					pmap_pti_pcid_invlrng(ucr3, kcr3, sva,
-					    eva);
-				}
-				critical_exit();
-			}
-		} else if (pmap_pcid_enabled) {
-			pmap->pm_pcids[cpuid].pm_gen = 0;
 		}
-		if (pmap_pcid_enabled) {
-			CPU_FOREACH(i) {
-				if (cpuid != i)
-					pmap->pm_pcids[i].pm_gen = 0;
-			}
-			/* See the comment in pmap_invalidate_page(). */
-			atomic_thread_fence_seq_cst();
-		}
+		pmap_invalidate_range_mode(pmap, sva, eva);
 		mask = &pmap->pm_active;
 	}
 	smp_masked_invlpg_range(*mask, sva, eva, pmap);
 	sched_unpin();
 }
 
-void
-pmap_invalidate_all(pmap_t pmap)
+static inline void
+pmap_invalidate_all_pcid(pmap_t pmap, bool invpcid_works1)
 {
-	cpuset_t *mask;
 	struct invpcid_descr d;
 	uint64_t kcr3, ucr3;
 	uint32_t pcid;
 	u_int cpuid, i;
+
+	if (pmap == kernel_pmap) {
+		if (invpcid_works1) {
+			bzero(&d, sizeof(d));
+			invpcid(&d, INVPCID_CTXGLOB);
+		} else {
+			invltlb_glob();
+		}
+	} else {
+		cpuid = PCPU_GET(cpuid);
+		if (pmap == PCPU_GET(curpmap)) {
+			critical_enter();
+			pcid = pmap->pm_pcids[cpuid].pm_pcid;
+			if (invpcid_works1) {
+				d.pcid = pcid;
+				d.pad = 0;
+				d.addr = 0;
+				invpcid(&d, INVPCID_CTX);
+				if (pmap->pm_ucr3 != PMAP_NO_CR3) {
+					d.pcid |= PMAP_PCID_USER_PT;
+					invpcid(&d, INVPCID_CTX);
+				}
+			} else {
+				kcr3 = pmap->pm_cr3 | pcid;
+				ucr3 = pmap->pm_ucr3;
+				if (ucr3 != PMAP_NO_CR3) {
+					ucr3 |= pcid | PMAP_PCID_USER_PT;
+					pmap_pti_pcid_invalidate(ucr3, kcr3);
+				} else {
+					load_cr3(kcr3);
+				}
+			}
+			critical_exit();
+		} else
+			pmap->pm_pcids[cpuid].pm_gen = 0;
+	}
+	CPU_FOREACH(i) {
+		if (cpuid != i)
+			pmap->pm_pcids[i].pm_gen = 0;
+	}
+	/* See the comment in pmap_invalidate_page_pcid(). */
+	atomic_thread_fence_seq_cst();
+}
+
+static void
+pmap_invalidate_all_pcid_invpcid(pmap_t pmap)
+{
+
+	pmap_invalidate_all_pcid(pmap, true);
+}
+
+static void
+pmap_invalidate_all_pcid_noinvpcid(pmap_t pmap)
+{
+
+	pmap_invalidate_all_pcid(pmap, false);
+}
+
+static void
+pmap_invalidate_all_nopcid(pmap_t pmap)
+{
+
+	if (pmap == kernel_pmap)
+		invltlb_glob();
+	else if (pmap == PCPU_GET(curpmap))
+		invltlb();
+}
+
+DEFINE_IFUNC(static, void, pmap_invalidate_all_mode, (pmap_t), static)
+{
+
+	if (pmap_pcid_enabled)
+		return (invpcid_works ? pmap_invalidate_all_pcid_invpcid :
+		    pmap_invalidate_all_pcid_noinvpcid);
+	return (pmap_invalidate_all_nopcid);
+}
+
+void
+pmap_invalidate_all(pmap_t pmap)
+{
+	cpuset_t *mask;
 
 	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
@@ -1869,57 +2021,8 @@ pmap_invalidate_all(pmap_t pmap)
 	    ("pmap_invalidate_all: invalid type %d", pmap->pm_type));
 
 	sched_pin();
-	if (pmap == kernel_pmap) {
-		if (pmap_pcid_enabled && invpcid_works) {
-			bzero(&d, sizeof(d));
-			invpcid(&d, INVPCID_CTXGLOB);
-		} else {
-			invltlb_glob();
-		}
-		mask = &all_cpus;
-	} else {
-		cpuid = PCPU_GET(cpuid);
-		if (pmap == PCPU_GET(curpmap)) {
-			if (pmap_pcid_enabled) {
-				critical_enter();
-				pcid = pmap->pm_pcids[cpuid].pm_pcid;
-				if (invpcid_works) {
-					d.pcid = pcid;
-					d.pad = 0;
-					d.addr = 0;
-					invpcid(&d, INVPCID_CTX);
-					if (pmap->pm_ucr3 != PMAP_NO_CR3) {
-						d.pcid |= PMAP_PCID_USER_PT;
-						invpcid(&d, INVPCID_CTX);
-					}
-				} else {
-					kcr3 = pmap->pm_cr3 | pcid;
-					ucr3 = pmap->pm_ucr3;
-					if (ucr3 != PMAP_NO_CR3) {
-						ucr3 |= pcid | PMAP_PCID_USER_PT;
-						pmap_pti_pcid_invalidate(ucr3,
-						    kcr3);
-					} else {
-						load_cr3(kcr3);
-					}
-				}
-				critical_exit();
-			} else {
-				invltlb();
-			}
-		} else if (pmap_pcid_enabled) {
-			pmap->pm_pcids[cpuid].pm_gen = 0;
-		}
-		if (pmap_pcid_enabled) {
-			CPU_FOREACH(i) {
-				if (cpuid != i)
-					pmap->pm_pcids[i].pm_gen = 0;
-			}
-			/* See the comment in pmap_invalidate_page(). */
-			atomic_thread_fence_seq_cst();
-		}
-		mask = &pmap->pm_active;
-	}
+	mask = pmap == kernel_pmap ? &all_cpus : &pmap->pm_active;
+	pmap_invalidate_all_mode(pmap);
 	smp_masked_invltlb(*mask, pmap);
 	sched_unpin();
 }
