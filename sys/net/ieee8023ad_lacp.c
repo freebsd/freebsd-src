@@ -1071,6 +1071,7 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_100_VG:
 		case IFM_100_T2:
 		case IFM_100_T:
+		case IFM_100_SGMII:
 			key = IFM_100_TX;
 			break;
 		case IFM_1000_SX:
@@ -1102,14 +1103,31 @@ lacp_compose_key(struct lacp_port *lp)
 			break;
 		case IFM_2500_KX:
 		case IFM_2500_T:
+		case IFM_2500_X:
 			key = IFM_2500_KX;
 			break;
 		case IFM_5000_T:
+		case IFM_5000_KR:
+		case IFM_5000_KR_S:
+		case IFM_5000_KR1:
 			key = IFM_5000_T;
 			break;
 		case IFM_50G_PCIE:
 		case IFM_50G_CR2:
 		case IFM_50G_KR2:
+		case IFM_50G_SR2:
+		case IFM_50G_LR2:
+		case IFM_50G_LAUI2_AC:
+		case IFM_50G_LAUI2:
+		case IFM_50G_AUI2_AC:
+		case IFM_50G_AUI2:
+		case IFM_50G_CP:
+		case IFM_50G_SR:
+		case IFM_50G_LR:
+		case IFM_50G_FR:
+		case IFM_50G_KR_PAM4:
+		case IFM_50G_AUI1_AC:
+		case IFM_50G_AUI1:
 			key = IFM_50G_PCIE;
 			break;
 		case IFM_56G_R4:
@@ -1122,6 +1140,12 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_25G_LR:
 		case IFM_25G_ACC:
 		case IFM_25G_AOC:
+		case IFM_25G_T:
+		case IFM_25G_CR_S:
+		case IFM_25G_CR1:
+		case IFM_25G_KR_S:
+		case IFM_25G_AUI:
+		case IFM_25G_KR1:
 			key = IFM_25G_PCIE;
 			break;
 		case IFM_40G_CR4:
@@ -1129,13 +1153,49 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_40G_LR4:
 		case IFM_40G_XLPPI:
 		case IFM_40G_KR4:
+		case IFM_40G_XLAUI:
+		case IFM_40G_XLAUI_AC:
+		case IFM_40G_ER4:
 			key = IFM_40G_CR4;
 			break;
 		case IFM_100G_CR4:
 		case IFM_100G_SR4:
 		case IFM_100G_KR4:
 		case IFM_100G_LR4:
+		case IFM_100G_CAUI4_AC:
+		case IFM_100G_CAUI4:
+		case IFM_100G_AUI4_AC:
+		case IFM_100G_AUI4:
+		case IFM_100G_CR_PAM4:
+		case IFM_100G_KR_PAM4:
+		case IFM_100G_CP2:
+		case IFM_100G_SR2:
+		case IFM_100G_DR:
+		case IFM_100G_KR2_PAM4:
+		case IFM_100G_CAUI2_AC:
+		case IFM_100G_CAUI2:
+		case IFM_100G_AUI2_AC:
+		case IFM_100G_AUI2:
 			key = IFM_100G_CR4;
+			break;
+		case IFM_200G_CR4_PAM4:
+		case IFM_200G_SR4:
+		case IFM_200G_FR4:
+		case IFM_200G_LR4:
+		case IFM_200G_DR4:
+		case IFM_200G_KR4_PAM4:
+		case IFM_200G_AUI4_AC:
+		case IFM_200G_AUI4:
+		case IFM_200G_AUI8_AC:
+		case IFM_200G_AUI8:
+			key = IFM_200G_CR4_PAM4;
+			break;
+		case IFM_400G_FR8:
+		case IFM_400G_LR8:
+		case IFM_400G_DR4:
+		case IFM_400G_AUI8_AC:
+		case IFM_400G_AUI8:
+			key = IFM_400G_FR8;
 			break;
 		default:
 			key = subtype;
