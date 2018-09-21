@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 18, 2018
+.Dd Sep 21, 2018
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -450,11 +450,11 @@ eport.
 .It Cm vlan
 Insert, remove, or rewrite the VLAN tag before switching the packet out of
 eport.
-.Cm vlan=none
+.Cm none
 removes the tag,
-.Cm vlan= Ns Ar tag
+.Cm = Ns Ar tag
 replaces the existing tag with the one provided, and
-.Cm vlan=+ Ns Ar tag
+.Cm + Ns Ar tag
 inserts the given tag into the frame.
 .It Cm nat
 Specify the desired NAT mode. Valid NAT modes values are:
