@@ -161,6 +161,13 @@ elf32_dump_thread(struct thread *td __unused, void *dst __unused,
 }
 #endif
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,

@@ -310,6 +310,13 @@ static const long reloc_target_bitmask[] = {
 };
 #define	RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info __unused)
+{
+
+	return (false);
+}
+
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, elf_lookup_fn lookup __unused)

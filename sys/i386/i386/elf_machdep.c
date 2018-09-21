@@ -158,8 +158,14 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 	*off = len;
 }
 
+bool
+elf_is_ifunc_reloc(Elf_Size r_info)
+{
+
+	return (ELF_R_TYPE(r_info) == R_386_IRELATIVE);
+}
+
 #define	ERI_LOCAL	0x0001
-#define	ERI_ONLYIFUNC	0x0002
 
 /* Process one elf relocation with addend. */
 static int
@@ -192,9 +198,6 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	default:
 		panic("unknown reloc type %d\n", type);
 	}
-
-	if (((flags & ERI_ONLYIFUNC) == 0) ^ (rtype != R_386_IRELATIVE))
-		return (0);
 
 	if ((flags & ERI_LOCAL) != 0) {
 		if (rtype == R_386_RELATIVE) {	/* A + B */
@@ -260,15 +263,6 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			return -1;
 	}
 	return(0);
-}
-
-int
-elf_reloc_ifunc(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, elf_lookup_fn lookup)
-{
-
-	return (elf_reloc_internal(lf, relocbase, data, type, lookup,
-	    ERI_ONLYIFUNC));
 }
 
 int
