@@ -116,6 +116,8 @@ ENTRY(memmove_std)
 	cmpq	%rcx,%r8			/* overlapping && src < dst? */
 	jb	2f
 
+	cmpq	$15,%rcx
+	jbe	1f
 	shrq	$3,%rcx				/* copy by 64-bit words */
 	rep
 	movsq
@@ -124,6 +126,7 @@ ENTRY(memmove_std)
 	jne	1f
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
 1:
 	rep
 	movsb
@@ -191,6 +194,8 @@ ENTRY(memcpy_std)
 	PUSH_FRAME_POINTER
 	movq	%rdi,%rax
 	movq	%rdx,%rcx
+	cmpq	$15,%rcx
+	jbe	1f
 	shrq	$3,%rcx				/* copy by 64-bit words */
 	rep
 	movsq
@@ -199,6 +204,7 @@ ENTRY(memcpy_std)
 	jne	1f
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
 1:
 	rep
 	movsb
@@ -227,6 +233,8 @@ ENTRY(memset_std)
 	movzbq	%sil,%r8
 	movabs	$0x0101010101010101,%rax
 	imulq	%r8,%rax
+	cmpq	$15,%rcx
+	jbe	1f
 	shrq	$3,%rcx
 	rep
 	stosq
@@ -236,6 +244,7 @@ ENTRY(memset_std)
 	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
 1:
 	rep
 	stosb
