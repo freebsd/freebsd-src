@@ -21,6 +21,7 @@ SRCS+=	mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c o_str.c
 SRCS+=	o_time.c threads_pthread.c uid.c
 .if defined(ASM_aarch64)
 SRCS+=	arm64cpuid.S armcap.c
+ACFLAGS.arm64cpuid.S=	-march=armv8-a+crypto
 .elif defined(ASM_amd64)
 SRCS+=	x86_64cpuid.S
 .elif defined(ASM_arm)
@@ -35,6 +36,7 @@ SRCS+=	mem_clr.c
 SRCS+=	aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 .if defined(ASM_aarch64)
 SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S vpaes-armv8.S
+ACFLAGS.aesv8-armx.S=	-march=armv8-a+crypto
 .elif defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S
 SRCS+=	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
@@ -241,6 +243,7 @@ SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ocb128.c
 SRCS+=	ofb128.c wrap128.c xts128.c
 .if defined(ASM_aarch64)
 SRCS+=	ghashv8-armx.S
+ACFLAGS.ghashv8-armx.S=	-march=armv8-a+crypto
 .elif defined(ASM_amd64)
 SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
 .elif defined(ASM_arm)
