@@ -274,7 +274,9 @@ SRCS+=	pk7_smime.c pkcs7err.c
 
 # poly1305
 SRCS+=	poly1305.c poly1305_ameth.c poly1305_pmeth.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	poly1305-armv8.S
+.elif defined(ASM_amd64)
 SRCS+=	poly1305-x86_64.S
 .elif defined(ASM_arm)
 SRCS+=	poly1305-armv4.S
