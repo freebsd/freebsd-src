@@ -328,6 +328,8 @@ SRCS+=	sha256-mb-x86_64.S sha256-x86_64.S sha512-x86_64.S
 SRCS+=	keccak1600-armv4.S sha1-armv4-large.S sha256-armv4.S sha512-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	keccak1600.c sha1-586.S sha256-586.S sha512-586.S
+.else
+SRCS+=	keccak1600.c
 .endif
 
 # siphash
