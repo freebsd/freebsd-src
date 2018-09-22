@@ -358,6 +358,11 @@ BROKEN_OPTIONS+=LOADER_UBOOT
 .if ${__T} == "sparc64"
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
+# Lua in loader currently cause boot failures on powerpc.
+# Further debugging is required.
+.if ${__T} == "powerpc"
+BROKEN_OPTIONS+=LOADER_LUA
+.endif
 
 .if ${__T:Mmips64*}
 # profiling won't work on MIPS64 because there is only assembly for o32
