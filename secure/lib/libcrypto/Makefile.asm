@@ -19,8 +19,11 @@
 
 PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 
+# cpuid
+SRCS=	arm64cpuid.pl
+
 # aes
-SRCS=	aesv8-armx.pl vpaes-armv8.pl
+SRCS+=	aesv8-armx.pl vpaes-armv8.pl
 
 # bn
 SRCS+=	armv8-mont.pl
@@ -157,8 +160,11 @@ ${s}.S: ${s}.s
 
 PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 
+# cpuid
+SRCS=	armv4cpuid.pl
+
 # aes
-SRCS=	aes-armv4.pl aesv8-armx.pl bsaes-armv7.pl
+SRCS+=	aes-armv4.pl aesv8-armx.pl bsaes-armv7.pl
 
 # bn
 SRCS+=	armv4-mont.pl armv4-gf2m.pl
