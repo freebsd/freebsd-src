@@ -408,6 +408,7 @@ INCSDIR=	${INCLUDEDIR}/openssl
 
 LIBADD=	pthread
 
+CFLAGS+=	-I${LCRYPTO_SRC}/crypto
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/ec/curve448/arch_32
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/modes
