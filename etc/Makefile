@@ -14,7 +14,6 @@ SUBDIR+=sendmail
 
 BIN1=	\
 	group \
-	hosts.allow \
 	login.access \
 	rc.bsdextended \
 	rc.firewall \
