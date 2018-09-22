@@ -149,22 +149,34 @@ ${s}.S: ${s}.s
 .PATH:	${LCRYPTO_SRC}/crypto \
 	${LCRYPTO_SRC}/crypto/aes/asm \
 	${LCRYPTO_SRC}/crypto/bn/asm \
+	${LCRYPTO_SRC}/crypto/chacha/asm \
+	${LCRYPTO_SRC}/crypto/ec/asm \
 	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/poly1305/asm \
 	${LCRYPTO_SRC}/crypto/sha/asm
 
 PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 
 # aes
-SRCS=	aesv8-armx.pl bsaes-armv7.pl
+SRCS=	aes-armv4.pl aesv8-armx.pl bsaes-armv7.pl
 
 # bn
 SRCS+=	armv4-mont.pl armv4-gf2m.pl
 
+# chacha
+SRCS+=	chacha-armv4.pl
+
+# ec
+SRCS+=	ecp_nistz256-armv4.pl
+
 # modes
 SRCS+=	ghash-armv4.pl ghashv8-armx.pl
 
+# poly1305
+SRCS+=	poly1305-armv4.pl
+
 # sha
-SRCS+=	sha1-armv4-large.pl sha256-armv4.pl sha512-armv4.pl
+SRCS+=	keccak1600-armv4.pl sha1-armv4-large.pl sha256-armv4.pl sha512-armv4.pl
 
 ASM=	aes-armv4.S ${SRCS:R:S/$/.S/}
 
