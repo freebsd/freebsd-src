@@ -1704,6 +1704,13 @@ pmap_invalidate_ept(pmap_t pmap)
 	sched_unpin();
 }
 
+static cpuset_t
+pmap_invalidate_cpu_mask(pmap_t pmap)
+{
+
+	return (pmap == kernel_pmap ? all_cpus : pmap->pm_active);
+}
+
 static inline void
 pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va,
     const bool invpcid_works1)
@@ -1790,7 +1797,6 @@ DEFINE_IFUNC(static, void, pmap_invalidate_page_mode, (pmap_t, vm_offset_t),
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	cpuset_t *mask;
 
 	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
@@ -1801,16 +1807,14 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	    ("pmap_invalidate_page: invalid type %d", pmap->pm_type));
 
 	sched_pin();
+	smp_masked_invlpg(pmap_invalidate_cpu_mask(pmap), va, pmap);
 	if (pmap == kernel_pmap) {
 		invlpg(va);
-		mask = &all_cpus;
 	} else {
 		if (pmap == PCPU_GET(curpmap))
 			invlpg(va);
 		pmap_invalidate_page_mode(pmap, va);
-		mask = &pmap->pm_active;
 	}
-	smp_masked_invlpg(*mask, va, pmap);
 	sched_unpin();
 }
 
@@ -1890,7 +1894,6 @@ DEFINE_IFUNC(static, void, pmap_invalidate_range_mode, (pmap_t, vm_offset_t,
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	cpuset_t *mask;
 	vm_offset_t addr;
 
 	if (eva - sva >= PMAP_INVLPG_THRESHOLD) {
@@ -1907,19 +1910,17 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	    ("pmap_invalidate_range: invalid type %d", pmap->pm_type));
 
 	sched_pin();
+	smp_masked_invlpg_range(pmap_invalidate_cpu_mask(pmap), sva, eva, pmap);
 	if (pmap == kernel_pmap) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
-		mask = &all_cpus;
 	} else {
 		if (pmap == PCPU_GET(curpmap)) {
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
 		}
 		pmap_invalidate_range_mode(pmap, sva, eva);
-		mask = &pmap->pm_active;
 	}
-	smp_masked_invlpg_range(*mask, sva, eva, pmap);
 	sched_unpin();
 }
 
@@ -2010,7 +2011,6 @@ DEFINE_IFUNC(static, void, pmap_invalidate_all_mode, (pmap_t), static)
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	cpuset_t *mask;
 
 	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
@@ -2021,9 +2021,8 @@ pmap_invalidate_all(pmap_t pmap)
 	    ("pmap_invalidate_all: invalid type %d", pmap->pm_type));
 
 	sched_pin();
-	mask = pmap == kernel_pmap ? &all_cpus : &pmap->pm_active;
+	smp_masked_invltlb(pmap_invalidate_cpu_mask(pmap), pmap);
 	pmap_invalidate_all_mode(pmap);
-	smp_masked_invltlb(*mask, pmap);
 	sched_unpin();
 }
 
