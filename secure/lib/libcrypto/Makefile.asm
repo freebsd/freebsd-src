@@ -10,19 +10,35 @@
 
 .PATH:	${LCRYPTO_SRC}/crypto \
 	${LCRYPTO_SRC}/crypto/aes/asm \
+	${LCRYPTO_SRC}/crypto/bn/asm \
+	${LCRYPTO_SRC}/crypto/chacha/asm \
+	${LCRYPTO_SRC}/crypto/ec/asm \
 	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/poly1305/asm \
 	${LCRYPTO_SRC}/crypto/sha/asm
 
 PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 
 # aes
-SRCS=	aesv8-armx.pl
+SRCS=	aesv8-armx.pl vpaes-armv8.pl
+
+# bn
+SRCS+=	armv8-mont.pl
+
+# chacha
+SRCS+=	chacha-armv8.pl
+
+# ec
+SRCS+=	ecp_nistz256-armv8.pl
 
 # modes
 SRCS+=	ghashv8-armx.pl
 
+# poly1305
+SRCS+=	poly1305-armv8.pl
+
 # sha
-SRCS+=	sha1-armv8.pl sha512-armv8.pl
+SRCS+=	keccak1600-armv8.pl sha1-armv8.pl sha512-armv8.pl
 
 ASM=	${SRCS:R:S/$/.S/} sha256-armv8.S
 
@@ -32,13 +48,13 @@ CLEANFILES=	${ASM} ${SRCS:R:S/$/.s/} sha256-armv8.s
 .SUFFIXES:	.pl
 
 sha256-armv8.S:	sha512-armv8.pl
-	env CC=cc perl ${.ALLSRC} 64 ${.TARGET:R:S/$/.s/}
+	env CC=cc perl ${.ALLSRC} linux64 ${.TARGET:R:S/$/.s/}
 	( echo '/* $$'FreeBSD'$$ */' ;\
 	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .pl.S:
-	env CC=cc perl ${.IMPSRC} 64 ${.TARGET:R:S/$/.s/}
+	env CC=cc perl ${.IMPSRC} linux64 ${.TARGET:R:S/$/.s/}
 	( echo '/* $$'FreeBSD'$$ */' ;\
 	echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
@@ -160,10 +176,10 @@ CLEANFILES=	${ASM} ${SRCS:R:S/$/.s/}
 aes-armv4.S:	aes-armv4.pl
 	( echo '/* $$'FreeBSD'$$ */' ;\
 	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
-	env CC=cc perl ${.ALLSRC} elf ) > ${.TARGET}
+	env CC=cc perl ${.ALLSRC} linux32 ) > ${.TARGET}
 
 .pl.S:
-	env CC=cc perl ${.IMPSRC} elf ${.TARGET:R:S/$/.s/}
+	env CC=cc perl ${.IMPSRC} linux32 ${.TARGET:R:S/$/.s/}
 	( echo '/* $$'FreeBSD'$$ */' ;\
 	echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
