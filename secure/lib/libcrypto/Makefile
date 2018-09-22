@@ -19,10 +19,12 @@ NO_LINT=
 SRCS=	cpt_err.c cryptlib.c ctype.c cversion.c ex_data.c init.c mem.c
 SRCS+=	mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c o_str.c
 SRCS+=	o_time.c threads_pthread.c uid.c
-.if defined(ARM_aarch64)
+.if defined(ASM_aarch64)
 SRCS+=	arm64cpuid.S armcap.c
 .elif defined(ASM_amd64)
 SRCS+=	x86_64cpuid.S
+.elif defined(ASM_arm)
+SRCS+=	armv4cpuid.S armcap.c
 .elif defined(ASM_i386)
 SRCS+=	x86cpuid.S
 .else
@@ -36,6 +38,8 @@ SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S vpaes-armv8.S
 .elif defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S
 SRCS+=	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	aes-armv4.S aes_cbc.c aesv8-armx.S bsaes-armv7.S
 .elif defined(ASM_i386)
 SRCS+=	aes-586.S aesni-x86.S vpaes-x86.S
 .else
@@ -89,6 +93,8 @@ SRCS+=	armv8-mont.S bn_asm.c
 .elif defined(ASM_amd64)
 SRCS+=	rsaz-avx2.S rsaz-x86_64.S rsaz_exp.c x86_64-gcc.c x86_64-gf2m.S
 SRCS+=	x86_64-mont.S x86_64-mont5.S
+.elif defined(ASM_arm)
+SRCS+=	armv4-gf2m.S armv4-mont.S bn_asm.c
 .elif defined(ASM_i386)
 SRCS+=	bn-586.S co-586.S x86-gf2m.S x86-mont.S
 .else
@@ -116,6 +122,8 @@ SRCS+=	c_cfb64.c c_ecb.c c_enc.c c_ofb64.c c_skey.c
 SRCS+=	chacha-armv8.S
 .elif defined(ASM_amd64)
 SRCS+=	chacha-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	chacha-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	chacha-x86.S
 .else
@@ -175,6 +183,8 @@ SRCS+=	ecx_meth.c eddsa.c f_generic.c f_impl.c scalar.c
 SRCS+=	ecp_nistz256-armv8.S ecp_nistz256.c
 .elif defined(ASM_amd64)
 SRCS+=	ecp_nistz256-x86_64.S ecp_nistz256.c x25519-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	ecp_nistz256-armv4.S ecp_nistz256.c
 .elif defined(ASM_i386)
 SRCS+=	ecp_nistz256-x86.S ecp_nistz256.c
 .endif
@@ -233,6 +243,8 @@ SRCS+=	ofb128.c wrap128.c xts128.c
 SRCS+=	ghashv8-armx.S
 .elif defined(ASM_amd64)
 SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	ghash-armv4.S ghashv8-armx.S
 .elif defined(ASM_i386)
 SRCS+=	ghash-x86.S
 .endif
@@ -261,6 +273,8 @@ SRCS+=	pk7_smime.c pkcs7err.c
 SRCS+=	poly1305.c poly1305_ameth.c poly1305_pmeth.c
 .if defined(ASM_amd64)
 SRCS+=	poly1305-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	poly1305-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	poly1305-x86.S
 .endif
@@ -310,6 +324,8 @@ SRCS+=	keccak1600-armv8.S sha1-armv8.S sha256-armv8.S sha512-armv8.S
 .elif defined(ASM_amd64)
 SRCS+=	keccak1600-x86_64.S sha1-mb-x86_64.S sha1-x86_64.S
 SRCS+=	sha256-mb-x86_64.S sha256-x86_64.S sha512-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	keccak1600-armv4.S sha1-armv4-large.S sha256-armv4.S sha512-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	keccak1600.c sha1-586.S sha256-586.S sha512-586.S
 .endif
