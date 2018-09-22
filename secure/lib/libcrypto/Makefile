@@ -19,7 +19,9 @@ NO_LINT=
 SRCS=	cpt_err.c cryptlib.c ctype.c cversion.c ex_data.c init.c mem.c
 SRCS+=	mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c o_str.c
 SRCS+=	o_time.c threads_pthread.c uid.c
-.if defined(ASM_amd64)
+.if defined(ARM_aarch64)
+SRCS+=	arm64cpuid.S armcap.c
+.elif defined(ASM_amd64)
 SRCS+=	x86_64cpuid.S
 .elif defined(ASM_i386)
 SRCS+=	x86cpuid.S
@@ -29,7 +31,9 @@ SRCS+=	mem_clr.c
 
 # aes
 SRCS+=	aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S vpaes-armv8.S
+.elif defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S
 SRCS+=	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
 .elif defined(ASM_i386)
@@ -80,7 +84,9 @@ SRCS+=	bn_err.c bn_exp.c bn_exp2.c bn_gcd.c bn_gf2m.c bn_intern.c bn_kron.c
 SRCS+=	bn_lib.c bn_mod.c bn_mont.c bn_mpi.c bn_mul.c bn_nist.c bn_prime.c
 SRCS+=	bn_print.c bn_rand.c bn_recp.c bn_shift.c bn_sqr.c bn_sqrt.c
 SRCS+=	bn_srp.c bn_word.c bn_x931p.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	armv8-mont.S bn_asm.c
+.elif defined(ASM_amd64)
 SRCS+=	rsaz-avx2.S rsaz-x86_64.S rsaz_exp.c x86_64-gcc.c x86_64-gf2m.S
 SRCS+=	x86_64-mont.S x86_64-mont5.S
 .elif defined(ASM_i386)
@@ -106,7 +112,9 @@ SRCS+=	camellia.c cmll_cbc.c cmll_misc.c
 SRCS+=	c_cfb64.c c_ecb.c c_enc.c c_ofb64.c c_skey.c
 
 # chacha
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	chacha-armv8.S
+.elif defined(ASM_amd64)
 SRCS+=	chacha-x86_64.S
 .elif defined(ASM_i386)
 SRCS+=	chacha-x86.S
@@ -163,7 +171,9 @@ SRCS+=	ec_key.c ec_kmeth.c ec_lib.c ec_mult.c ec_oct.c ec_pmeth.c
 SRCS+=	ec_print.c ecdh_kdf.c ecdh_ossl.c ecdsa_ossl.c ecdsa_sign.c
 SRCS+=	ecdsa_vrf.c eck_prn.c ecp_mont.c ecp_nist.c ecp_oct.c ecp_smpl.c
 SRCS+=	ecx_meth.c eddsa.c f_generic.c f_impl.c scalar.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	ecp_nistz256-armv8.S ecp_nistz256.c
+.elif defined(ASM_amd64)
 SRCS+=	ecp_nistz256-x86_64.S ecp_nistz256.c x25519-x86_64.S
 .elif defined(ASM_i386)
 SRCS+=	ecp_nistz256-x86.S ecp_nistz256.c
@@ -219,7 +229,9 @@ SRCS+=	mdc2_one.c mdc2dgst.c
 # modes
 SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ocb128.c
 SRCS+=	ofb128.c wrap128.c xts128.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	ghashv8-armx.S
+.elif defined(ASM_amd64)
 SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
 .elif defined(ASM_i386)
 SRCS+=	ghash-x86.S
@@ -293,7 +305,9 @@ SRCS+=	seed.c seed_cbc.c seed_cfb.c seed_ecb.c seed_ofb.c
 
 # sha
 SRCS+=	sha1_one.c sha1dgst.c sha256.c sha512.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	keccak1600-armv8.S sha1-armv8.S sha256-armv8.S sha512-armv8.S
+.elif defined(ASM_amd64)
 SRCS+=	keccak1600-x86_64.S sha1-mb-x86_64.S sha1-x86_64.S
 SRCS+=	sha256-mb-x86_64.S sha256-x86_64.S sha512-x86_64.S
 .elif defined(ASM_i386)
