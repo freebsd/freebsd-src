@@ -786,7 +786,7 @@ trap_pfault(struct trapframe *frame, int usermode)
 	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
 	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK)==
 	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK))
-		panic("PTI: pid %d comm %s tf_err %#lx\n", p->p_pid,
+		panic("PTI: pid %d comm %s tf_err %#lx", p->p_pid,
 		    p->p_comm, frame->tf_err);
 
 	/*
