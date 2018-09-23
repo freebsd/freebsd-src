@@ -4783,6 +4783,93 @@ nfsmout:
 }
 
 /*
+ * nfsv4 io_advise service
+ */
+APPLESTATIC int
+nfsrvd_ioadvise(struct nfsrv_descript *nd, __unused int isdgram,
+    vnode_t vp, NFSPROC_T *p, struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	nfsv4stateid_t stateid;
+	nfsattrbit_t hints;
+	int error = 0, ret;
+	off_t offset, len;
+
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID + 2 * NFSX_HYPER);
+	stateid.seqid = fxdr_unsigned(uint32_t, *tl++);
+	NFSBCOPY(tl, stateid.other, NFSX_STATEIDOTHER);
+	tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
+	offset = fxdr_hyper(tl); tl += 2;
+	len = fxdr_hyper(tl); tl += 2;
+	error = nfsrv_getattrbits(nd, &hints, NULL, NULL);
+	if (error != 0)
+		goto nfsmout;
+	/*
+	 * For the special stateid of other all 0s and seqid == 1, set
+	 * the stateid to the current stateid, if it is set.
+	 */
+	if (stateid.seqid == 1 && stateid.other[0] == 0 &&
+	    stateid.other[1] == 0 && stateid.other[2] == 0) {
+		if ((nd->nd_flag & ND_CURSTATEID) != 0) {
+			stateid = nd->nd_curstateid;
+			stateid.seqid = 0;
+		} else {
+			nd->nd_repstat = NFSERR_BADSTATEID;
+			goto nfsmout;
+		}
+	}
+
+	if (offset < 0) {
+		nd->nd_repstat = NFSERR_INVAL;
+		goto nfsmout;
+	}
+	if (len < 0)
+		len = 0;
+
+	/*
+	 * For now, we can only handle WILLNEED and DONTNEED and don't use
+	 * the stateid.
+	 */
+	if ((NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED) &&
+	    !NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_DONTNEED)) ||
+	    (NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_DONTNEED) &&
+	    !NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED))) {
+		NFSVOPUNLOCK(vp, 0);
+		if (NFSISSET_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED)) {
+			ret = VOP_ADVISE(vp, offset, len, POSIX_FADV_WILLNEED);
+			NFSZERO_ATTRBIT(&hints);
+			if (ret == 0)
+				NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED);
+			else
+				NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_NORMAL);
+		} else {
+			ret = VOP_ADVISE(vp, offset, len, POSIX_FADV_DONTNEED);
+			NFSZERO_ATTRBIT(&hints);
+			if (ret == 0)
+				NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_DONTNEED);
+			else
+				NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_NORMAL);
+		}
+		vrele(vp);
+	} else {
+		NFSZERO_ATTRBIT(&hints);
+		NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_NORMAL);
+		vput(vp);
+	}
+	nfsrv_putattrbit(nd, &hints);
+	NFSEXITCODE2(error, nd);
+	return (error);
+nfsmout:
+	vput(vp);
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
  * nfsv4 getdeviceinfo service
  */
 APPLESTATIC int

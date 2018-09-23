@@ -835,6 +835,24 @@ struct nfsv3_sattr {
 	u_int32_t sa_mtimetype;
 	nfstime3  sa_mtime;
 };
+
+/*
+ * IO Advise hint bits for NFSv4.2.
+ * Since these go on the wire as a bitmap, the NFSATTRBIT macros are
+ * used to manipulate these bits.
+ */
+#define	NFSV4IOHINT_NORMAL		0
+#define	NFSV4IOHINT_SEQUENTIAL		1
+#define	NFSV4IOHINT_SEQUENTIALBACK	2
+#define	NFSV4IOHINT_RANDOM		3
+#define	NFSV4IOHINT_WILLNEED		4
+#define	NFSV4IOHINT_WILLNEEDOPTUN	5
+#define	NFSV4IOHINT_DONTNEED		6
+#define	NFSV4IOHINT_NOREUSE		7
+#define	NFSV4IOHINT_READ		8
+#define	NFSV4IOHINT_WRITE		9
+#define	NFSV4IOHINT_INITPROXIMITY	10
+
 #endif	/* _KERNEL */
 
 /*
