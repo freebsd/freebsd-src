@@ -282,6 +282,14 @@ pmcc_do_list_state(void)
 	return 0;
 }
 
+#if defined(__i386__) || defined(__amd64__)
+static int
+pmcc_do_list_events(void)
+{
+	pmc_pmu_print_counters(NULL);
+	return (0);
+}
+#else
 static int
 pmcc_do_list_events(void)
 {
@@ -311,6 +319,7 @@ pmcc_do_list_events(void)
 	}
 	return 0;
 }
+#endif
 
 static int
 pmcc_show_statistics(void)
