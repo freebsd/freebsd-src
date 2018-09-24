@@ -4829,6 +4829,13 @@ nfsrvd_ioadvise(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	if (len < 0)
 		len = 0;
+	if (vp->v_type != VREG) {
+		if (vp->v_type == VDIR)
+			nd->nd_repstat = NFSERR_ISDIR;
+		else
+			nd->nd_repstat = NFSERR_WRONGTYPE;
+		goto nfsmout;
+	}
 
 	/*
 	 * For now, we can only handle WILLNEED and DONTNEED and don't use
