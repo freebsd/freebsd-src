@@ -470,8 +470,9 @@ parse_srat(void)
 	}
 
 #ifdef NUMA
-	/* Point vm_phys at our memory affinity table. */
 	vm_ndomains = ndomain;
+	for (int i = 0; i < vm_ndomains; i++)
+		DOMAINSET_SET(i, &all_domains);
 	mem_affinity = mem_info;
 #endif
 
