@@ -417,9 +417,10 @@ vdev_geom_io(struct g_consumer *cp, int *cmds, void **datas, off_t *offsets,
  * least one valid label was found.
  */
 static int
-vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
+vdev_geom_read_config(struct g_consumer *cp, nvlist_t **configp)
 {
 	struct g_provider *pp;
+	nvlist_t *config;
 	vdev_phys_t *vdev_lists[VDEV_LABELS];
 	char *buf;
 	size_t buflen;
@@ -444,7 +445,6 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 
 	buflen = sizeof(vdev_lists[0]->vp_nvlist);
 
-	*config = NULL;
 	/* Create all of the IO requests */
 	for (l = 0; l < VDEV_LABELS; l++) {
 		cmds[l] = BIO_READ;
@@ -460,6 +460,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	    VDEV_LABELS);
 
 	/* Parse the labels */
+	config = *configp = NULL;
 	nlabels = 0;
 	for (l = 0; l < VDEV_LABELS; l++) {
 		if (errors[l] != 0)
@@ -467,24 +468,26 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 
 		buf = vdev_lists[l]->vp_nvlist;
 
-		if (nvlist_unpack(buf, buflen, config, 0) != 0)
+		if (nvlist_unpack(buf, buflen, &config, 0) != 0)
 			continue;
 
-		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
+		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_STATE,
 		    &state) != 0 || state > POOL_STATE_L2CACHE) {
-			nvlist_free(*config);
-			*config = NULL;
+			nvlist_free(config);
 			continue;
 		}
 
 		if (state != POOL_STATE_SPARE &&
 		    state != POOL_STATE_L2CACHE &&
-		    (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_TXG,
+		    (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG,
 		    &txg) != 0 || txg == 0)) {
-			nvlist_free(*config);
-			*config = NULL;
+			nvlist_free(config);
 			continue;
 		}
+
+		if (*configp != NULL)
+			nvlist_free(*configp);
+		*configp = config;
 
 		nlabels++;
 	}
