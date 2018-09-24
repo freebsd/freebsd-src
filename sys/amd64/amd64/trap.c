@@ -684,6 +684,17 @@ trap_check(struct trapframe *frame)
 	trap(frame);
 }
 
+static bool
+trap_is_pti(struct trapframe *frame)
+{
+
+	return (PCPU_GET(curpmap)->pm_ucr3 != PMAP_NO_CR3 &&
+	    pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
+	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
+	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK) ==
+	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK));
+}
+
 static int
 trap_pfault(struct trapframe *frame, int usermode)
 {
@@ -781,11 +792,7 @@ trap_pfault(struct trapframe *frame, int usermode)
 	 * If nx protection of the usermode portion of kernel page
 	 * tables caused trap, panic.
 	 */
-	if (usermode && PCPU_GET(curpmap)->pm_ucr3 != PMAP_NO_CR3 &&
-	    pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
-	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
-	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK)==
-	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK))
+	if (usermode && trap_is_pti(frame))
 		panic("PTI: pid %d comm %s tf_err %#lx", p->p_pid,
 		    p->p_comm, frame->tf_err);
 
