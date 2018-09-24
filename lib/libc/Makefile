@@ -21,11 +21,6 @@ LIBC_ARCH=${MACHINE_ARCH}
 LIBC_ARCH=${MACHINE_CPUARCH}
 .endif
 
-.if (${LIBC_ARCH} == amd64 || ${LIBC_ARCH} == i386) && \
-    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
-.error ${LIBC_ARCH} libc requires linker ifunc support
-.endif
-
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
 # not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
@@ -185,6 +180,12 @@ HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>
+
+.if (${LIBC_ARCH} == amd64 || ${LIBC_ARCH} == i386) && \
+    ${.TARGETS:Mall} == all && \
+    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
+.error ${LIBC_ARCH} libc requires linker ifunc support
+.endif
 
 .if !defined(_SKIP_BUILD)
 # We need libutil.h, get it directly to avoid
