@@ -41,6 +41,34 @@
 #include "oce_if.h"
 extern uint32_t sfp_vpd_dump_buffer[TRANSCEIVER_DATA_NUM_ELE];
 
+int
+oce_wait_ready(POCE_SOFTC sc)
+{
+#define SLIPORT_READY_TIMEOUT 30000
+	uint32_t sliport_status, i;
+
+	if (!IS_XE201(sc)) 
+		return (-1);
+
+	for (i = 0; i < SLIPORT_READY_TIMEOUT; i++) {
+		sliport_status = OCE_READ_REG32(sc, db, SLIPORT_STATUS_OFFSET);
+		if (sliport_status & SLIPORT_STATUS_RDY_MASK)
+			return 0;
+
+		if (sliport_status & SLIPORT_STATUS_ERR_MASK &&
+			!(sliport_status & SLIPORT_STATUS_RN_MASK)) {
+			device_printf(sc->dev, "Error detected in the card\n");
+			return EIO;
+		}
+
+		DELAY(1000);
+	}
+
+	device_printf(sc->dev, "Firmware wait timed out\n");
+
+	return (-1);
+}
+
 /**
  * @brief Reset (firmware) common function
  * @param sc		software handle to the device
@@ -54,26 +82,36 @@ oce_reset_fun(POCE_SOFTC sc)
 	struct ioctl_common_function_reset *fwcmd;
 	int rc = 0;
 
-	if (sc->flags & OCE_FLAGS_FUNCRESET_RQD) {
-		mb = OCE_DMAPTR(&sc->bsmbx, struct oce_bmbx);
-		mbx = &mb->mbx;
-		bzero(mbx, sizeof(struct oce_mbx));
+	if (IS_XE201(sc)) {
+		OCE_WRITE_REG32(sc, db, SLIPORT_CONTROL_OFFSET,
+					SLI_PORT_CONTROL_IP_MASK);
 
-		fwcmd = (struct ioctl_common_function_reset *)&mbx->payload;
-		mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
-					MBX_SUBSYSTEM_COMMON,
-					OPCODE_COMMON_FUNCTION_RESET,
-					10,	/* MBX_TIMEOUT_SEC */
-					sizeof(struct
-					    ioctl_common_function_reset),
-					OCE_MBX_VER_V0);
+		rc = oce_wait_ready(sc);
+		if (rc) {
+			device_printf(sc->dev, "Firmware reset Failed\n");
+		}
 
-		mbx->u0.s.embedded = 1;
-		mbx->payload_length =
-		    sizeof(struct ioctl_common_function_reset);
-
-		rc = oce_mbox_dispatch(sc, 2);
+		return rc;
 	}
+
+	mb = OCE_DMAPTR(&sc->bsmbx, struct oce_bmbx);
+	mbx = &mb->mbx;
+	bzero(mbx, sizeof(struct oce_mbx));
+
+	fwcmd = (struct ioctl_common_function_reset *)&mbx->payload;
+	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
+			MBX_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_FUNCTION_RESET,
+			10,	/* MBX_TIMEOUT_SEC */
+			sizeof(struct
+				ioctl_common_function_reset),
+			OCE_MBX_VER_V0);
+
+	mbx->u0.s.embedded = 1;
+	mbx->payload_length =
+		sizeof(struct ioctl_common_function_reset);
+
+	rc = oce_mbox_dispatch(sc, 2);
 
 	return rc;
 }
