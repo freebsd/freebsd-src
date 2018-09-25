@@ -118,8 +118,6 @@ static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
 static	int ether_requestencap(struct ifnet *, struct if_encap_req *);
 
-#define	ETHER_IS_BROADCAST(addr) \
-	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
