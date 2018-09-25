@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/msun \
 	secure/lib/libcrypto \
+	secure/lib/libcrypto/openssl.amd64 \
 	secure/lib/libssl \
 
 
