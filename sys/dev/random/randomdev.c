@@ -149,6 +149,10 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 		error = tsleep(&random_alg_context, PCATCH, "randseed", hz/10);
 		if (error == ERESTART || error == EINTR)
 			break;
+		/* Squash tsleep timeout condition */
+		if (error == EWOULDBLOCK)
+			error = 0;
+		KASSERT(error == 0, ("unexpected tsleep error %d", error));
 	}
 	if (error == 0) {
 		read_rate_increment((uio->uio_resid + sizeof(uint32_t))/sizeof(uint32_t));
