@@ -428,7 +428,7 @@ ACFLAGS+=	-Wa,--noexecstack
 SRCS+=	buildinf.h openssl/opensslconf.h
 
 CLEANDIRS=	openssl
-CLEANFILES=	${GENINCS} opensslconf.h.tmp
+CLEANFILES=	buildinf.h opensslconf.h opensslconf.h.tmp
 
 buildinf.h:
 	( echo "/*"; \
