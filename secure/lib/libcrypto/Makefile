@@ -425,7 +425,7 @@ CFLAGS+=	-I${.OBJDIR}
 ACFLAGS+=	-Wa,--noexecstack
 .endif
 
-SRCS+=	buildinf.h openssl/opensslconf.h
+SRCS+=	buildinf.h
 
 CLEANDIRS=	openssl
 CLEANFILES=	buildinf.h opensslconf.h opensslconf.h.tmp
@@ -440,9 +440,12 @@ buildinf.h:
 	echo "static const char compiler_flags[] = \"compiler: ${COMPILER_TYPE}\";" ) \
 	> ${.TARGET}
 
-openssl/opensslconf.h: opensslconf.h
+beforedepend: openssl_opensslconf.h
+beforebuild: openssl_opensslconf.h
+
+openssl_opensslconf.h: opensslconf.h
 	mkdir -p openssl
-	ln -fs ${.OBJDIR}/${.ALLSRC} ${.TARGET}
+	ln -fs ${.OBJDIR}/${.ALLSRC} openssl/${.ALLSRC}
 
 opensslconf.h: opensslconf.h.in
 .if defined(ASM_${MACHINE_CPUARCH})
