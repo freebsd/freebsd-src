@@ -1966,10 +1966,10 @@ pmap_invalidate_all_pcid(pmap_t pmap, bool invpcid_works1)
 			critical_exit();
 		} else
 			pmap->pm_pcids[cpuid].pm_gen = 0;
-	}
-	CPU_FOREACH(i) {
-		if (cpuid != i)
-			pmap->pm_pcids[i].pm_gen = 0;
+		CPU_FOREACH(i) {
+			if (cpuid != i)
+				pmap->pm_pcids[i].pm_gen = 0;
+		}
 	}
 	/* See the comment in pmap_invalidate_page_pcid(). */
 	atomic_thread_fence_seq_cst();
