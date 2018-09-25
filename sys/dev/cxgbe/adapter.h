@@ -289,7 +289,6 @@ struct port_info {
 	uint8_t  rx_e_chan_map;	/* rx TP e-channel bitmap */
 
 	struct link_config link_cfg;
-	struct link_config old_link_cfg;
 	struct ifmedia media;
 
 	struct timeval last_refreshed;
@@ -1071,52 +1070,6 @@ t4_os_set_hw_addr(struct port_info *pi, uint8_t hw_addr[])
 {
 
 	bcopy(hw_addr, pi->vi[0].hw_addr, ETHER_ADDR_LEN);
-}
-
-static inline bool
-is_10G_port(const struct port_info *pi)
-{
-
-	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
-}
-
-static inline bool
-is_25G_port(const struct port_info *pi)
-{
-
-	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G) != 0);
-}
-
-static inline bool
-is_40G_port(const struct port_info *pi)
-{
-
-	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
-}
-
-static inline bool
-is_100G_port(const struct port_info *pi)
-{
-
-	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G) != 0);
-}
-
-static inline int
-port_top_speed(const struct port_info *pi)
-{
-
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
-		return (100);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
-		return (40);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
-		return (25);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
-		return (10);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
-		return (1);
-
-	return (0);
 }
 
 static inline int
