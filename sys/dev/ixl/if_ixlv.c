@@ -149,7 +149,9 @@ static driver_t ixlv_driver = {
 
 devclass_t ixlv_devclass;
 DRIVER_MODULE(ixlv, pci, ixlv_driver, ixlv_devclass, 0, 0);
-
+MODULE_PNP_INFO("U32:vendor;U32:device;U32:subvendor;U32:subdevice;U32:revision",
+    pci, ixlv, ixlv_vendor_info_array,
+        nitems(ixlv_vendor_info_array) - 1);
 MODULE_DEPEND(ixlv, pci, 1, 1, 1);
 MODULE_DEPEND(ixlv, ether, 1, 1, 1);
 MODULE_DEPEND(ixlv, iflib, 1, 1, 1);

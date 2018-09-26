@@ -306,3 +306,5 @@ ida_pci_attach(device_t dev)
 }
 
 DRIVER_MODULE(ida, pci, ida_pci_driver, ida_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ida, board_id,
+    nitems(board_id) - 1);
