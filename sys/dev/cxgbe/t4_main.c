@@ -3851,7 +3851,7 @@ get_params__post_init(struct adapter *sc)
 
 	sc->sge.iq_start = val[0];
 	sc->sge.eq_start = val[1];
-	if (val[3] > val[2]) {
+	if ((int)val[3] > (int)val[2]) {
 		sc->tids.ftid_base = val[2];
 		sc->tids.ftid_end = val[3];
 		sc->tids.nftids = val[3] - val[2] + 1;
@@ -3986,7 +3986,7 @@ get_params__post_init(struct adapter *sc)
 			    "failed to query NIC parameters: %d.\n", rc);
 			return (rc);
 		}
-		if (val[1] > val[0]) {
+		if ((int)val[1] > (int)val[0]) {
 			sc->tids.etid_base = val[0];
 			sc->tids.etid_end = val[1];
 			sc->tids.netids = val[1] - val[0] + 1;
@@ -4016,7 +4016,7 @@ get_params__post_init(struct adapter *sc)
 			sc->tids.ntids -= sc->tids.nhpftids;
 		}
 		sc->tids.natids = min(sc->tids.ntids / 2, MAX_ATIDS);
-		if (val[2] > val[1]) {
+		if ((int)val[2] > (int)val[1]) {
 			sc->tids.stid_base = val[1];
 			sc->tids.nstids = val[2] - val[1] + 1;
 		}
