@@ -5669,7 +5669,6 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			    vrf_id, port);
 			goto out;
 		}
-
 	}
 	if (IS_SCTP_CONTROL(ch)) {
 		/* process the control portion of the SCTP packet */
