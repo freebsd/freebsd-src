@@ -710,6 +710,34 @@ again:
 	return (error);
 }
 
+static int
+quotaoff_inchange1(struct thread *td, struct mount *mp, int type)
+{
+	int error;
+	bool need_resume;
+
+	/*
+	 * mp is already suspended on unmount.  If not, suspend it, to
+	 * avoid the situation where quotaoff operation eventually
+	 * failing due to SU structures still keeping references on
+	 * dquots, but vnode's references are already clean.  This
+	 * would cause quota accounting leak and asserts otherwise.
+	 * Note that the thread has already called vn_start_write().
+	 */
+	if (mp->mnt_susp_owner == td) {
+		need_resume = false;
+	} else {
+		error = vfs_write_suspend_umnt(mp);
+		if (error != 0)
+			return (error);
+		need_resume = true;
+	}
+	error = quotaoff1(td, mp, type);
+	if (need_resume)
+		vfs_write_resume(mp, VR_START_WRITE);
+	return (error);
+}
+
 /*
  * Turns off quotas, assumes that ump->um_qflags are already checked
  * and QTF_CLOSING is set to indicate operation in progress. Fixes
@@ -719,10 +747,9 @@ int
 quotaoff_inchange(struct thread *td, struct mount *mp, int type)
 {
 	struct ufsmount *ump;
-	int i;
-	int error;
+	int error, i;
 
-	error = quotaoff1(td, mp, type);
+	error = quotaoff_inchange1(td, mp, type);
 
 	ump = VFSTOUFS(mp);
 	UFS_LOCK(ump);
