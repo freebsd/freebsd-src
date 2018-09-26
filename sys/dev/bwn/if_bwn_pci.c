@@ -296,9 +296,9 @@ DEFINE_CLASS_0(bwn_pci, bwn_pci_driver, bwn_pci_methods,
 DRIVER_MODULE_ORDERED(bwn_pci, pci, bwn_pci_driver, bwn_pci_devclass, NULL,
     NULL, SI_ORDER_ANY);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bwn_siba,
-    siba_devices, sizeof(siba_devices[0]), nitems(siba_devices) - 1);
+    siba_devices, nitems(siba_devices) - 1);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bwn_bcma,
-    bcma_devices, sizeof(bcma_devices[0]), nitems(bcma_devices) - 1);
+    bcma_devices, nitems(bcma_devices) - 1);
 DRIVER_MODULE(bhndb, bwn_pci, bhndb_pci_driver, bhndb_devclass, NULL, NULL);
 
 MODULE_DEPEND(bwn_pci, bwn, 1, 1, 1);

@@ -90,7 +90,7 @@ static devclass_t amdsmn_devclass;
 DRIVER_MODULE(amdsmn, hostb, amdsmn_driver, amdsmn_devclass, NULL, NULL);
 MODULE_VERSION(amdsmn, 1);
 MODULE_PNP_INFO("W32:vendor/device", pci, amdsmn, amdsmn_ids,
-    sizeof(amdsmn_ids[0]), nitems(amdsmn_ids));
+    nitems(amdsmn_ids));
 
 static bool
 amdsmn_match(device_t parent)
