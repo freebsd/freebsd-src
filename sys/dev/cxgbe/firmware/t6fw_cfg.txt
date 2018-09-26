@@ -155,6 +155,7 @@
 	pmask = all
 	ncrypto_lookaside = 16
 	nclip = 320
+	nethofld = 8192
 
 	# TCAM has 6K cells; each region must start at a multiple of 128 cell.
 	# Each entry in these categories takes 2 cells each.  nhash will use the
@@ -275,7 +276,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x9e8952d2
+	checksum = 0xf3e93001
 #
 # $FreeBSD$
 #
