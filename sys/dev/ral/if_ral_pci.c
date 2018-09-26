@@ -178,7 +178,7 @@ static driver_t ral_pci_driver = {
 static devclass_t ral_devclass;
 
 DRIVER_MODULE(ral, pci, ral_pci_driver, ral_devclass, NULL, NULL);
-MODULE_PNP_INFO("U16:vendor; U16:device; D:#", pci, ral, ral_pci_ids,
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ral, ral_pci_ids,
     nitems(ral_pci_ids) - 1);
 
 static int
