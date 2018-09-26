@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180913:
+	Reproducible build mode is now on by default, in preparation for
+	FreeBSD 12.0.  This eliminates build metadata such as the user,
+	host, and time from the kernel (and uname), unless the working tree
+	corresponds to a modified checkout from a version control system.
+	The previous behavior can be obtained by setting the /etc/src.conf
+	knob WITHOUT_REPRODUCIBLE_BUILD.
+
 20180826:
 	The Yarrow CSPRNG has been removed from the kernel as it has not been
 	supported by its designers since at least 2003. Fortuna has been the
