@@ -150,6 +150,7 @@ static driver_t ixl_driver = {
 
 devclass_t ixl_devclass;
 DRIVER_MODULE(ixl, pci, ixl_driver, ixl_devclass, 0, 0);
+IFLIB_PNP_INFO(pci, ixl, ixl_vendor_info_array);
 MODULE_VERSION(ixl, 3);
 
 MODULE_DEPEND(ixl, pci, 1, 1, 1);
