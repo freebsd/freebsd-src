@@ -530,7 +530,7 @@ MODULE_DEPEND(bce, miibus, 1, 1, 1);
 DRIVER_MODULE(bce, pci, bce_driver, bce_devclass, NULL, NULL);
 DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;U16:#;U16:#;D:#", pci, bce,
-    bce_devs, sizeof(bce_devs[0]), nitems(bce_devs) - 1);
+    bce_devs, nitems(bce_devs) - 1);
 
 /****************************************************************************/
 /* Tunable device values                                                    */

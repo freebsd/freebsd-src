@@ -178,12 +178,12 @@ struct mod_pnp_match_info
  * to allow external tools to parse their internal device tables
  * to make an informed guess about what driver(s) to load.
  */
-#define	MODULE_PNP_INFO(d, b, unique, t, l, n)				\
+#define	MODULE_PNP_INFO(d, b, unique, t, n)				\
 	static const struct mod_pnp_match_info _module_pnp_##b##_##unique = {	\
 		.descr = d,						\
 		.bus = #b,						\
 		.table = t,						\
-		.entry_len = l,						\
+		.entry_len = sizeof((t)[0]),				\
 		.num_entry = n						\
 	};								\
 	MODULE_METADATA(_md_##b##_pnpinfo_##unique, MDT_PNP_INFO,	\
