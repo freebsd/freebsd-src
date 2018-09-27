@@ -244,6 +244,7 @@ libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
+libkern/memcmp.c		standard
 libkern/memset.c		standard
 libkern/arm64/crc32c_armv8.S	standard
 cddl/contrib/opensolaris/common/atomic/aarch64/opensolaris_atomic.S	optional zfs | dtrace compile-with "${CDDL_C}"
