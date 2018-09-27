@@ -129,6 +129,7 @@ OBJECTS = \
 	$(OBJDIR)/exresnte.o\
 	$(OBJDIR)/exresolv.o\
 	$(OBJDIR)/exresop.o\
+	$(OBJDIR)/exserial.o\
 	$(OBJDIR)/exstore.o\
 	$(OBJDIR)/exstoren.o\
 	$(OBJDIR)/exstorob.o\

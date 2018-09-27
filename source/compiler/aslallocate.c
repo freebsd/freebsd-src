@@ -186,16 +186,16 @@ UtLocalCalloc (
     if (!Allocated)
     {
         AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
-            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-            Gbl_InputByteCount, Gbl_CurrentColumn,
-            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
+            AslGbl_CurrentLineNumber, AslGbl_LogicalLineNumber,
+            AslGbl_InputByteCount, AslGbl_CurrentColumn,
+            AslGbl_Files[ASL_FILE_INPUT].Filename, NULL);
 
         CmCleanupAndExit ();
         exit (1);
     }
 
-    TotalAllocations++;
-    TotalAllocated += Size;
+    AslGbl_TotalAllocations++;
+    AslGbl_TotalAllocated += Size;
     return (Allocated);
 }
 
@@ -209,7 +209,7 @@ UtLocalCalloc (
  * RETURN:      None. Reallocates the global line buffers
  *
  * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
- *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
+ *              all global line buffers and updates AslGbl_LineBufferSize. NOTE:
  *              Also used for the initial allocation of the buffers, when
  *              all of the buffer pointers are NULL. Initial allocations are
  *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
@@ -225,21 +225,21 @@ UtExpandLineBuffers (
 
     /* Attempt to double the size of all line buffers */
 
-    NewSize = Gbl_LineBufferSize * 2;
-    if (Gbl_CurrentLineBuffer)
+    NewSize = AslGbl_LineBufferSize * 2;
+    if (AslGbl_CurrentLineBuffer)
     {
         DbgPrint (ASL_DEBUG_OUTPUT,
             "Increasing line buffer size from %u to %u\n",
-            Gbl_LineBufferSize, NewSize);
+            AslGbl_LineBufferSize, NewSize);
     }
 
-    UtReallocLineBuffers (&Gbl_CurrentLineBuffer, Gbl_LineBufferSize, NewSize);
-    UtReallocLineBuffers (&Gbl_MainTokenBuffer, Gbl_LineBufferSize, NewSize);
-    UtReallocLineBuffers (&Gbl_MacroTokenBuffer, Gbl_LineBufferSize, NewSize);
-    UtReallocLineBuffers (&Gbl_ExpressionTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&AslGbl_CurrentLineBuffer, AslGbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&AslGbl_MainTokenBuffer, AslGbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&AslGbl_MacroTokenBuffer, AslGbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&AslGbl_ExpressionTokenBuffer, AslGbl_LineBufferSize, NewSize);
 
-    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
-    Gbl_LineBufferSize = NewSize;
+    AslGbl_LineBufPtr = AslGbl_CurrentLineBuffer;
+    AslGbl_LineBufferSize = NewSize;
 }
 
 
@@ -296,8 +296,8 @@ UtFreeLineBuffers (
     void)
 {
 
-    free (Gbl_CurrentLineBuffer);
-    free (Gbl_MainTokenBuffer);
-    free (Gbl_MacroTokenBuffer);
-    free (Gbl_ExpressionTokenBuffer);
+    free (AslGbl_CurrentLineBuffer);
+    free (AslGbl_MainTokenBuffer);
+    free (AslGbl_MacroTokenBuffer);
+    free (AslGbl_ExpressionTokenBuffer);
 }

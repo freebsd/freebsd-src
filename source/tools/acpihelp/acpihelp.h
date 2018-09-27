@@ -281,7 +281,7 @@ extern const AH_ASL_OPERATOR        Gbl_AslOperatorInfo[];
 extern const AH_ASL_KEYWORD         Gbl_AslKeywordInfo[];
 extern const AH_UUID                Gbl_AcpiUuids[];
 extern const AH_DIRECTIVE_INFO      Gbl_PreprocessorDirectives[];
-extern const AH_TABLE               Gbl_AcpiSupportedTables[];
+extern const AH_TABLE               AcpiGbl_SupportedTables[];
 
 
 void

@@ -520,27 +520,27 @@ AcpiDmGetExternalsFromFile (
     UINT32                  ImportCount = 0;
 
 
-    if (!Gbl_ExternalRefFilename)
+    if (!AslGbl_ExternalRefFilename)
     {
         return;
     }
 
     /* Open the file */
 
-    ExternalRefFile = fopen (Gbl_ExternalRefFilename, "r");
+    ExternalRefFile = fopen (AslGbl_ExternalRefFilename, "r");
     if (!ExternalRefFile)
     {
         fprintf (stderr, "Could not open external reference file \"%s\"\n",
-            Gbl_ExternalRefFilename);
+            AslGbl_ExternalRefFilename);
         AslAbort ();
         return;
     }
 
     /* Each line defines a method */
 
-    while (fgets (StringBuffer, ASL_STRING_BUFFER_SIZE, ExternalRefFile))
+    while (fgets (AslGbl_StringBuffer, ASL_STRING_BUFFER_SIZE, ExternalRefFile))
     {
-        Token = strtok (StringBuffer, METHOD_SEPARATORS);   /* "External" */
+        Token = strtok (AslGbl_StringBuffer, METHOD_SEPARATORS);   /* "External" */
         if (!Token)
         {
             continue;
@@ -593,7 +593,7 @@ AcpiDmGetExternalsFromFile (
         /* Add this external to the global list */
 
         AcpiOsPrintf ("%s: Importing method external (%u arguments) %s\n",
-            Gbl_ExternalRefFilename, ArgCount, MethodName);
+            AslGbl_ExternalRefFilename, ArgCount, MethodName);
 
         AcpiDmAddPathToExternalList (MethodName, ACPI_TYPE_METHOD,
             ArgCount, (ACPI_EXT_RESOLVED_REFERENCE | ACPI_EXT_ORIGIN_FROM_FILE));
@@ -604,7 +604,7 @@ AcpiDmGetExternalsFromFile (
     {
         fprintf (stderr,
             "Did not find any external methods in reference file \"%s\"\n",
-            Gbl_ExternalRefFilename);
+            AslGbl_ExternalRefFilename);
     }
     else
     {
@@ -613,7 +613,7 @@ AcpiDmGetExternalsFromFile (
         AcpiDmAddExternalListToNamespace ();
 
         AcpiOsPrintf ("%s: Imported %u external method definitions\n",
-            Gbl_ExternalRefFilename, ImportCount);
+            AslGbl_ExternalRefFilename, ImportCount);
     }
 
     fclose (ExternalRefFile);
@@ -1394,12 +1394,12 @@ AcpiDmEmitExternals (
 
     AcpiDmUnresolvedWarning (1);
 
-    if (Gbl_ExternalRefFilename)
+    if (AslGbl_ExternalRefFilename)
     {
         AcpiOsPrintf (
             "    /*\n     * External declarations were imported from\n"
             "     * a reference file -- %s\n     */\n\n",
-            Gbl_ExternalRefFilename);
+            AslGbl_ExternalRefFilename);
     }
 
     /*

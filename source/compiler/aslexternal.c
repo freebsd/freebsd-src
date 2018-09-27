@@ -209,11 +209,11 @@ ExDoExternal (
     ListOp->Asl.Child = Op;
     ListOp->Asl.Next = NULL;
 
-    if (Gbl_ExternalsListHead)
+    if (AslGbl_ExternalsListHead)
     {
         /* Link new External to end of list */
 
-        Prev = Gbl_ExternalsListHead;
+        Prev = AslGbl_ExternalsListHead;
         Next = Prev;
         while (Next)
         {
@@ -225,7 +225,7 @@ ExDoExternal (
     }
     else
     {
-        Gbl_ExternalsListHead = ListOp;
+        AslGbl_ExternalsListHead = ListOp;
     }
 }
 
@@ -259,7 +259,7 @@ ExInsertArgCount (
 
     CallName = AcpiNsGetNormalizedPathname (Op->Asl.Node, TRUE);
 
-    Next = Gbl_ExternalsListHead;
+    Next = AslGbl_ExternalsListHead;
     while (Next)
     {
         ArgCount = 0;
@@ -344,10 +344,10 @@ ExAmlExternalWalkBegin (
 
     if (Op->Asl.ParseOpcode == PARSEOP_DEFINITION_BLOCK)
     {
-        Gbl_ExternalsListHead = Op->Asl.Value.Arg;
+        AslGbl_ExternalsListHead = Op->Asl.Value.Arg;
     }
 
-    if (!Gbl_ExternalsListHead)
+    if (!AslGbl_ExternalsListHead)
     {
         return (AE_OK);
     }
@@ -401,7 +401,7 @@ ExAmlExternalWalkEnd (
          * multiple definition blocks in a single file/compile)
          */
         ExMoveExternals (Op);
-        Gbl_ExternalsListHead = NULL;
+        AslGbl_ExternalsListHead = NULL;
     }
 
     return (AE_OK);
@@ -439,14 +439,14 @@ ExMoveExternals (
     UINT32                  i;
 
 
-    if (!Gbl_ExternalsListHead)
+    if (!AslGbl_ExternalsListHead)
     {
         return;
     }
 
     /* Remove the External nodes from the tree */
 
-    NextOp = Gbl_ExternalsListHead;
+    NextOp = AslGbl_ExternalsListHead;
     while (NextOp)
     {
         /*
@@ -520,7 +520,7 @@ ExMoveExternals (
 
         Prev->Asl.Next = ExternalOp->Asl.Next;
         ExternalOp->Asl.Next = NULL;
-        ExternalOp->Asl.Parent = Gbl_ExternalsListHead;
+        ExternalOp->Asl.Parent = AslGbl_ExternalsListHead;
 
         /* Point the External to the next in the list */
 
@@ -536,7 +536,7 @@ ExMoveExternals (
      * Loop again to remove MethodObj Externals for which
      * a MethodCall was not found (dead external reference)
      */
-    Prev = Gbl_ExternalsListHead->Asl.Child;
+    Prev = AslGbl_ExternalsListHead->Asl.Child;
     Next = Prev;
     while (Next)
     {
@@ -548,9 +548,9 @@ ExMoveExternals (
         {
             if (Next == Prev)
             {
-                Gbl_ExternalsListHead->Asl.Child = Next->Asl.Next;
+                AslGbl_ExternalsListHead->Asl.Child = Next->Asl.Next;
                 Next->Asl.Next = NULL;
-                Prev = Gbl_ExternalsListHead->Asl.Child;
+                Prev = AslGbl_ExternalsListHead->Asl.Child;
                 Next = Prev;
                 continue;
             }
@@ -569,32 +569,32 @@ ExMoveExternals (
 
     /* If list is now empty, don't bother to make If (0) block */
 
-    if (!Gbl_ExternalsListHead->Asl.Child)
+    if (!AslGbl_ExternalsListHead->Asl.Child)
     {
         return;
     }
 
     /* Convert Gbl_ExternalsListHead parent to If(). */
 
-    Gbl_ExternalsListHead->Asl.ParseOpcode = PARSEOP_IF;
-    Gbl_ExternalsListHead->Asl.AmlOpcode = AML_IF_OP;
-    Gbl_ExternalsListHead->Asl.CompileFlags = OP_AML_PACKAGE;
-    UtSetParseOpName (Gbl_ExternalsListHead);
+    AslGbl_ExternalsListHead->Asl.ParseOpcode = PARSEOP_IF;
+    AslGbl_ExternalsListHead->Asl.AmlOpcode = AML_IF_OP;
+    AslGbl_ExternalsListHead->Asl.CompileFlags = OP_AML_PACKAGE;
+    UtSetParseOpName (AslGbl_ExternalsListHead);
 
     /* Create a Zero op for the If predicate */
 
     PredicateOp = TrAllocateOp (PARSEOP_ZERO);
     PredicateOp->Asl.AmlOpcode = AML_ZERO_OP;
 
-    PredicateOp->Asl.Parent = Gbl_ExternalsListHead;
+    PredicateOp->Asl.Parent = AslGbl_ExternalsListHead;
     PredicateOp->Asl.Child = NULL;
-    PredicateOp->Asl.Next = Gbl_ExternalsListHead->Asl.Child;
-    Gbl_ExternalsListHead->Asl.Child = PredicateOp;
+    PredicateOp->Asl.Next = AslGbl_ExternalsListHead->Asl.Child;
+    AslGbl_ExternalsListHead->Asl.Child = PredicateOp;
 
     /* Set line numbers (for listings, etc.) */
 
-    Gbl_ExternalsListHead->Asl.LineNumber = 0;
-    Gbl_ExternalsListHead->Asl.LogicalLineNumber = 0;
+    AslGbl_ExternalsListHead->Asl.LineNumber = 0;
+    AslGbl_ExternalsListHead->Asl.LogicalLineNumber = 0;
 
     PredicateOp->Asl.LineNumber = 0;
     PredicateOp->Asl.LogicalLineNumber = 0;
@@ -616,15 +616,15 @@ ExMoveExternals (
     {
         /* Definition Block is not empty */
 
-        Gbl_ExternalsListHead->Asl.Next = Next;
+        AslGbl_ExternalsListHead->Asl.Next = Next;
     }
     else
     {
         /* Definition Block is empty. */
 
-        Gbl_ExternalsListHead->Asl.Next = NULL;
+        AslGbl_ExternalsListHead->Asl.Next = NULL;
     }
 
-    Prev->Asl.Next = Gbl_ExternalsListHead;
-    Gbl_ExternalsListHead->Asl.Parent = Prev->Asl.Parent;
+    Prev->Asl.Next = AslGbl_ExternalsListHead;
+    AslGbl_ExternalsListHead->Asl.Parent = Prev->Asl.Parent;
 }

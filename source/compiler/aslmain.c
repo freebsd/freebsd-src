@@ -236,12 +236,12 @@ main (
 
     /* Allocate the line buffer(s), must be after command line */
 
-    Gbl_LineBufferSize /= 2;
+    AslGbl_LineBufferSize /= 2;
     UtExpandLineBuffers ();
 
     /* Perform global actions first/only */
 
-    if (Gbl_DisassembleAll)
+    if (AslGbl_DisassembleAll)
     {
         while (argv[Index1])
         {
@@ -264,10 +264,10 @@ main (
          * If -p not specified, we will use the input filename as the
          * output filename prefix
          */
-        if (Gbl_UseDefaultAmlFilename)
+        if (AslGbl_UseDefaultAmlFilename)
         {
-            Gbl_OutputFilenamePrefix = argv[Index2];
-            UtConvertBackslashes (Gbl_OutputFilenamePrefix);
+            AslGbl_OutputFilenamePrefix = argv[Index2];
+            UtConvertBackslashes (AslGbl_OutputFilenamePrefix);
         }
 
         Status = AslDoOneFile (argv[Index2]);
@@ -337,7 +337,7 @@ AslSignalHandler (
      * Close all open files
      * Note: the .pre file is the same as the input source file
      */
-    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL;
+    AslGbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL;
 
     for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {
@@ -385,13 +385,13 @@ AslInitialize (
 
     for (i = 0; i < ASL_NUM_FILES; i++)
     {
-        Gbl_Files[i].Handle = NULL;
-        Gbl_Files[i].Filename = NULL;
+        AslGbl_Files[i].Handle = NULL;
+        AslGbl_Files[i].Filename = NULL;
     }
 
-    Gbl_Files[ASL_FILE_STDOUT].Handle   = stdout;
-    Gbl_Files[ASL_FILE_STDOUT].Filename = "STDOUT";
+    AslGbl_Files[ASL_FILE_STDOUT].Handle   = stdout;
+    AslGbl_Files[ASL_FILE_STDOUT].Filename = "STDOUT";
 
-    Gbl_Files[ASL_FILE_STDERR].Handle   = stderr;
-    Gbl_Files[ASL_FILE_STDERR].Filename = "STDERR";
+    AslGbl_Files[ASL_FILE_STDERR].Handle   = stderr;
+    AslGbl_Files[ASL_FILE_STDERR].Filename = "STDERR";
 }

@@ -237,24 +237,24 @@ MpEmitMappingInfo (
 
     /* Mapfile option enabled? */
 
-    if (!Gbl_MapfileFlag)
+    if (!AslGbl_MapfileFlag)
     {
         return;
     }
 
-    if (!Gbl_GpioList)
+    if (!AslGbl_GpioList)
     {
         FlPrintFile (ASL_FILE_MAP_OUTPUT,
             "\nNo GPIO devices found\n");
     }
 
-    if (!Gbl_SerialList)
+    if (!AslGbl_SerialList)
     {
         FlPrintFile (ASL_FILE_MAP_OUTPUT,
             "\nNo Serial devices found (I2C/SPI/UART)\n");
     }
 
-    if (!Gbl_GpioList && !Gbl_SerialList)
+    if (!AslGbl_GpioList && !AslGbl_SerialList)
     {
         return;
     }
@@ -272,8 +272,8 @@ MpEmitMappingInfo (
 
     /* Clear the lists - no need to free memory here */
 
-    Gbl_SerialList = NULL;
-    Gbl_GpioList = NULL;
+    AslGbl_SerialList = NULL;
+    AslGbl_GpioList = NULL;
 }
 
 
@@ -307,7 +307,7 @@ MpEmitGpioInfo (
 
     /* Walk the GPIO descriptor list */
 
-    Info = Gbl_GpioList;
+    Info = AslGbl_GpioList;
     while (Info)
     {
         HidString = MpGetHidViaNamestring (Info->DeviceName);
@@ -440,7 +440,7 @@ MpEmitSerialInfo (
 
     /* Walk the constructed serial descriptor list */
 
-    Info = Gbl_SerialList;
+    Info = AslGbl_SerialList;
     while (Info)
     {
         Resource = Info->Resource;
@@ -641,7 +641,7 @@ MpXrefDevices (
 
     /* Walk the entire parse tree */
 
-    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         MpNamespaceXrefBegin, NULL, Info);
 
     if (!Info->References)

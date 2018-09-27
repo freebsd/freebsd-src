@@ -357,7 +357,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_FOUND_HERE_EXTERN */          "Remove one of the declarations indicated above or below:",
 /*    ASL_MSG_OEM_TABLE_ID */               "Invalid OEM Table ID",
 /*    ASL_MSG_OEM_ID */                     "Invalid OEM ID",
-/*    ASL_MSG_UNLOAD */                     "Unload is not supported by all operating systems"
+/*    ASL_MSG_UNLOAD */                     "Unload is not supported by all operating systems",
+/*    ASL_MSG_OFFSET */                     "Unnecessary/redundant use of Offset operator"
 };
 
 /* Table compiler */
@@ -495,7 +496,7 @@ AeDecodeExceptionLevel (
 
     /* Differentiate the string type to be used (IDE is all lower case) */
 
-    if (Gbl_VerboseErrors)
+    if (AslGbl_VerboseErrors)
     {
         return (AslErrorLevel[Level]);
     }
