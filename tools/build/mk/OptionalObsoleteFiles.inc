@@ -206,6 +206,7 @@ OLD_DIRS+=usr/share/examples/bhyve
 OLD_FILES+=usr/bin/as
 .if ${MK_LLD_IS_LD} == no
 OLD_FILES+=usr/bin/ld
+OLD_FILES+=usr/share/man/man1/ld.1.gz
 .endif
 OLD_FILES+=usr/bin/ld.bfd
 OLD_FILES+=usr/bin/objdump
@@ -405,7 +406,6 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsw
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
 OLD_FILES+=usr/share/man/man1/as.1.gz
-OLD_FILES+=usr/share/man/man1/ld.1.gz
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
 OLD_FILES+=usr/share/man/man7/ld.7.gz

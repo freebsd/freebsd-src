@@ -78,6 +78,7 @@ int __read_mostly *mem_locality;
 #endif
 
 int __read_mostly vm_ndomains = 1;
+domainset_t __read_mostly all_domains = DOMAINSET_T_INITIALIZER(0x1);
 
 struct vm_phys_seg __read_mostly vm_phys_segs[VM_PHYSSEG_MAX];
 int __read_mostly vm_phys_nsegs;

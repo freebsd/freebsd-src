@@ -534,14 +534,6 @@ MALLOC_DEFINE(M_IPSEC_SPDCACHE, "ipsec-spdcache", "ipsec SPD cache");
 VNET_DEFINE_STATIC(uma_zone_t, key_lft_zone);
 #define	V_key_lft_zone		VNET(key_lft_zone)
 
-static LIST_HEAD(xforms_list, xformsw) xforms = LIST_HEAD_INITIALIZER();
-static struct mtx xforms_lock;
-#define	XFORMS_LOCK_INIT()	\
-    mtx_init(&xforms_lock, "xforms_list", "IPsec transforms list", MTX_DEF)
-#define	XFORMS_LOCK_DESTROY()	mtx_destroy(&xforms_lock)
-#define	XFORMS_LOCK()		mtx_lock(&xforms_lock)
-#define	XFORMS_UNLOCK()		mtx_unlock(&xforms_lock)
-
 /*
  * set parameters into secpolicyindex buffer.
  * Must allocate secpolicyindex buffer passed to this function.
@@ -717,7 +709,6 @@ static int key_delete(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_delete_all(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *, struct secasindex *);
-static void key_delete_xform(const struct xformsw *);
 static int key_get(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 
@@ -750,7 +741,6 @@ static int key_validate_ext(const struct sadb_ext *, int);
 static int key_align(struct mbuf *, struct sadb_msghdr *);
 static struct mbuf *key_setlifetime(struct seclifetime *, uint16_t);
 static struct mbuf *key_setkey(struct seckey *, uint16_t);
-static int xform_init(struct secasvar *, u_short);
 
 static void spdcache_init(void);
 static void spdcache_clear(void);
@@ -6167,7 +6157,7 @@ key_delete_all(struct socket *so, struct mbuf *m,
  * Larval SAs have not initialized tdb_xform, so it is safe to leave them
  * here when xform disappears.
  */
-static void
+void
 key_delete_xform(const struct xformsw *xsp)
 {
 	struct secasvar_queue drainq;
@@ -8335,7 +8325,6 @@ key_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
-	XFORMS_LOCK_INIT();
 	SPTREE_LOCK_INIT();
 	REGTREE_LOCK_INIT();
 	SAHTREE_LOCK_INIT();
@@ -8458,7 +8447,6 @@ key_destroy(void)
 #ifndef IPSEC_DEBUG2
 	callout_drain(&key_timer);
 #endif
-	XFORMS_LOCK_DESTROY();
 	SPTREE_LOCK_DESTROY();
 	REGTREE_LOCK_DESTROY();
 	SAHTREE_LOCK_DESTROY();
@@ -8615,72 +8603,5 @@ comp_algorithm_lookup(int alg)
 		if (alg == supported_calgs[i].sadb_alg)
 			return (supported_calgs[i].xform);
 	return (NULL);
-}
-
-/*
- * Register a transform.
- */
-static int
-xform_register(struct xformsw* xsp)
-{
-	struct xformsw *entry;
-
-	XFORMS_LOCK();
-	LIST_FOREACH(entry, &xforms, chain) {
-		if (entry->xf_type == xsp->xf_type) {
-			XFORMS_UNLOCK();
-			return (EEXIST);
-		}
-	}
-	LIST_INSERT_HEAD(&xforms, xsp, chain);
-	XFORMS_UNLOCK();
-	return (0);
-}
-
-void
-xform_attach(void *data)
-{
-	struct xformsw *xsp = (struct xformsw *)data;
-
-	if (xform_register(xsp) != 0)
-		printf("%s: failed to register %s xform\n", __func__,
-		    xsp->xf_name);
-}
-
-void
-xform_detach(void *data)
-{
-	struct xformsw *xsp = (struct xformsw *)data;
-
-	XFORMS_LOCK();
-	LIST_REMOVE(xsp, chain);
-	XFORMS_UNLOCK();
-
-	/* Delete all SAs related to this xform. */
-	key_delete_xform(xsp);
-}
-
-/*
- * Initialize transform support in an sav.
- */
-static int
-xform_init(struct secasvar *sav, u_short xftype)
-{
-	struct xformsw *entry;
-	int ret;
-
-	IPSEC_ASSERT(sav->tdb_xform == NULL,
-	    ("tdb_xform is already initialized"));
-
-	ret = EINVAL;
-	XFORMS_LOCK();
-	LIST_FOREACH(entry, &xforms, chain) {
-	    if (entry->xf_type == xftype) {
-		    ret = (*entry->xf_init)(sav, entry);
-		    break;
-	    }
-	}
-	XFORMS_UNLOCK();
-	return (ret);
 }
 

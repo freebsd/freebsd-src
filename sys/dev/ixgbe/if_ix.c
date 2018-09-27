@@ -238,7 +238,7 @@ static driver_t ix_driver = {
 devclass_t ix_devclass;
 DRIVER_MODULE(ix, pci, ix_driver, ix_devclass, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, ix, ixgbe_vendor_info_array,
-    sizeof(ixgbe_vendor_info_array[0]), nitems(ixgbe_vendor_info_array) - 1);
+    nitems(ixgbe_vendor_info_array) - 1);
 
 MODULE_DEPEND(ix, pci, 1, 1, 1);
 MODULE_DEPEND(ix, ether, 1, 1, 1);

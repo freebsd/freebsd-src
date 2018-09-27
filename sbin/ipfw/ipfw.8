@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2018
+.Dd September 27, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -2711,7 +2711,7 @@ The following case-insensitive parameters can be configured for a
 scheduler:
 .Pp
 .Bl -tag -width indent -compact
-.It Cm type Ar {fifo | wf2q+ | rr | qfq}
+.It Cm type Ar {fifo | wf2q+ | rr | qfq | fq_codel | fq_pie}
 specifies the scheduling algorithm to use.
 .Bl -tag -width indent -compact
 .It Cm fifo
@@ -2738,7 +2738,68 @@ with poor service guarantees.
 implements the QFQ algorithm, which is a very fast variant of
 WF2Q+, with similar service guarantees and O(1) processing
 costs (roughly, 200-250ns per packet).
+.It Cm fq_codel
+implements the FQ-CoDel (FlowQueue-CoDel) scheduler/AQM algorithm, which
+uses a modified Deficit Round Robin scheduler to manage two lists of sub-queues
+(old sub-queues and new sub-queues) for providing brief periods of priority to
+lightweight or short burst flows.
+By default, the total number of sub-queues is 1024.
+FQ-CoDel's internal, dynamically
+created sub-queues are controlled by separate instances of CoDel AQM.
+.It Cm fq_pie
+implements the FQ-PIE (FlowQueue-PIE) scheduler/AQM algorithm, which similar to
+.Cm fq_codel
+but uses per sub-queue PIE AQM instance to control the queue delay.
 .El
+.Pp
+.Cm fq_codel
+inherits AQM parameters and options from
+.Cm codel
+(see below), and
+.Cm fq_pie
+inherits AQM parameters and options from
+.Cm pie
+(see below).
+Additionally, both of
+.Cm fq_codel
+and
+.Cm fq_pie
+have shared scheduler parameters which are:
+.Bl -tag -width indent
+.It Cm quantum
+.Ar m
+specifies the quantum (credit) of the scheduler.
+.Ar m
+is the number of bytes a queue can serve before being moved to the tail
+of old queues list.
+The default is 1514 bytes, and the maximum accepable value
+is 9000 bytes.
+.It Cm limit
+.Ar m
+specifies the hard size limit (in unit of packets) of all queues managed by an
+instance of the scheduler.
+The default value of
+.Ar m
+is 10240 packets, and the maximum accepable value is 20480 packets.
+.It Cm flows
+.Ar m
+specifies the total number of flow queues (sub-queues) that fq_*
+creates and manages.
+By default, 1024 sub-queues are created when an instance
+of the fq_{codel/pie} scheduler is created.
+The maximum accepable value is
+65536.
+.El
+.Pp
+Note that any token after
+.Cm fq_codel
+or
+.Cm fq_pie
+is considered a parameter for fq_{codel/pie}.
+So, ensure all scheduler
+configuration options not related to fq_{codel/pie} are written before
+.Cm fq_codel/fq_pie
+tokens.
 .El
 .Pp
 In addition to the type, all parameters allowed for a pipe can also
@@ -2869,6 +2930,135 @@ greater than zero)
 specifies the expected maximum packet size, only used when queue
 thresholds are in bytes (defaults to 1500, must be greater than zero).
 .El
+.Pp
+.It Cm codel Oo Cm target Ar time Oc Oo Cm interval Ar time Oc Oo Cm ecn |
+.Cm noecn Oc
+Make use of the CoDel (Controlled-Delay) queue management algorithm.
+.Ar time
+is interpreted as milliseconds by default but seconds (s), milliseconds (ms) or
+microseconds (us) can be specified instead.
+CoDel drops or marks (ECN) packets
+depending on packet sojourn time in the queue.
+.Cm target
+.Ar time
+(5ms by default) is the minimum acceptable persistent queue delay that CoDel
+allows.
+CoDel does not drop packets directly after packets sojourn time becomes
+higher than
+.Cm target
+.Ar time
+but waits for
+.Cm interval
+.Ar time
+(100ms default) before dropping.
+.Cm interval
+.Ar time
+should be set to maximum RTT for all expected connections.
+.Cm ecn
+enables (disabled by default) packet marking (instead of dropping) for
+ECN-enabled TCP flows when queue delay becomes high.
+.Pp
+Note that any token after
+.Cm codel
+is considered a parameter for CoDel.
+So, ensure all pipe/queue
+configuration options are written before
+.Cm codel
+token.
+.Pp
+The
+.Xr sysctl 8
+variables
+.Va net.inet.ip.dummynet.codel.target
+and
+.Va net.inet.ip.dummynet.codel.interval
+can be used to set CoDel default parameters.
+.Pp
+.It Cm pie Oo Cm target Ar time Oc Oo Cm tupdate Ar time Oc Oo
+.Cm alpha Ar n Oc Oo Cm beta Ar n Oc Oo Cm max_burst Ar time Oc Oo
+.Cm max_ecnth Ar n Oc Oo Cm ecn | Cm noecn Oc Oo Cm capdrop |
+.Cm nocapdrop Oc Oo Cm drand | Cm nodrand Oc Oo Cm onoff
+.Oc Oo Cm dre | Cm ts Oc
+Make use of the PIE (Proportional Integral controller Enhanced) queue management
+algorithm.
+PIE drops or marks packets depending on a calculated drop probability during
+en-queue process, with the aim of achieving high throughput while keeping queue
+delay low.
+At regular time intervals of
+.Cm tupdate
+.Ar time
+(15ms by default) a background process (re)calculates the probability based on queue delay
+deviations from
+.Cm target
+.Ar time
+(15ms by default) and queue delay trends.
+PIE approximates current queue
+delay by using a departure rate estimation method, or (optionally) by using a
+packet timestamp method similar to CoDel.
+.Ar time
+is interpreted as milliseconds by default but seconds (s), milliseconds (ms) or
+microseconds (us) can be specified instead.
+The other PIE parameters and options are as follows:
+.Bl -tag -width indent
+.It Cm alpha Ar n
+.Ar n
+is a floating point number between 0 and 7 which specifies the weight of queue
+delay deviations that is used in drop probability calculation.
+0.125 is the default.
+.It Cm beta Ar n
+.Ar n
+is a floating point number between 0 and 7 which specifies is the weight of queue
+delay trend that is used in drop probability calculation.
+1.25 is the default.
+.It Cm max_burst Ar time
+The maximum period of time that PIE does not drop/mark packets.
+150ms is the
+default and 10s is the maximum value.
+.It Cm max_ecnth Ar n
+Even when ECN is enabled, PIE drops packets instead of marking them when drop
+probability becomes higher than ECN probability threshold
+.Cm max_ecnth Ar n
+, the default is 0.1 (i.e 10%) and 1 is the maximum value.
+.It Cm ecn | noecn
+enable or disable ECN marking for ECN-enabled TCP flows.
+Disabled by default.
+.It Cm capdrop | nocapdrop
+enable or disable cap drop adjustment.
+Cap drop adjustment is enabled by default.
+.It Cm drand | nodrand
+enable or disable drop probability de-randomisation.
+De-randomisation eliminates
+the problem of dropping packets too close or too far.
+De-randomisation is enabled by default.
+.It Cm onoff
+enable turning PIE on and off depending on queue load.
+If this option is enabled,
+PIE turnes on when over 1/3 of queue becomes full.
+This option is disabled by
+default.
+.It Cm dre | ts
+Calculate queue delay using departure rate estimation
+.Cm dre
+or timestamps
+.Cm ts .
+.Cm dre
+is used by default.
+.El
+.Pp
+Note that any token after
+.Cm pie
+is considered a parameter for PIE.
+So ensure all pipe/queue
+the configuration options are written before
+.Cm pie
+token.
+.Xr sysctl 8
+variables can be used to control the
+.Cm pie
+default parameters.
+See the
+.Sx SYSCTL VARIABLES
+section for more details.
 .El
 .Pp
 When used with IPv6 data,
@@ -3461,10 +3651,102 @@ global IP addresses, this will still result in a fully functional
 .It Va net.inet.ip.alias.sctp.up_timer: No 300
 Timeout value to keep an association up with no traffic.
 This value cannot be 0.
+.It Va net.inet.ip.dummynet.codel.interval : No 100000
+Default
+.Cm codel
+AQM interval in microseconds.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.codel.target : No 5000
+Default
+.Cm codel
+AQM target delay time in microseconds (the minimum acceptable persistent queue
+delay).
+The value must be in the range 1..5000000.
 .It Va net.inet.ip.dummynet.expire : No 1
 Lazily delete dynamic pipes/queue once they have no pending traffic.
 You can disable this by setting the variable to 0, in which case
 the pipes/queues will only be deleted when the threshold is reached.
+.It Va net.inet.ip.dummynet.fqcodel.flows : No 1024
+Defines the default total number of flow queues (sub-queues) that
+.Cm fq_codel
+creates and manages.
+The value must be in the range 1..65536.
+.It Va net.inet.ip.dummynet.fqcodel.interval : No 100000
+Default
+.Cm fq_codel
+scheduler/AQM interval in microseconds.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.fqcodel.limit : No 10240
+The default hard size limit (in unit of packet) of all queues managed by an
+instance of the
+.Cm fq_codel
+scheduler.
+The value must be in the range 1..20480.
+.It Va net.inet.ip.dummynet.fqcodel.quantum : No 1514
+The default quantum (credit) of the
+.Cm fq_codel
+in unit of byte.
+The value must be in the range 1..9000.
+.It Va net.inet.ip.dummynet.fqcodel.target : No 5000
+Default
+.Cm fq_codel
+scheduler/AQM target delay time in microseconds (the minimum acceptable
+persistent queue delay).
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.fqpie.alpha : No 125
+The default
+.Ar alpha
+parameter (scaled by 1000) for
+.Cm fq_pie
+scheduler/AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.fqpie.beta : No 1250
+The default
+.Ar beta
+parameter (scaled by 1000) for
+.Cm fq_pie
+scheduler/AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.fqpie.flows : No 1024
+Defines the default total number of flow queues (sub-queues) that
+.Cm fq_pie
+creates and manages.
+The value must be in the range 1..65536.
+.It Va net.inet.ip.dummynet.fqpie.limit : No 10240
+The default hard size limit (in unit of packet) of all queues managed by an
+instance of the
+.Cm fq_pie
+scheduler.
+The value must be in the range 1..20480.
+.It Va net.inet.ip.dummynet.fqpie.max_burst : No 150000
+The default maximum period of microseconds that
+.Cm fq_pie
+scheduler/AQM does not drop/mark packets.
+The value must be in the range 1..10000000.
+.It Va net.inet.ip.dummynet.fqpie.max_ecnth : No 99
+The default maximum ECN probability threshold (scaled by 1000) for
+.Cm fq_pie
+scheduler/AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.fqpie.quantum : No 1514
+The default quantum (credit) of the
+.Cm fq_pie
+in unit of byte.
+The value must be in the range 1..9000.
+.It Va net.inet.ip.dummynet.fqpie.target : No 15000
+The default
+.Cm target
+delay of the
+.Cm fq_pie
+in unit of microsecond.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.fqpie.tupdate : No 15000
+The default
+.Cm tupdate
+of the
+.Cm fq_pie
+in unit of microsecond.
+The value must be in the range 1..5000000.
 .It Va net.inet.ip.dummynet.hash_size : No 64
 Default size of the hash table used for dynamic pipes/queues.
 This value is used when no
@@ -3499,6 +3781,44 @@ will be expired even when
 .It Va net.inet.ip.dummynet.red_max_pkt_size : No 1500
 Parameters used in the computations of the drop probability
 for the RED algorithm.
+.It Va net.inet.ip.dummynet.pie.alpha : No 125
+The default
+.Ar alpha
+parameter (scaled by 1000) for
+.Cm pie
+AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.pie.beta : No 1250
+The default
+.Ar beta
+parameter (scaled by 1000) for
+.Cm pie
+AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.pie.max_burst : No 150000
+The default maximum period of microseconds that
+.Cm pie
+AQM does not drop/mark packets.
+The value must be in the range 1..10000000.
+.It Va net.inet.ip.dummynet.pie.max_ecnth : No 99
+The default maximum ECN probability threshold (scaled by 1000) for
+.Cm pie
+AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.pie.target : No 15000
+The default
+.Cm target
+delay of
+.Cm pie
+AQM in unit of microsecond.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.pie.tupdate : No 15000
+The default
+.Cm tupdate
+of
+.Cm pie
+AQM in unit of microsecond.
+The value must be in the range 1..5000000.
 .It Va net.inet.ip.dummynet.pipe_byte_limit : No 1048576
 .It Va net.inet.ip.dummynet.pipe_slot_limit : No 100
 The maximum queue size that can be specified in bytes or packets.
@@ -4029,6 +4349,102 @@ action, if it is not created yet. Later, this dynamic rule is used on way
 in by
 .Cm check-state
 rule.
+.Ss CONFIGURING CODEL, PIE, FQ-CODEL and FQ-PIE AQM
+.Cm codel
+and
+.Cm pie
+AQM can be configured for
+.Nm dummynet
+.Cm pipe
+or
+.Cm queue.
+.Pp
+To configure a
+.Cm pipe
+with
+.Cm codel
+AQM using default configuration for traffic from 192.168.0.0/24 and 1Mbits/s
+rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s codel"
+.Dl "ipfw add 100 pipe 1 ip from 192.168.0.0/24 to any"
+.Pp
+To configure a
+.Cm queue
+with
+.Cm codel
+AQM using different configurations parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw queue 1 config pipe 1 codel target 8ms interval 160ms ecn"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+To configure a
+.Cm pipe
+with
+.Cm pie
+AQM using default configuration for traffic from 192.168.0.0/24 and 1Mbits/s
+rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s pie"
+.Dl "ipfw add 100 pipe 1 ip from 192.168.0.0/24 to any"
+.Pp
+To configure a
+.Cm queue
+with
+.Cm pie
+AQM using different configuration parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw queue 1 config pipe 1 pie target 20ms tupdate 30ms ecn"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+.Cm fq_codel
+and
+.Cm fq_pie
+AQM can be configured for
+.Nm dummynet
+schedulers.
+.Pp
+To configure
+.Cm fq_codel
+scheduler using different configurations parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw sched 1 config pipe 1 type fq_codel"
+.Dl "ipfw queue 1 config sched 1"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+To change
+.Cm fq_codel
+default configuration for a
+.Cm sched
+such as disable ECN and change the
+.Ar target
+to 10ms, we do:
+.Pp
+.Dl "ipfw sched 1 config pipe 1 type fq_codel target 10ms noecn"
+.Pp
+Similar to
+.Cm fq_codel,
+to configure
+.Cm fq_pie
+scheduler using different configurations parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw sched 1 config pipe 1 type fq_pie"
+.Dl "ipfw queue 1 config sched 1"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+The configurations of
+.Cm fq_pie
+.Cm sched
+can be changed in a similar way as for
+.Cm fq_codel
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr m4 1 ,
@@ -4063,7 +4479,8 @@ was introduced in Summer 2002.
 .An Poul-Henning Kamp ,
 .An Alex Nash ,
 .An Archie Cobbs ,
-.An Luigi Rizzo .
+.An Luigi Rizzo ,
+.An Rasool Al-Saadi .
 .Pp
 .An -nosplit
 API based upon code written by
@@ -4098,6 +4515,12 @@ For further information visit:
 Delay profiles have been developed by Alessandro Cerri and
 Luigi Rizzo, supported by the
 European Commission within Projects Onelab and Onelab2.
+.Pp
+CoDel, PIE, FQ-CoDel and FQ-PIE AQM for Dummynet have been implemented by
+.An The Centre for Advanced Internet Architectures (CAIA)
+in 2016, supported by The Comcast Innovation Fund.
+The primary developer is
+Rasool Al-Saadi.
 .Sh BUGS
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes

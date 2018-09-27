@@ -2698,10 +2698,8 @@ again:
 			LIST_INSERT_HEAD(&dom->ud_part_slab, slab, us_link);
 			return (slab);
 		}
-		if (rr) {
-			keg->uk_cursor = (keg->uk_cursor + 1) % vm_ndomains;
-			domain = keg->uk_cursor;
-		}
+		if (rr)
+			domain = (domain + 1) % vm_ndomains;
 	} while (domain != start);
 
 	/* Retry domain scan with blocking. */

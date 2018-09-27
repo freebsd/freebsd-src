@@ -1060,40 +1060,6 @@ sctp_hmac_m(uint16_t hmac_algo, uint8_t *key, uint32_t keylen,
 	return (digestlen);
 }
 
-/*-
- * verify the HMAC digest using the desired hash key, text, and HMAC
- * algorithm.
- * Returns -1 on error, 0 on success.
- */
-int
-sctp_verify_hmac(uint16_t hmac_algo, uint8_t *key, uint32_t keylen,
-    uint8_t *text, uint32_t textlen,
-    uint8_t *digest, uint32_t digestlen)
-{
-	uint32_t len;
-	uint8_t temp[SCTP_AUTH_DIGEST_LEN_MAX];
-
-	/* sanity check the material and length */
-	if ((key == NULL) || (keylen == 0) ||
-	    (text == NULL) || (textlen == 0) || (digest == NULL)) {
-		/* can't do HMAC with empty key or text or digest */
-		return (-1);
-	}
-	len = sctp_get_hmac_digest_len(hmac_algo);
-	if ((len == 0) || (digestlen != len))
-		return (-1);
-
-	/* compute the expected hash */
-	if (sctp_hmac(hmac_algo, key, keylen, text, textlen, temp) != len)
-		return (-1);
-
-	if (memcmp(digest, temp, digestlen) != 0)
-		return (-1);
-	else
-		return (0);
-}
-
-
 /*
  * computes the requested HMAC using a key struct (which may be modified if
  * the keylen exceeds the HMAC block len).

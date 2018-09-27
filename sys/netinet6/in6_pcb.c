@@ -809,6 +809,10 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 	INP_INFO_WLOCK(pcbinfo);
 	CK_LIST_FOREACH(in6p, pcbinfo->ipi_listhead, inp_list) {
 		INP_WLOCK(in6p);
+		if (__predict_false(in6p->inp_flags2 & INP_FREED)) {
+			INP_WUNLOCK(in6p);
+			continue;
+		}
 		im6o = in6p->in6p_moptions;
 		if ((in6p->inp_vflag & INP_IPV6) && im6o != NULL) {
 			/*

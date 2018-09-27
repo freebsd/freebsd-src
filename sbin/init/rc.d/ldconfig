@@ -58,7 +58,7 @@ ldconfig_start()
 			done
 			check_startmsgs &&
 			    echo '32-bit compatibility ldconfig path:' ${_LDC}
-			${ldconfig} -32 -m ${_ins} ${_LDC}
+			${ldconfig} -32 ${_ins} ${_LDC}
 			;;
 		esac
 
@@ -80,7 +80,7 @@ ldconfig_start()
 			done
 			check_startmsgs &&
 			    echo 'Soft Float compatibility ldconfig path:' ${_LDC}
-			${ldconfig} -soft -m ${_ins} ${_LDC}
+			${ldconfig} -soft ${_ins} ${_LDC}
 			;;
 		esac
 

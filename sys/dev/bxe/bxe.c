@@ -7076,13 +7076,13 @@ bxe_link_attn(struct bxe_softc *sc)
 
         if (sc->state == BXE_STATE_OPEN) {
             bxe_stats_handle(sc, STATS_EVENT_LINK_UP);
+	    /* Restart tx when the link comes back. */
+	    FOR_EACH_ETH_QUEUE(sc, i) {
+		fp = &sc->fp[i];
+		taskqueue_enqueue(fp->tq, &fp->tx_task);
+	    }
         }
 
-	/* Restart tx when the link comes back. */
-        FOR_EACH_ETH_QUEUE(sc, i) {
-            fp = &sc->fp[i];
-            taskqueue_enqueue(fp->tq, &fp->tx_task);
-	}
     }
 
     if (sc->link_vars.link_up && sc->link_vars.line_speed) {
@@ -16279,9 +16279,11 @@ bxe_shutdown(device_t dev)
     /* stop the periodic callout */
     bxe_periodic_stop(sc);
 
-    BXE_CORE_LOCK(sc);
-    bxe_nic_unload(sc, UNLOAD_NORMAL, FALSE);
-    BXE_CORE_UNLOCK(sc);
+    if (sc->state != BXE_STATE_CLOSED) {
+    	BXE_CORE_LOCK(sc);
+    	bxe_nic_unload(sc, UNLOAD_NORMAL, FALSE);
+    	BXE_CORE_UNLOCK(sc);
+    }
 
     return (0);
 }

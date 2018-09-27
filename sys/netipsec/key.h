@@ -46,6 +46,7 @@ struct sadb_msg;
 struct sadb_x_policy;
 struct secasindex;
 union sockaddr_union;
+struct xformsw;
 
 struct secpolicy *key_newsp(void);
 struct secpolicy *key_allocsp(struct secpolicyindex *, u_int);
@@ -73,6 +74,8 @@ int key_sockaddrcmp_withmask(const struct sockaddr *, const struct sockaddr *,
 
 int key_register_ifnet(struct secpolicy **, u_int);
 void key_unregister_ifnet(struct secpolicy **, u_int);
+
+void key_delete_xform(const struct xformsw *);
 
 extern u_long key_random(void);
 extern void key_randomfill(void *, size_t);

@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180913:
+	Reproducible build mode is now on by default, in preparation for
+	FreeBSD 12.0.  This eliminates build metadata such as the user,
+	host, and time from the kernel (and uname), unless the working tree
+	corresponds to a modified checkout from a version control system.
+	The previous behavior can be obtained by setting the /etc/src.conf
+	knob WITHOUT_REPRODUCIBLE_BUILD.
+
 20180826:
 	The Yarrow CSPRNG has been removed from the kernel as it has not been
 	supported by its designers since at least 2003. Fortuna has been the
@@ -170,6 +178,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	need to be rebuilt.  r335018 did a __FreeBSD_version bump for this.
 
 20180530:
+	As of r334391 lld is the default amd64 system linker; it is installed
+	as /usr/bin/ld.  Kernel build workarounds (see 20180510 entry) are no
+	longer necessary.
+
+20180530:
 	The kernel / userland interface for devinfo changed, so you'll
 	need a new kernel and userland as a pair for it to work (rebuilding
 	lib/libdevinfo is all that's required). devinfo and devmatch will
@@ -195,6 +208,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	way requires LD=ld.lld on the command line (or LD=/usr/local/bin/ld for
 	binutils port/package). lld will soon be default, and this requirement
 	will go away.
+
+	NOTE: As of r334391 lld is the default system linker on amd64, and no
+	workaround is necessary.
 
 20180508:
 	The nxge(4) driver has been removed.  This driver was for PCI-X 10g
