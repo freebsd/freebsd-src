@@ -58,9 +58,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
 CTASSERT(sizeof(struct mem_range_op32) == 12);
-CTASSERT(sizeof(struct pci_conf_io32) == 36);
-CTASSERT(sizeof(struct pci_match_conf32) == 44);
-CTASSERT(sizeof(struct pci_conf32) == 44);
 
 static int
 freebsd32_ioctl_ioc_read_toc(struct thread *td,
@@ -143,108 +140,6 @@ freebsd32_ioctl_memrange(struct thread *td,
 
 		error = copyout(&mro32, uap->data, sizeof(mro32));
 	}
-
-	return (error);
-}
-
-static int
-freebsd32_ioctl_pciocgetconf(struct thread *td,
-    struct freebsd32_ioctl_args *uap, struct file *fp)
-{
-	struct pci_conf_io pci;
-	struct pci_conf_io32 pci32;
-	struct pci_match_conf32 pmc32;
-	struct pci_match_conf32 *pmc32p;
-	struct pci_match_conf pmc;
-	struct pci_match_conf *pmcp;
-	struct pci_conf32 pc32;
-	struct pci_conf32 *pc32p;
-	struct pci_conf pc;
-	struct pci_conf *pcp;
-	u_int32_t i;
-	u_int32_t npat_to_convert;
-	u_int32_t nmatch_to_convert;
-	vm_offset_t addr;
-	int error;
-
-	if ((error = copyin(uap->data, &pci32, sizeof(pci32))) != 0)
-		return (error);
-
-	CP(pci32, pci, num_patterns);
-	CP(pci32, pci, offset);
-	CP(pci32, pci, generation);
-
-	npat_to_convert = pci32.pat_buf_len / sizeof(struct pci_match_conf32);
-	pci.pat_buf_len = npat_to_convert * sizeof(struct pci_match_conf);
-	pci.patterns = NULL;
-	nmatch_to_convert = pci32.match_buf_len / sizeof(struct pci_conf32);
-	pci.match_buf_len = nmatch_to_convert * sizeof(struct pci_conf);
-	pci.matches = NULL;
-
-	if ((error = copyout_map(td, &addr, pci.pat_buf_len)) != 0)
-		goto cleanup;
-	pci.patterns = (struct pci_match_conf *)addr;
-	if ((error = copyout_map(td, &addr, pci.match_buf_len)) != 0)
-		goto cleanup;
-	pci.matches = (struct pci_conf *)addr;
-
-	npat_to_convert = min(npat_to_convert, pci.num_patterns);
-
-	for (i = 0, pmc32p = (struct pci_match_conf32 *)PTRIN(pci32.patterns),
-	     pmcp = pci.patterns;
-	     i < npat_to_convert; i++, pmc32p++, pmcp++) {
-		if ((error = copyin(pmc32p, &pmc32, sizeof(pmc32))) != 0)
-			goto cleanup;
-		CP(pmc32,pmc,pc_sel);
-		strlcpy(pmc.pd_name, pmc32.pd_name, sizeof(pmc.pd_name));
-		CP(pmc32,pmc,pd_unit);
-		CP(pmc32,pmc,pc_vendor);
-		CP(pmc32,pmc,pc_device);
-		CP(pmc32,pmc,pc_class);
-		CP(pmc32,pmc,flags);
-		if ((error = copyout(&pmc, pmcp, sizeof(pmc))) != 0)
-			goto cleanup;
-	}
-
-	if ((error = fo_ioctl(fp, PCIOCGETCONF, (caddr_t)&pci,
-			      td->td_ucred, td)) != 0)
-		goto cleanup;
-
-	nmatch_to_convert = min(nmatch_to_convert, pci.num_matches);
-
-	for (i = 0, pcp = pci.matches,
-	     pc32p = (struct pci_conf32 *)PTRIN(pci32.matches);
-	     i < nmatch_to_convert; i++, pcp++, pc32p++) {
-		if ((error = copyin(pcp, &pc, sizeof(pc))) != 0)
-			goto cleanup;
-		CP(pc,pc32,pc_sel);
-		CP(pc,pc32,pc_hdr);
-		CP(pc,pc32,pc_subvendor);
-		CP(pc,pc32,pc_subdevice);
-		CP(pc,pc32,pc_vendor);
-		CP(pc,pc32,pc_device);
-		CP(pc,pc32,pc_class);
-		CP(pc,pc32,pc_subclass);
-		CP(pc,pc32,pc_progif);
-		CP(pc,pc32,pc_revid);
-		strlcpy(pc32.pd_name, pc.pd_name, sizeof(pc32.pd_name));
-		CP(pc,pc32,pd_unit);
-		if ((error = copyout(&pc32, pc32p, sizeof(pc32))) != 0)
-			goto cleanup;
-	}
-
-	CP(pci, pci32, num_matches);
-	CP(pci, pci32, offset);
-	CP(pci, pci32, generation);
-	CP(pci, pci32, status);
-
-	error = copyout(&pci32, uap->data, sizeof(pci32));
-
-cleanup:
-	if (pci.patterns)
-		copyout_unmap(td, (vm_offset_t)pci.patterns, pci.pat_buf_len);
-	if (pci.matches)
-		copyout_unmap(td, (vm_offset_t)pci.matches, pci.match_buf_len);
 
 	return (error);
 }
@@ -380,10 +275,6 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	case MEMRANGE_GET32:	/* FALLTHROUGH */
 	case MEMRANGE_SET32:
 		error = freebsd32_ioctl_memrange(td, uap, fp);
-		break;
-
-	case PCIOCGETCONF_32:
-		error = freebsd32_ioctl_pciocgetconf(td, uap, fp);
 		break;
 
 	case SG_IO_32:
