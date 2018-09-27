@@ -731,7 +731,7 @@ LdNamespace1Begin (
              * 10/2015.
              */
             if ((Node->Flags & ANOBJ_IS_EXTERNAL) &&
-                (ACPI_COMPARE_NAME (Gbl_TableSignature, "DSDT")))
+                (ACPI_COMPARE_NAME (AslGbl_TableSignature, "DSDT")))
             {
                 /* However, allowed if the reference is within a method */
 
@@ -777,9 +777,9 @@ LdNamespace1Begin (
              * Which is used to workaround the fact that the MS interpreter
              * does not allow Scope() forward references.
              */
-            sprintf (MsgBuffer, "%s [%s], changing type to [Scope]",
+            sprintf (AslGbl_MsgBuffer, "%s [%s], changing type to [Scope]",
                 Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
-            AslError (ASL_REMARK, ASL_MSG_SCOPE_TYPE, Op, MsgBuffer);
+            AslError (ASL_REMARK, ASL_MSG_SCOPE_TYPE, Op, AslGbl_MsgBuffer);
 
             /* Switch the type to scope, open the new scope */
 
@@ -796,9 +796,9 @@ LdNamespace1Begin (
 
             /* All other types are an error */
 
-            sprintf (MsgBuffer, "%s [%s]", Op->Asl.ExternalName,
+            sprintf (AslGbl_MsgBuffer, "%s [%s]", Op->Asl.ExternalName,
                 AcpiUtGetTypeName (Node->Type));
-            AslError (ASL_ERROR, ASL_MSG_SCOPE_TYPE, Op, MsgBuffer);
+            AslError (ASL_ERROR, ASL_MSG_SCOPE_TYPE, Op, AslGbl_MsgBuffer);
 
             /*
              * However, switch the type to be an actual scope so
@@ -899,9 +899,9 @@ LdNamespace1Begin (
                 }
                 else
                 {
-                    sprintf (MsgBuffer, "%s [%s]", Op->Asl.ExternalName,
+                    sprintf (AslGbl_MsgBuffer, "%s [%s]", Op->Asl.ExternalName,
                         AcpiUtGetTypeName (Node->Type));
-                    AslError (ASL_ERROR, ASL_MSG_SCOPE_TYPE, Op, MsgBuffer);
+                    AslError (ASL_ERROR, ASL_MSG_SCOPE_TYPE, Op, AslGbl_MsgBuffer);
                     return_ACPI_STATUS (AE_OK);
                 }
             }

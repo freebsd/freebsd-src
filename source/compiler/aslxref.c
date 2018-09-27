@@ -237,7 +237,7 @@ XfCrossReferenceNamespace (
 
     /* Walk the entire parse tree */
 
-    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
         XfNamespaceLocateBegin, XfNamespaceLocateEnd, WalkState);
 
     ACPI_FREE (WalkState);
@@ -683,7 +683,7 @@ XfNamespaceLocateBegin (
      * The namespace is also used as a lookup table for references to resource
      * descriptors and the fields within them.
      */
-    Gbl_NsLookupCount++;
+    AslGbl_NsLookupCount++;
 
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
         ACPI_IMODE_EXECUTE, Flags, WalkState, &Node);
@@ -881,12 +881,12 @@ XfNamespaceLocateBegin (
 
             if (Message)
             {
-                sprintf (MsgBuffer,
+                sprintf (AslGbl_MsgBuffer,
                     "Size mismatch, Tag: %u bit%s, Field: %u bit%s",
                     TagBitLength, (TagBitLength > 1) ? "s" : "",
                     FieldBitLength, (FieldBitLength > 1) ? "s" : "");
 
-                AslError (ASL_WARNING, Message, Op, MsgBuffer);
+                AslError (ASL_WARNING, Message, Op, AslGbl_MsgBuffer);
             }
         }
 
@@ -952,10 +952,10 @@ XfNamespaceLocateBegin (
          */
         if (Node->Type != ACPI_TYPE_METHOD)
         {
-            sprintf (MsgBuffer, "%s is a %s",
+            sprintf (AslGbl_MsgBuffer, "%s is a %s",
                 Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
 
-            AslError (ASL_ERROR, ASL_MSG_NOT_METHOD, Op, MsgBuffer);
+            AslError (ASL_ERROR, ASL_MSG_NOT_METHOD, Op, AslGbl_MsgBuffer);
             return_ACPI_STATUS (AE_OK);
         }
 
@@ -993,16 +993,16 @@ XfNamespaceLocateBegin (
              */
             if (PassedArgs != Node->Value)
             {
-                sprintf (MsgBuffer, "%s requires %u", Op->Asl.ExternalName,
-                            Node->Value);
+                sprintf (AslGbl_MsgBuffer, "%s requires %u", Op->Asl.ExternalName,
+                    Node->Value);
 
                 if (PassedArgs < Node->Value)
                 {
-                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_LO, Op, MsgBuffer);
+                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_LO, Op, AslGbl_MsgBuffer);
                 }
                 else
                 {
-                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_HI, Op, MsgBuffer);
+                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_HI, Op, AslGbl_MsgBuffer);
                 }
             }
         }

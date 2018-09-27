@@ -189,7 +189,9 @@ AeRegionHandler (
     ACPI_PHYSICAL_ADDRESS   BaseAddressEnd;
     ACPI_PHYSICAL_ADDRESS   RegionAddress;
     ACPI_PHYSICAL_ADDRESS   RegionAddressEnd;
-    ACPI_SIZE               Length;
+    UINT32                  Length;
+    UINT8                   DataLength;
+    UINT8                   *DataBuffer;
     BOOLEAN                 BufferExists;
     BOOLEAN                 BufferResize;
     AE_REGION               *RegionElement;
@@ -207,9 +209,9 @@ AeRegionHandler (
 
     ACPI_FUNCTION_NAME (AeRegionHandler);
 
-    /*
-     * If the object is not a region, simply return
-     */
+
+    /* If the object is not a region, simply return */
+
     if (RegionObject->Region.Type != ACPI_TYPE_REGION)
     {
         return (AE_OK);
@@ -219,7 +221,8 @@ AeRegionHandler (
 
     if (HandlerContext != &AeMyContext)
     {
-        printf ("Region handler received incorrect context %p, should be %p\n",
+        AcpiOsPrintf (
+            "Region handler received incorrect context %p, should be %p\n",
             HandlerContext, &AeMyContext);
     }
 
@@ -230,7 +233,7 @@ AeRegionHandler (
      * the linked list.
      */
     BaseAddress = RegionObject->Region.Address;
-    Length = (ACPI_SIZE) RegionObject->Region.Length;
+    Length = RegionObject->Region.Length;
     SpaceId = RegionObject->Region.SpaceId;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
@@ -324,93 +327,26 @@ AeRegionHandler (
     case ACPI_ADR_SPACE_SMBUS:
     case ACPI_ADR_SPACE_GSBUS:  /* ACPI 5.0 */
 
-        Length = 0;
-
-        switch (Function & ACPI_IO_MASK)
+        Status = AcpiExGetProtocolBufferLength ((Function >> 16), &Length);
+        if (ACPI_FAILURE (Status))
         {
-        case ACPI_READ:
+            AcpiOsPrintf ("AcpiExec: Invalid SMbus/GSbus protocol ID: 0x%X\n",
+                (Function >> 16));
+            return (Status);
+        }
 
-            switch (Function >> 16)
-            {
-            case AML_FIELD_ATTRIB_QUICK:
+        /* Adjust for fixed SMBus buffer size */
 
-                Length = 0;
-                break;
-
-            case AML_FIELD_ATTRIB_SEND_RCV:
-            case AML_FIELD_ATTRIB_BYTE:
-
-                Length = 1;
-                break;
-
-            case AML_FIELD_ATTRIB_WORD:
-            case AML_FIELD_ATTRIB_WORD_CALL:
-
-                Length = 2;
-                break;
-
-            case AML_FIELD_ATTRIB_BLOCK:
-            case AML_FIELD_ATTRIB_BLOCK_CALL:
-
-                Length = 32;
-                break;
-
-            case AML_FIELD_ATTRIB_MULTIBYTE:
-            case AML_FIELD_ATTRIB_RAW_BYTES:
-            case AML_FIELD_ATTRIB_RAW_PROCESS:
-
-                Length = MyContext->AccessLength;
-                break;
-
-            default:
-
-                break;
-            }
-            break;
-
-        case ACPI_WRITE:
-
-            switch (Function >> 16)
-            {
-            case AML_FIELD_ATTRIB_QUICK:
-            case AML_FIELD_ATTRIB_SEND_RCV:
-            case AML_FIELD_ATTRIB_BYTE:
-            case AML_FIELD_ATTRIB_WORD:
-            case AML_FIELD_ATTRIB_BLOCK:
-
-                Length = 0;
-                break;
-
-            case AML_FIELD_ATTRIB_WORD_CALL:
-                Length = 2;
-                break;
-
-            case AML_FIELD_ATTRIB_BLOCK_CALL:
-                Length = 32;
-                break;
-
-            case AML_FIELD_ATTRIB_MULTIBYTE:
-            case AML_FIELD_ATTRIB_RAW_BYTES:
-            case AML_FIELD_ATTRIB_RAW_PROCESS:
-
-                Length = MyContext->AccessLength;
-                break;
-
-            default:
-
-                break;
-            }
-            break;
-
-        default:
-
-            break;
+        if ((SpaceId == ACPI_ADR_SPACE_SMBUS) &&
+            (Length > ACPI_SMBUS_DATA_SIZE))
+        {
+            Length = ACPI_SMBUS_DATA_SIZE; /* SMBus buffer is fixed-length */
         }
 
         if (AcpiGbl_DisplayRegionAccess)
         {
             AcpiOsPrintf ("AcpiExec: %s "
-                "%s: Attr %X Addr %.4X BaseAddr %.4X Length %.2X BitWidth %X BufLen %X",
+                "%s: Attr %X Addr %.4X BaseAddr %.4X Length %.2X BitWidth %X BufLen %X\n",
                 AcpiUtGetRegionName (SpaceId),
                 (Function & ACPI_IO_MASK) ? "Write" : "Read ",
                 (UINT32) (Function >> 16),
@@ -419,28 +355,40 @@ AeRegionHandler (
 
             /* GenericSerialBus has a Connection() parameter */
 
-            if (SpaceId == ACPI_ADR_SPACE_GSBUS)
+            if ((SpaceId == ACPI_ADR_SPACE_GSBUS) && MyContext)
             {
                 Status = AcpiBufferToResource (MyContext->Connection,
                     MyContext->Length, &Resource);
+                if (ACPI_SUCCESS (Status))
+                {
+                    ACPI_FREE (Resource);
+                }
 
                 AcpiOsPrintf (" [AccessLength %.2X Connnection %p]",
                     MyContext->AccessLength, MyContext->Connection);
             }
+
             AcpiOsPrintf ("\n");
         }
 
+        DataBuffer = &Buffer[2];
+        DataLength = (UINT8) Length;
+
         /* Setup the return buffer. Note: ASLTS depends on these fill values */
+
+        if (Length == ACPI_MAX_GSBUS_DATA_SIZE)
+        {
+            DataLength = 0x20; /* For ASLTS only */
+        }
 
         for (i = 0; i < Length; i++)
         {
-            Buffer[i+2] = (UINT8) (0xA0 + i);
+            DataBuffer[i] = (UINT8) (0xA0 + i);
         }
 
-        Buffer[0] = 0x7A;
-        Buffer[1] = (UINT8) Length;
+        Buffer[0] = 0;                  /* Return Status, OK */
+        Buffer[1] = DataLength;         /* Length of valid data */
         return (AE_OK);
-
 
     case ACPI_ADR_SPACE_IPMI: /* ACPI 4.0 */
 
@@ -459,16 +407,16 @@ AeRegionHandler (
          *
          * Return some example data to show use of the bidirectional buffer
          */
-        Buffer[0] = 0;       /* Status byte */
-        Buffer[1] = 64;      /* Return buffer data length */
-        Buffer[2] = 0;       /* Completion code */
-        Buffer[3] = 0;       /* Reserved */
+        Buffer[0] = 0;                      /* Status byte */
+        Buffer[1] = ACPI_IPMI_DATA_SIZE;    /* Return buffer data length */
+        Buffer[2] = 0;                      /* Completion code */
+        Buffer[3] = 0;                      /* Reserved */
 
         /*
          * Fill the 66-byte buffer with the return data.
          * Note: ASLTS depends on these fill values.
          */
-        for (i = 4; i < 66; i++)
+        for (i = 4; i < ACPI_IPMI_BUFFER_SIZE; i++)
         {
             Buffer[i] = (UINT8) (i);
         }
@@ -484,11 +432,13 @@ AeRegionHandler (
         if (AcpiGbl_DisplayRegionAccess)
         {
             AcpiOsPrintf ("AcpiExec: GPIO "
-                "%s: Addr %.4X Width %X Conn %p\n",
+                "%s: Address %.4X Length %X BitWidth %X Conn %p\n",
                 (Function & ACPI_IO_MASK) ? "Write" : "Read ",
-                (UINT32) Address, BitWidth, MyContext->Connection);
+                (UINT32) Address, Length, BitWidth, MyContext->Connection);
         }
-        return (AE_OK);
+
+        /* Now perform the "normal" SystemMemory handling, for AcpiExec only */
+        break;
 
     default:
         break;
@@ -662,7 +612,6 @@ AeRegionHandler (
     /* Calculate the size of the memory copy */
 
     ByteWidth = (BitWidth / 8);
-
     if (BitWidth % 8)
     {
         ByteWidth += 1;
@@ -727,9 +676,14 @@ DoFunction:
         case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 
             AcpiOsPrintf ("AcpiExec: SystemMemory "
-                "%s: Val %.8X Addr %.4X Width %X [REGION: BaseAddr %.4X Len %.2X]\n",
+                "%s: Val %.8X Addr %.4X BitWidth %X [REGION: BaseAddr %.4X Len %.2X]\n",
                 (Function & ACPI_IO_MASK) ? "Write" : "Read ",
                 (UINT32) *Value, (UINT32) Address, BitWidth, (UINT32) BaseAddress, Length);
+            break;
+
+        case ACPI_ADR_SPACE_GSBUS:
+
+            AcpiOsPrintf ("AcpiExec: GenericSerialBus\n");
             break;
 
         case ACPI_ADR_SPACE_GPIO:   /* ACPI 5.0 */
@@ -740,14 +694,20 @@ DoFunction:
                 MyContext->Length, &Resource);
 
             AcpiOsPrintf ("AcpiExec: GeneralPurposeIo "
-                "%s: Val %.8X Addr %.4X BaseAddr %.4X Len %.2X Width %X AccLen %.2X Conn %p\n",
+                "%s: %.8X Addr %.4X BaseAddr %.4X Length %.2X "
+                "BitWidth %X AccLen %.2X Conn %p\n",
                 (Function & ACPI_IO_MASK) ? "Write" : "Read ", (UINT32) *Value,
                 (UINT32) Address, (UINT32) BaseAddress, Length, BitWidth,
                 MyContext->AccessLength, MyContext->Connection);
+            if (ACPI_SUCCESS (Status))
+            {
+                ACPI_FREE (Resource);
+            }
             break;
 
         default:
 
+            AcpiOsPrintf ("AcpiExec: Region access on SpaceId %2.2X\n", SpaceId);
             break;
         }
     }

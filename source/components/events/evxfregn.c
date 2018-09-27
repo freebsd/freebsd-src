@@ -354,7 +354,6 @@ AcpiRemoveAddressSpaceHandler (
                  * DetachRegion removed the previous head.
                  */
                 RegionObj = HandlerObj->AddressSpace.RegionList;
-
             }
 
             /* Remove this Handler object from the list */

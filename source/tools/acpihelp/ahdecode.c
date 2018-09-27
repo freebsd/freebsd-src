@@ -610,7 +610,7 @@ AhDisplayTables (
 
     printf ("Known ACPI tables:\n");
 
-    for (Info = Gbl_AcpiSupportedTables; Info->Signature; Info++)
+    for (Info = AcpiGbl_SupportedTables; Info->Signature; Info++)
     {
         printf ("%8s : %s\n", Info->Signature, Info->Description);
         i++;

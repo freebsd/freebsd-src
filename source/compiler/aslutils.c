@@ -354,7 +354,7 @@ UtDisplaySupportedTables (
     /* All ACPI tables with the common table header */
 
     printf ("\n  Supported ACPI tables:\n");
-    for (TableData = Gbl_AcpiSupportedTables, i = 1;
+    for (TableData = AcpiGbl_SupportedTables, i = 1;
          TableData->Signature; TableData++, i++)
     {
         printf ("%8u) %s    %s\n", i,
@@ -478,7 +478,7 @@ DbgPrint (
     va_list                 Args;
 
 
-    if (!Gbl_DebugFlag)
+    if (!AslGbl_DebugFlag)
     {
         return;
     }
@@ -547,20 +547,20 @@ UtDisplaySummary (
 
     /* Summary of main input and output files */
 
-    if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
+    if (AslGbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         FlPrintFile (FileId,
             "%-14s %s - %u lines, %u bytes, %u fields\n",
             "Table Input:",
-            Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
-            Gbl_InputByteCount, Gbl_InputFieldCount);
+            AslGbl_Files[ASL_FILE_INPUT].Filename, AslGbl_CurrentLineNumber,
+            AslGbl_InputByteCount, AslGbl_InputFieldCount);
 
-        if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
+        if ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || (AslGbl_IgnoreErrors))
         {
             FlPrintFile (FileId,
                 "%-14s %s - %u bytes\n",
                 "Binary Output:",
-                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength);
+                AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename, AslGbl_TableLength);
         }
     }
     else
@@ -568,22 +568,22 @@ UtDisplaySummary (
         FlPrintFile (FileId,
             "%-14s %s - %u lines, %u bytes, %u keywords\n",
             "ASL Input:",
-            Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
-            Gbl_OriginalInputFileSize, TotalKeywords);
+            AslGbl_Files[ASL_FILE_INPUT].Filename, AslGbl_CurrentLineNumber,
+            AslGbl_OriginalInputFileSize, AslGbl_TotalKeywords);
 
         /* AML summary */
 
-        if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
+        if ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || (AslGbl_IgnoreErrors))
         {
-            if (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle)
+            if (AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle)
             {
                 FlPrintFile (FileId,
                     "%-14s %s - %u bytes, %u named objects, "
                     "%u executable opcodes\n",
                     "AML Output:",
-                    Gbl_Files[ASL_FILE_AML_OUTPUT].Filename,
+                    AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename,
                     FlGetFileSize (ASL_FILE_AML_OUTPUT),
-                    TotalNamedObjects, TotalExecutableOpcodes);
+                    AslGbl_TotalNamedObjects, AslGbl_TotalExecutableOpcodes);
             }
         }
     }
@@ -592,48 +592,48 @@ UtDisplaySummary (
 
     for (i = ASL_FILE_SOURCE_OUTPUT; i <= ASL_MAX_FILE_TYPE; i++)
     {
-        if (!Gbl_Files[i].Filename || !Gbl_Files[i].Handle)
+        if (!AslGbl_Files[i].Filename || !AslGbl_Files[i].Handle)
         {
             continue;
         }
 
         /* .SRC is a temp file unless specifically requested */
 
-        if ((i == ASL_FILE_SOURCE_OUTPUT) && (!Gbl_SourceOutputFlag))
+        if ((i == ASL_FILE_SOURCE_OUTPUT) && (!AslGbl_SourceOutputFlag))
         {
             continue;
         }
 
         /* .PRE is the preprocessor intermediate file */
 
-        if ((i == ASL_FILE_PREPROCESSOR)  && (!Gbl_KeepPreprocessorTempFile))
+        if ((i == ASL_FILE_PREPROCESSOR)  && (!AslGbl_KeepPreprocessorTempFile))
         {
             continue;
         }
 
         FlPrintFile (FileId, "%14s %s - %u bytes\n",
-            Gbl_Files[i].ShortDescription,
-            Gbl_Files[i].Filename, FlGetFileSize (i));
+            AslGbl_Files[i].ShortDescription,
+            AslGbl_Files[i].Filename, FlGetFileSize (i));
     }
 
     /* Error summary */
 
     FlPrintFile (FileId,
         "\nCompilation complete. %u Errors, %u Warnings, %u Remarks",
-        Gbl_ExceptionCount[ASL_ERROR],
-        Gbl_ExceptionCount[ASL_WARNING] +
-            Gbl_ExceptionCount[ASL_WARNING2] +
-            Gbl_ExceptionCount[ASL_WARNING3],
-        Gbl_ExceptionCount[ASL_REMARK]);
+        AslGbl_ExceptionCount[ASL_ERROR],
+        AslGbl_ExceptionCount[ASL_WARNING] +
+            AslGbl_ExceptionCount[ASL_WARNING2] +
+            AslGbl_ExceptionCount[ASL_WARNING3],
+        AslGbl_ExceptionCount[ASL_REMARK]);
 
-    if (Gbl_FileType != ASL_INPUT_TYPE_ASCII_DATA)
+    if (AslGbl_FileType != ASL_INPUT_TYPE_ASCII_DATA)
     {
         FlPrintFile (FileId, ", %u Optimizations",
-            Gbl_ExceptionCount[ASL_OPTIMIZATION]);
+            AslGbl_ExceptionCount[ASL_OPTIMIZATION]);
 
-        if (TotalFolds)
+        if (AslGbl_TotalFolds)
         {
-            FlPrintFile (FileId, ", %u Constants Folded", TotalFolds);
+            FlPrintFile (FileId, ", %u Constants Folded", AslGbl_TotalFolds);
         }
     }
 
@@ -670,10 +670,10 @@ UtCheckIntegerRange (
     if ((Op->Asl.Value.Integer < LowValue) ||
         (Op->Asl.Value.Integer > HighValue))
     {
-        sprintf (MsgBuffer, "0x%X, allowable: 0x%X-0x%X",
+        sprintf (AslGbl_MsgBuffer, "0x%X, allowable: 0x%X-0x%X",
             (UINT32) Op->Asl.Value.Integer, LowValue, HighValue);
 
-        AslError (ASL_ERROR, ASL_MSG_RANGE, Op, MsgBuffer);
+        AslError (ASL_ERROR, ASL_MSG_RANGE, Op, AslGbl_MsgBuffer);
         return (NULL);
     }
 
@@ -899,9 +899,9 @@ UtDoConstant (
         sprintf (ErrBuf, "While creating 64-bit constant: %s\n",
             AcpiFormatException (Status));
 
-        AslCommonError (ASL_ERROR, ASL_MSG_SYNTAX, Gbl_CurrentLineNumber,
-            Gbl_LogicalLineNumber, Gbl_CurrentLineOffset,
-            Gbl_CurrentColumn, Gbl_Files[ASL_FILE_INPUT].Filename, ErrBuf);
+        AslCommonError (ASL_ERROR, ASL_MSG_SYNTAX, AslGbl_CurrentLineNumber,
+            AslGbl_LogicalLineNumber, AslGbl_CurrentLineOffset,
+            AslGbl_CurrentColumn, AslGbl_Files[ASL_FILE_INPUT].Filename, ErrBuf);
     }
 
     return (ConvertedInteger);

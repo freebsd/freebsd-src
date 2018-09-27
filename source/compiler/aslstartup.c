@@ -197,49 +197,49 @@ AslInitializeGlobals (
 
     /* Init compiler globals */
 
-    Gbl_SyntaxError = 0;
-    Gbl_CurrentColumn = 0;
-    Gbl_CurrentLineNumber = 1;
-    Gbl_LogicalLineNumber = 1;
-    Gbl_CurrentLineOffset = 0;
-    Gbl_InputFieldCount = 0;
-    Gbl_InputByteCount = 0;
-    Gbl_NsLookupCount = 0;
-    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+    AslGbl_SyntaxError = 0;
+    AslGbl_CurrentColumn = 0;
+    AslGbl_CurrentLineNumber = 1;
+    AslGbl_LogicalLineNumber = 1;
+    AslGbl_CurrentLineOffset = 0;
+    AslGbl_InputFieldCount = 0;
+    AslGbl_InputByteCount = 0;
+    AslGbl_NsLookupCount = 0;
+    AslGbl_LineBufPtr = AslGbl_CurrentLineBuffer;
 
-    Gbl_ErrorLog = NULL;
-    Gbl_NextError = NULL;
-    Gbl_Signature = NULL;
-    Gbl_FileType = 0;
+    AslGbl_ErrorLog = NULL;
+    AslGbl_NextError = NULL;
+    AslGbl_Signature = NULL;
+    AslGbl_FileType = 0;
 
-    TotalExecutableOpcodes = 0;
-    TotalNamedObjects = 0;
-    TotalKeywords = 0;
-    TotalParseNodes = 0;
-    TotalMethods = 0;
-    TotalAllocations = 0;
-    TotalAllocated = 0;
-    TotalFolds = 0;
+    AslGbl_TotalExecutableOpcodes = 0;
+    AslGbl_TotalNamedObjects = 0;
+    AslGbl_TotalKeywords = 0;
+    AslGbl_TotalParseNodes = 0;
+    AslGbl_TotalMethods = 0;
+    AslGbl_TotalAllocations = 0;
+    AslGbl_TotalAllocated = 0;
+    AslGbl_TotalFolds = 0;
 
     AslGbl_NextEvent = 0;
     for (i = 0; i < ASL_NUM_REPORT_LEVELS; i++)
     {
-        Gbl_ExceptionCount[i] = 0;
+        AslGbl_ExceptionCount[i] = 0;
     }
 
     for (i = ASL_FILE_INPUT; i <= ASL_MAX_FILE_TYPE; i++)
     {
-        Gbl_Files[i].Handle = NULL;
-        Gbl_Files[i].Filename = NULL;
+        AslGbl_Files[i].Handle = NULL;
+        AslGbl_Files[i].Filename = NULL;
     }
 
     if (AcpiGbl_CaptureComments)
     {
-        Gbl_CommentState.SpacesBefore          = 0;
-        Gbl_CommentState.CommentType           = 1;
-        Gbl_CommentState.LatestParseOp         = NULL;
-        Gbl_CommentState.ParsingParenBraceNode = NULL;
-        Gbl_CommentState.CaptureComments       = TRUE;
+        AslGbl_CommentState.SpacesBefore          = 0;
+        AslGbl_CommentState.CommentType           = 1;
+        AslGbl_CommentState.LatestParseOp         = NULL;
+        AslGbl_CommentState.ParsingParenBraceNode = NULL;
+        AslGbl_CommentState.CaptureComments       = TRUE;
     }
 }
 
@@ -275,11 +275,11 @@ AslDetectSourceFileType (
          * File contains ASCII source code. Determine if this is an ASL
          * file or an ACPI data table file.
          */
-        while (fgets (Gbl_CurrentLineBuffer, Gbl_LineBufferSize, Info->Handle))
+        while (fgets (AslGbl_CurrentLineBuffer, AslGbl_LineBufferSize, Info->Handle))
         {
             /* Uppercase the buffer for caseless compare */
 
-            FileChar = Gbl_CurrentLineBuffer;
+            FileChar = AslGbl_CurrentLineBuffer;
             while (*FileChar)
             {
                 *FileChar = (char) toupper ((int) *FileChar);
@@ -288,7 +288,7 @@ AslDetectSourceFileType (
 
             /* Presence of "DefinitionBlock" indicates actual ASL code */
 
-            if (strstr (Gbl_CurrentLineBuffer, "DEFINITIONBLOCK"))
+            if (strstr (AslGbl_CurrentLineBuffer, "DEFINITIONBLOCK"))
             {
                 /* Appears to be an ASL file */
 
@@ -372,15 +372,15 @@ AslDoDisassembly (
 
     /* Handle additional output files for disassembler */
 
-    Gbl_FileType = ASL_INPUT_TYPE_BINARY_ACPI_TABLE;
-    Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
+    AslGbl_FileType = ASL_INPUT_TYPE_BINARY_ACPI_TABLE;
+    Status = FlOpenMiscOutputFiles (AslGbl_OutputFilenamePrefix);
 
     /* This is where the disassembly happens */
 
     AcpiGbl_DmOpt_Disasm = TRUE;
     Status = AdAmlDisassemble (AslToFile,
-        Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_OutputFilenamePrefix,
-        &Gbl_Files[ASL_FILE_INPUT].Filename);
+        AslGbl_Files[ASL_FILE_INPUT].Filename, AslGbl_OutputFilenamePrefix,
+        &AslGbl_Files[ASL_FILE_INPUT].Filename);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -396,19 +396,19 @@ AslDoDisassembly (
     (void) AcpiTerminate ();
 
     /*
-     * Gbl_Files[ASL_FILE_INPUT].Filename was replaced with the
+     * AslGbl_Files[ASL_FILE_INPUT].Filename was replaced with the
      * .DSL disassembly file, which can now be compiled if requested
      */
-    if (Gbl_DoCompile)
+    if (AslGbl_DoCompile)
     {
         AcpiOsPrintf ("\nCompiling \"%s\"\n",
-            Gbl_Files[ASL_FILE_INPUT].Filename);
+            AslGbl_Files[ASL_FILE_INPUT].Filename);
         return (AE_CTRL_CONTINUE);
     }
 
     /* No need to free the filename string */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = NULL;
+    AslGbl_Files[ASL_FILE_INPUT].Filename = NULL;
 
     UtDeleteLocalCaches ();
     return (AE_OK);
@@ -444,7 +444,7 @@ AslDoOneFile (
      * files and the optional AML filename embedded in the input file
      * DefinitionBlock declaration.
      */
-    Status = FlSplitInputPathname (Filename, &Gbl_DirectoryPath, NULL);
+    Status = FlSplitInputPathname (Filename, &AslGbl_DirectoryPath, NULL);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -452,11 +452,11 @@ AslDoOneFile (
 
     /* Take a copy of the input filename, convert any backslashes */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename =
+    AslGbl_Files[ASL_FILE_INPUT].Filename =
         UtLocalCacheCalloc (strlen (Filename) + 1);
 
-    strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
-    UtConvertBackslashes (Gbl_Files[ASL_FILE_INPUT].Filename);
+    strcpy (AslGbl_Files[ASL_FILE_INPUT].Filename, Filename);
+    UtConvertBackslashes (AslGbl_Files[ASL_FILE_INPUT].Filename);
 
     /*
      * AML Disassembly (Optional)
@@ -474,19 +474,19 @@ AslDoOneFile (
      * Open the input file. Here, this should be an ASCII source file,
      * either an ASL file or a Data Table file
      */
-    Status = FlOpenInputFile (Gbl_Files[ASL_FILE_INPUT].Filename);
+    Status = FlOpenInputFile (AslGbl_Files[ASL_FILE_INPUT].Filename);
     if (ACPI_FAILURE (Status))
     {
         AePrintErrorLog (ASL_FILE_STDERR);
         return (AE_ERROR);
     }
 
-    Gbl_OriginalInputFileSize = FlGetFileSize (ASL_FILE_INPUT);
+    AslGbl_OriginalInputFileSize = FlGetFileSize (ASL_FILE_INPUT);
 
     /* Determine input file type */
 
-    Gbl_FileType = AslDetectSourceFileType (&Gbl_Files[ASL_FILE_INPUT]);
-    if (Gbl_FileType == ASL_INPUT_TYPE_BINARY)
+    AslGbl_FileType = AslDetectSourceFileType (&AslGbl_Files[ASL_FILE_INPUT]);
+    if (AslGbl_FileType == ASL_INPUT_TYPE_BINARY)
     {
         return (AE_ERROR);
     }
@@ -495,14 +495,14 @@ AslDoOneFile (
      * If -p not specified, we will use the input filename as the
      * output filename prefix
      */
-    if (Gbl_UseDefaultAmlFilename)
+    if (AslGbl_UseDefaultAmlFilename)
     {
-        Gbl_OutputFilenamePrefix = Gbl_Files[ASL_FILE_INPUT].Filename;
+        AslGbl_OutputFilenamePrefix = AslGbl_Files[ASL_FILE_INPUT].Filename;
     }
 
     /* Open the optional output files (listings, etc.) */
 
-    Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
+    Status = FlOpenMiscOutputFiles (AslGbl_OutputFilenamePrefix);
     if (ACPI_FAILURE (Status))
     {
         AePrintErrorLog (ASL_FILE_STDERR);
@@ -513,7 +513,7 @@ AslDoOneFile (
      * Compilation of ASL source versus DataTable source uses different
      * compiler subsystems
      */
-    switch (Gbl_FileType)
+    switch (AslGbl_FileType)
     {
     /*
      * Data Table Compilation
@@ -526,9 +526,9 @@ AslDoOneFile (
             return (Status);
         }
 
-        if (Gbl_Signature)
+        if (AslGbl_Signature)
         {
-            Gbl_Signature = NULL;
+            AslGbl_Signature = NULL;
         }
 
         /* Check if any errors occurred during compile */
@@ -576,16 +576,16 @@ AslDoOneFile (
 
         /* ASL-to-ASL+ conversion - Perform immediate disassembly */
 
-        if (Gbl_DoAslConversion)
+        if (AslGbl_DoAslConversion)
         {
             /*
              * New input file is the output AML file from above.
              * New output is from the input ASL file from above.
              */
-            Gbl_OutputFilenamePrefix = Gbl_Files[ASL_FILE_INPUT].Filename;
-        CvDbgPrint ("OUTPUTFILENAME: %s\n", Gbl_OutputFilenamePrefix);
-            Gbl_Files[ASL_FILE_INPUT].Filename =
-                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename;
+            AslGbl_OutputFilenamePrefix = AslGbl_Files[ASL_FILE_INPUT].Filename;
+            CvDbgPrint ("OUTPUTFILENAME: %s\n", AslGbl_OutputFilenamePrefix);
+            AslGbl_Files[ASL_FILE_INPUT].Filename =
+                AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename;
             AcpiGbl_DisasmFlag = TRUE;
             fprintf (stderr, "\n");
             AslDoDisassembly ();
@@ -605,7 +605,7 @@ AslDoOneFile (
         /* We have what appears to be an ACPI table, disassemble it */
 
         FlCloseFile (ASL_FILE_INPUT);
-        Gbl_DoCompile = FALSE;
+        AslGbl_DoCompile = FALSE;
         AcpiGbl_DisasmFlag = TRUE;
         Status = AslDoDisassembly ();
         return (Status);
@@ -619,7 +619,7 @@ AslDoOneFile (
 
     default:
 
-        printf ("Unknown file type %X\n", Gbl_FileType);
+        printf ("Unknown file type %X\n", AslGbl_FileType);
         return (AE_ERROR);
     }
 }
@@ -646,20 +646,20 @@ AslCheckForErrorExit (
      * Return non-zero exit code if there have been errors, unless the
      * global ignore error flag has been set
      */
-    if (!Gbl_IgnoreErrors)
+    if (!AslGbl_IgnoreErrors)
     {
-        if (Gbl_ExceptionCount[ASL_ERROR] > 0)
+        if (AslGbl_ExceptionCount[ASL_ERROR] > 0)
         {
             return (AE_ERROR);
         }
 
         /* Optionally treat warnings as errors */
 
-        if (Gbl_WarningsAsErrors)
+        if (AslGbl_WarningsAsErrors)
         {
-            if ((Gbl_ExceptionCount[ASL_WARNING] > 0)  ||
-                (Gbl_ExceptionCount[ASL_WARNING2] > 0) ||
-                (Gbl_ExceptionCount[ASL_WARNING3] > 0))
+            if ((AslGbl_ExceptionCount[ASL_WARNING] > 0)  ||
+                (AslGbl_ExceptionCount[ASL_WARNING2] > 0) ||
+                (AslGbl_ExceptionCount[ASL_WARNING3] > 0))
             {
                 return (AE_ERROR);
             }
