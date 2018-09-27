@@ -48,12 +48,15 @@ typedef int (*encap_input_t)(struct mbuf *, int , int, void *);
 struct encap_config {
 	int		proto;		/* protocol */
 	int		min_length;	/* minimum packet length */
+	int		max_hdrsize;	/* maximum header size */
 	int		exact_match;	/* a packet is exactly matched */
 #define	ENCAP_DRV_LOOKUP	0x7fffffff
 
 	encap_lookup_t	lookup;
 	encap_check_t	check;
 	encap_input_t	input;
+
+	void		*pad[3];
 };
 
 struct encaptab;

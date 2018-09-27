@@ -2959,7 +2959,7 @@ vm_wait_doms(const domainset_t *wdoms)
 		 * consume all freed pages while old allocators wait.
 		 */
 		mtx_lock(&vm_domainset_lock);
-		if (DOMAINSET_SUBSET(&vm_min_domains, wdoms)) {
+		if (vm_page_count_min_set(wdoms)) {
 			vm_min_waiters++;
 			msleep(&vm_min_domains, &vm_domainset_lock,
 			    PVM | PDROP, "vmwait", 0);
@@ -3078,7 +3078,7 @@ vm_waitpfault(struct domainset *dset)
 	 * consume all freed pages while old allocators wait.
 	 */
 	mtx_lock(&vm_domainset_lock);
-	if (DOMAINSET_SUBSET(&vm_min_domains, &dset->ds_mask)) {
+	if (vm_page_count_min_set(&dset->ds_mask)) {
 		vm_min_waiters++;
 		msleep(&vm_min_domains, &vm_domainset_lock, PUSER | PDROP,
 		    "pfault", 0);

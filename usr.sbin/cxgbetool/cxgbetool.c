@@ -1327,17 +1327,10 @@ set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 				t.fs.newvlan = VLAN_REWRITE;
 			} else if (argv[start_arg + 1][0] == '+') {
 				t.fs.newvlan = VLAN_INSERT;
-			} else if (isdigit(argv[start_arg + 1][0]) &&
-			    !parse_val_mask("vlan", args, &val, &mask, hash)) {
-				t.fs.val.vlan = val;
-				t.fs.mask.vlan = mask;
-				t.fs.val.vlan_vld = 1;
-				t.fs.mask.vlan_vld = 1;
 			} else {
 				warnx("unknown vlan parameter \"%s\"; must"
 				     " be one of \"none\", \"=<vlan>\", "
-				     " \"+<vlan>\", or \"<vlan>\"",
-				     argv[start_arg + 1]);
+				     " \"+<vlan>\"", argv[start_arg + 1]);
 				return (EINVAL);
 			}
 			if (t.fs.newvlan == VLAN_REWRITE ||

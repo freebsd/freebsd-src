@@ -108,6 +108,44 @@ found:
 	return (e);
 }
 
+static struct l2t_entry *
+find_or_alloc_l2e(struct l2t_data *d, uint16_t vlan, uint8_t port, uint8_t *dmac)
+{
+	struct l2t_entry *end, *e, **p;
+	struct l2t_entry *first_free = NULL;
+
+	for (e = &d->l2tab[0], end = &d->l2tab[d->l2t_size]; e != end; ++e) {
+		if (atomic_load_acq_int(&e->refcnt) == 0) {
+			if (!first_free)
+				first_free = e;
+		} else if (e->state == L2T_STATE_SWITCHING &&
+		    memcmp(e->dmac, dmac, ETHER_ADDR_LEN) == 0 &&
+		    e->vlan == vlan && e->lport == port)
+			return (e);	/* Found existing entry that matches. */
+	}
+
+	if (first_free == NULL)
+		return (NULL);	/* No match and no room for a new entry. */
+
+	/*
+	 * The entry we found may be an inactive entry that is
+	 * presently in the hash table.  We need to remove it.
+	 */
+	e = first_free;
+	if (e->state < L2T_STATE_SWITCHING) {
+		for (p = &d->l2tab[e->hash].first; *p; p = &(*p)->next) {
+			if (*p == e) {
+				*p = e->next;
+				e->next = NULL;
+				break;
+			}
+		}
+	}
+	e->state = L2T_STATE_UNUSED;
+	return (e);
+}
+
+
 /*
  * Write an L2T entry.  Must be called with the entry locked.
  * The write may be synchronous or asynchronous.
@@ -154,41 +192,38 @@ t4_write_l2e(struct l2t_entry *e, int sync)
  * address resolution updates do not see them.
  */
 struct l2t_entry *
-t4_l2t_alloc_switching(struct l2t_data *d)
+t4_l2t_alloc_switching(struct adapter *sc, uint16_t vlan, uint8_t port,
+    uint8_t *eth_addr)
 {
+	struct l2t_data *d = sc->l2t;
 	struct l2t_entry *e;
-
-	rw_wlock(&d->lock);
-	e = t4_alloc_l2e(d);
-	if (e) {
-		mtx_lock(&e->lock);          /* avoid race with t4_l2t_free */
-		e->state = L2T_STATE_SWITCHING;
-		atomic_store_rel_int(&e->refcnt, 1);
-		mtx_unlock(&e->lock);
-	}
-	rw_wunlock(&d->lock);
-	return e;
-}
-
-/*
- * Sets/updates the contents of a switching L2T entry that has been allocated
- * with an earlier call to @t4_l2t_alloc_switching.
- */
-int
-t4_l2t_set_switching(struct adapter *sc, struct l2t_entry *e, uint16_t vlan,
-    uint8_t port, uint8_t *eth_addr)
-{
 	int rc;
 
-	e->vlan = vlan;
-	e->lport = port;
-	e->wrq = &sc->sge.ctrlq[0];
-	e->iqid = sc->sge.fwq.abs_id;
-	memcpy(e->dmac, eth_addr, ETHER_ADDR_LEN);
-	mtx_lock(&e->lock);
-	rc = t4_write_l2e(e, 0);
-	mtx_unlock(&e->lock);
-	return (rc);
+	rw_wlock(&d->lock);
+	e = find_or_alloc_l2e(d, vlan, port, eth_addr);
+	if (e) {
+		if (atomic_load_acq_int(&e->refcnt) == 0) {
+			mtx_lock(&e->lock);    /* avoid race with t4_l2t_free */
+			e->wrq = &sc->sge.ctrlq[0];
+			e->iqid = sc->sge.fwq.abs_id;
+			e->state = L2T_STATE_SWITCHING;
+			e->vlan = vlan;
+			e->lport = port;
+			memcpy(e->dmac, eth_addr, ETHER_ADDR_LEN);
+			atomic_store_rel_int(&e->refcnt, 1);
+			atomic_subtract_int(&d->nfree, 1);
+			rc = t4_write_l2e(e, 0);
+			mtx_unlock(&e->lock);
+			if (rc != 0)
+				e = NULL;
+		} else {
+			MPASS(e->vlan == vlan);
+			MPASS(e->lport == port);
+			atomic_add_int(&e->refcnt, 1);
+		}
+	}
+	rw_wunlock(&d->lock);
+	return (e);
 }
 
 int

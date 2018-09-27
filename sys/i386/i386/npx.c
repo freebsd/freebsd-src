@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/segments.h>
 #include <machine/ucontext.h>
+#include <x86/ifunc.h>
 
 #include <machine/intr_machdep.h>
 
@@ -183,7 +184,6 @@ CTASSERT(X86_XSTATE_XCR0_OFFSET >= offsetof(struct savexmm, sv_pad) &&
 
 static	void	fpu_clean_state(void);
 
-static	void	fpusave(union savefpu *);
 static	void	fpurstor(union savefpu *);
 
 int	hw_float;
@@ -205,8 +205,6 @@ struct xsave_area_elm_descr {
 	u_int	offset;
 	u_int	size;
 } *xsave_area_desc;
-
-static int use_xsaveopt;
 
 static	volatile u_int		npx_traps_while_probing;
 
@@ -314,6 +312,69 @@ cleanup:
 	return (hw_float);
 }
 
+static void
+npxsave_xsaveopt(union savefpu *addr)
+{
+
+	xsaveopt((char *)addr, xsave_mask);
+}
+
+static void
+fpusave_xsave(union savefpu *addr)
+{
+
+	xsave((char *)addr, xsave_mask);
+}
+
+static void
+fpusave_fxsave(union savefpu *addr)
+{
+
+	fxsave((char *)addr);
+}
+
+static void
+fpusave_fnsave(union savefpu *addr)
+{
+
+	fnsave((char *)addr);
+}
+
+static void
+init_xsave(void)
+{
+
+	if (use_xsave)
+		return;
+	if (!cpu_fxsr || (cpu_feature2 & CPUID2_XSAVE) == 0)
+		return;
+	use_xsave = 1;
+	TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
+}
+
+DEFINE_IFUNC(, void, npxsave_core, (union savefpu *), static)
+{
+
+	init_xsave();
+	if (use_xsave)
+		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
+		    npxsave_xsaveopt : fpusave_xsave);
+	if (cpu_fxsr)
+		return (fpusave_fxsave);
+	return (fpusave_fnsave);
+}
+
+DEFINE_IFUNC(, void, fpusave, (union savefpu *), static)
+{
+
+	init_xsave();
+	if (use_xsave)
+		return (fpusave_xsave);
+	if (cpu_fxsr)
+		return (fpusave_fxsave);
+	return (fpusave_fnsave);
+}
+
 /*
  * Enable XSAVE if supported and allowed by user.
  * Calculate the xsave_mask.
@@ -325,13 +386,8 @@ npxinit_bsp1(void)
 	uint64_t xsave_mask_user;
 
 	TUNABLE_INT_FETCH("hw.lazy_fpu_switch", &lazy_fpu_switch);
-	if (cpu_fxsr && (cpu_feature2 & CPUID2_XSAVE) != 0) {
-		use_xsave = 1;
-		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
-	}
 	if (!use_xsave)
 		return;
-
 	cpuid_count(0xd, 0x0, cp);
 	xsave_mask = XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE;
 	if ((cp[0] & xsave_mask) != xsave_mask)
@@ -345,14 +401,9 @@ npxinit_bsp1(void)
 		xsave_mask &= ~XFEATURE_AVX512;
 	if ((xsave_mask & XFEATURE_MPX) != XFEATURE_MPX)
 		xsave_mask &= ~XFEATURE_MPX;
-
-	cpuid_count(0xd, 0x1, cp);
-	if ((cp[0] & CPUID_EXTSTATE_XSAVEOPT) != 0)
-		use_xsaveopt = 1;
 }
 
 /*
-
  * Calculate the fpu save area size.
  */
 static void
@@ -867,15 +918,11 @@ npxdna(void)
  * npxsave() atomically with checking fpcurthread.
  */
 void
-npxsave(addr)
-	union savefpu *addr;
+npxsave(union savefpu *addr)
 {
 
 	stop_emulating();
-	if (use_xsaveopt)
-		xsaveopt((char *)addr, xsave_mask);
-	else
-		fpusave(addr);
+	npxsave_core(addr);
 }
 
 void npxswitch(struct thread *td, struct pcb *pcb);
@@ -1097,19 +1144,6 @@ npxsetregs(struct thread *td, union savefpu *addr, char *xfpustate,
 	}
 	critical_exit();
 	return (error);
-}
-
-static void
-fpusave(addr)
-	union savefpu *addr;
-{
-	
-	if (use_xsave)
-		xsave((char *)addr, xsave_mask);
-	else if (cpu_fxsr)
-		fxsave(addr);
-	else
-		fnsave(addr);
 }
 
 static void

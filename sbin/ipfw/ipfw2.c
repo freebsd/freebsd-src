@@ -1466,19 +1466,31 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 	case O_IP_SRC_MASK:
 	case O_IP_SRC_ME:
 	case O_IP_SRC_SET:
+		if (state->flags & HAVE_SRCIP)
+			bprintf(bp, " src-ip");
+		print_ip(bp, fo, insntod(cmd, ip));
+		break;
 	case O_IP_DST:
 	case O_IP_DST_LOOKUP:
 	case O_IP_DST_MASK:
 	case O_IP_DST_ME:
 	case O_IP_DST_SET:
+		if (state->flags & HAVE_DSTIP)
+			bprintf(bp, " dst-ip");
 		print_ip(bp, fo, insntod(cmd, ip));
 		break;
 	case O_IP6_SRC:
 	case O_IP6_SRC_MASK:
 	case O_IP6_SRC_ME:
+		if (state->flags & HAVE_SRCIP)
+			bprintf(bp, " src-ip6");
+		print_ip6(bp, insntod(cmd, ip6));
+		break;
 	case O_IP6_DST:
 	case O_IP6_DST_MASK:
 	case O_IP6_DST_ME:
+		if (state->flags & HAVE_DSTIP)
+			bprintf(bp, " dst-ip6");
 		print_ip6(bp, insntod(cmd, ip6));
 		break;
 	case O_FLOW6ID:

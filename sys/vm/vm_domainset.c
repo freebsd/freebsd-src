@@ -66,6 +66,7 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
     vm_pindex_t pindex)
 {
 	struct domainset *domain;
+	struct thread *td;
 
 	/*
 	 * object policy takes precedence over thread policy.  The policies
@@ -76,8 +77,9 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
 		di->di_domain = domain;
 		di->di_iter = &obj->domain.dr_iterator;
 	} else {
-		di->di_domain = curthread->td_domain.dr_policy;
-		di->di_iter = &curthread->td_domain.dr_iterator;
+		td = curthread;
+		di->di_domain = td->td_domain.dr_policy;
+		di->di_iter = &td->td_domain.dr_iterator;
 	}
 	di->di_policy = di->di_domain->ds_policy;
 	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE) {
@@ -215,7 +217,7 @@ vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
 	*req = (di->di_flags & ~(VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) |
 	    VM_ALLOC_NOWAIT;
 	vm_domainset_iter_first(di, domain);
-	if (DOMAINSET_ISSET(*domain, &vm_min_domains))
+	if (vm_page_count_min_domain(*domain))
 		vm_domainset_iter_page(di, domain, req);
 }
 
@@ -233,8 +235,7 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *req)
 	/* If there are more domains to visit we run the iterator. */
 	while (--di->di_n != 0) {
 		vm_domainset_iter_next(di, domain);
-		if (!di->di_minskip ||
-		    !DOMAINSET_ISSET(*domain, &vm_min_domains))
+		if (!di->di_minskip || !vm_page_count_min_domain(*domain))
 			return (0);
 	}
 	if (di->di_minskip) {
@@ -269,7 +270,7 @@ vm_domainset_iter_malloc_init(struct vm_domainset_iter *di,
 	di->di_flags = *flags;
 	*flags = (di->di_flags & ~M_WAITOK) | M_NOWAIT;
 	vm_domainset_iter_first(di, domain);
-	if (DOMAINSET_ISSET(*domain, &vm_min_domains))
+	if (vm_page_count_min_domain(*domain))
 		vm_domainset_iter_malloc(di, domain, flags);
 }
 
@@ -280,8 +281,7 @@ vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
 	/* If there are more domains to visit we run the iterator. */
 	while (--di->di_n != 0) {
 		vm_domainset_iter_next(di, domain);
-		if (!di->di_minskip ||
-		    !DOMAINSET_ISSET(*domain, &vm_min_domains))
+		if (!di->di_minskip || !vm_page_count_min_domain(*domain))
 			return (0);
 	}
 
