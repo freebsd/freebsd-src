@@ -88,6 +88,7 @@ struct cpu_desc {
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
+struct cpu_desc user_cpu_desc;
 static u_int cpu_print_regs;
 #define	PRINT_ID_AA64_AFR0	0x00000001
 #define	PRINT_ID_AA64_AFR1	0x00000002
@@ -163,25 +164,76 @@ const struct cpu_implementers cpu_implementers[] = {
 	CPU_IMPLEMENTER_NONE,
 };
 
-struct mrs_safe_value {
-	u_int		CRm;
-	u_int		Op2;
-	uint64_t	value;
+#define	MRS_TYPE_MASK		0xf
+#define	MRS_INVALID		0
+#define	MRS_EXACT		1
+#define	MRS_EXACT_VAL(x)	(MRS_EXACT | ((x) << 4))
+#define	MRS_EXACT_FIELD(x)	((x) >> 4)
+#define	MRS_LOWER		2
+
+struct mrs_field {
+	bool		sign;
+	u_int		type;
+	u_int		shift;
 };
 
-static struct mrs_safe_value safe_values[] = {
+#define	MRS_FIELD(_sign, _type, _shift)					\
+	{								\
+		.sign = (_sign),					\
+		.type = (_type),					\
+		.shift = (_shift),					\
+	}
+
+#define	MRS_FIELD_END	{ .type = MRS_INVALID, }
+
+static struct mrs_field id_aa64pfr0_fields[] = {
+	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_SVE_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_RAS_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_GIC_SHIFT),
+	MRS_FIELD(true,  MRS_LOWER, ID_AA64PFR0_ADV_SIMD_SHIFT),
+	MRS_FIELD(true,  MRS_LOWER, ID_AA64PFR0_FP_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_EL3_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_EL2_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64PFR0_EL1_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64PFR0_EL0_SHIFT),
+	MRS_FIELD_END,
+};
+
+static struct mrs_field id_aa64dfr0_fields[] = {
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMS_VER_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_CTX_CMPS_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_WRPS_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_BRPS_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMU_VER_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_TRACE_VER_SHIFT),
+	MRS_FIELD(false, MRS_EXACT_VAL(0x6), ID_AA64DFR0_DEBUG_VER_SHIFT),
+	MRS_FIELD_END,
+};
+
+struct mrs_user_reg {
+	u_int		CRm;
+	u_int		Op2;
+	size_t		offset;
+	struct mrs_field *fields;
+};
+
+static struct mrs_user_reg user_regs[] = {
 	{	/* id_aa64pfr0_el1 */
 		.CRm = 4,
 		.Op2 = 0,
-		.value = ID_AA64PFR0_ADV_SIMD_NONE | ID_AA64PFR0_FP_NONE |
-		    ID_AA64PFR0_EL1_64 | ID_AA64PFR0_EL0_64,
+		.offset = __offsetof(struct cpu_desc, id_aa64pfr0),
+		.fields = id_aa64pfr0_fields,
 	},
 	{	/* id_aa64dfr0_el1 */
 		.CRm = 5,
 		.Op2 = 0,
-		.value = ID_AA64DFR0_DEBUG_VER_8,
+		.offset = __offsetof(struct cpu_desc, id_aa64dfr0),
+		.fields = id_aa64dfr0_fields,
 	},
 };
+
+#define	CPU_DESC_FIELD(desc, idx)					\
+    *(uint64_t *)((char *)&(desc) + user_regs[(idx)].offset)
 
 static int
 user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
@@ -213,9 +265,9 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	Op2 = mrs_Op2(insn);
 	value = 0;
 
-	for (i = 0; i < nitems(safe_values); i++) {
-		if (safe_values[i].CRm == CRm && safe_values[i].Op2 == Op2) {
-			value = safe_values[i].value;
+	for (i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].CRm == CRm && user_regs[i].Op2 == Op2) {
+			value = CPU_DESC_FIELD(user_cpu_desc, i);
 			break;
 		}
 	}
@@ -256,12 +308,64 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 }
 
 static void
+update_user_regs(u_int cpu)
+{
+	struct mrs_field *fields;
+	uint64_t cur, value;
+	int i, j, cur_field, new_field;
+
+	for (i = 0; i < nitems(user_regs); i++) {
+		value = CPU_DESC_FIELD(cpu_desc[cpu], i);
+		if (cpu == 0)
+			cur = value;
+		else
+			cur = CPU_DESC_FIELD(user_cpu_desc, i);
+
+		fields = user_regs[i].fields;
+		for (j = 0; fields[j].type != 0; j++) {
+			switch (fields[j].type & MRS_TYPE_MASK) {
+			case MRS_EXACT:
+				cur &= ~(0xfu << fields[j].shift);
+				cur |=
+				    (uint64_t)MRS_EXACT_FIELD(fields[j].type) <<
+				    fields[j].shift;
+				break;
+			case MRS_LOWER:
+				new_field = (value >> fields[j].shift) & 0xf;
+				cur_field = (cur >> fields[j].shift) & 0xf;
+				if ((fields[j].sign &&
+				     (int)new_field < (int)cur_field) ||
+				    (!fields[j].sign &&
+				     (u_int)new_field < (u_int)cur_field)) {
+					cur &= ~(0xfu << fields[j].shift);
+					cur |= new_field << fields[j].shift;
+				}
+				break;
+			default:
+				panic("Invalid field type: %d", fields[j].type);
+			}
+		}
+
+		CPU_DESC_FIELD(user_cpu_desc, i) = cur;
+	}
+}
+
+static void
 identify_cpu_sysinit(void *dummy __unused)
 {
 	int cpu;
 
+	/* Create a user visible cpu description with safe values */
+	memset(&user_cpu_desc, 0, sizeof(user_cpu_desc));
+	/* Safe values for these registers */
+	user_cpu_desc.id_aa64pfr0 = ID_AA64PFR0_ADV_SIMD_NONE |
+	    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 | ID_AA64PFR0_EL0_64;
+	user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DEBUG_VER_8;
+
+
 	CPU_FOREACH(cpu) {
 		print_cpu_features(cpu);
+		update_user_regs(cpu);
 	}
 
 	install_undef_handler(true, user_mrs_handler);
