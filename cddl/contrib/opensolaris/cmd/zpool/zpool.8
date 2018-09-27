@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 08, 2017
+.Dd April 27, 2018
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -1548,9 +1548,11 @@ section for a list of valid properties. The default list is
 .Sy size ,
 .Sy used ,
 .Sy available ,
-.Sy fragmentation ,
+.Sy checkpoint ,
 .Sy expandsize ,
+.Sy fragmentation ,
 .Sy capacity  ,
+.Sy dedupratio ,
 .Sy health ,
 .Sy altroot .
 .It Fl T Cm d Ns | Ns Cm u
