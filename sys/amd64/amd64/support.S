@@ -101,6 +101,100 @@ ENTRY(sse2_pagezero)
 END(sse2_pagezero)
 
 /*
+ * memcmpy(b1, b2, len)
+ *	   rdi,rsi,len
+ */
+ENTRY(memcmp)
+	PUSH_FRAME_POINTER
+	cmpq	$16,%rdx
+	jae	5f
+1:
+	testq	%rdx,%rdx
+	je	3f
+	xorl	%ecx,%ecx
+2:
+	movzbl	(%rdi,%rcx,1),%eax
+	movzbl	(%rsi,%rcx,1),%r8d
+	cmpb	%r8b,%al
+	jne	4f
+	addq    $1,%rcx
+	cmpq    %rcx,%rdx
+	jz	3f
+	movzbl	(%rdi,%rcx,1),%eax
+	movzbl	(%rsi,%rcx,1),%r8d
+	cmpb	%r8b,%al
+	jne	4f
+	addq	$1,%rcx
+	cmpq	%rcx,%rdx
+	jz	3f
+	movzbl	(%rdi,%rcx,1),%eax
+	movzbl	(%rsi,%rcx,1),%r8d
+	cmpb	%r8b,%al
+	jne	4f
+	addq	$1,%rcx
+	cmpq	%rcx,%rdx
+	jz	3f
+	movzbl	(%rdi,%rcx,1),%eax
+	movzbl	(%rsi,%rcx,1),%r8d
+	cmpb	%r8b,%al
+	jne	4f
+	addq	$1,%rcx
+	cmpq	%rcx,%rdx
+	jne	2b
+3:
+	xorl	%eax,%eax
+	POP_FRAME_POINTER
+	ret
+4:
+	subl	%r8d,%eax
+	POP_FRAME_POINTER
+	ret
+5:
+	cmpq	$32,%rdx
+	jae	7f
+6:
+	/*
+	 * 8 bytes
+	 */
+	movq    (%rdi),%r8
+	movq    (%rsi),%r9
+	cmpq    %r8,%r9
+	jne	1b
+	leaq	8(%rdi),%rdi
+	leaq	8(%rsi),%rsi
+	subq	$8,%rdx
+	cmpq	$8,%rdx
+	jae	6b
+	jl	1b
+	jmp	3b
+7:
+	/*
+	 * 32 bytes
+	 */
+	movq    (%rsi),%r8
+	movq    8(%rsi),%r9
+	subq    (%rdi),%r8
+	subq    8(%rdi),%r9
+	or	%r8,%r9
+	jnz	1b
+
+	movq    16(%rsi),%r8
+	movq    24(%rsi),%r9
+	subq    16(%rdi),%r8
+	subq    24(%rdi),%r9
+	or	%r8,%r9
+	jnz	1b
+
+	leaq    32(%rdi),%rdi
+	leaq    32(%rsi),%rsi
+	subq    $32,%rdx
+	cmpq    $32,%rdx
+	jae	7b
+	jnz	1b
+	jmp	3b
+END(memcmp)
+
+/*
  * memmove(dst, src, cnt)
  *         rdi, rsi, rdx
  * Adapted from bcopy written by:
