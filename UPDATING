@@ -17,6 +17,13 @@ stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
 
+20180927	p13	FreeBSD-EN-18:11.listen
+			FreeBSD-EN-18:12.mem
+
+	Fix DoS in listen syscall over IPv6 socket. [EN-18:11.listen]
+
+	Fix small kernel memory disclosures. [EN-18:12.mem]
+
 20180912	p12	FreeBSD-SA-18:12.elf
 
 	Fix improper elf header parsing.

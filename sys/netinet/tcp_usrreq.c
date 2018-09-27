@@ -328,6 +328,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	struct sockaddr_in6 *sin6p;
+	u_char vflagsav;
 
 	sin6p = (struct sockaddr_in6 *)nam;
 	if (nam->sa_len != sizeof (*sin6p))
@@ -344,6 +345,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_bind: inp == NULL"));
 	INP_WLOCK(inp);
+	vflagsav = inp->inp_vflag;
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = EINVAL;
 		goto out;
@@ -373,6 +375,8 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = in6_pcbbind(inp, nam, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
+	if (error != 0)
+		inp->inp_vflag = vflagsav;
 	TCPDEBUG2(PRU_BIND);
 	INP_WUNLOCK(inp);
 	return (error);
@@ -434,6 +438,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
+	u_char vflagsav;
 
 	TCPDEBUG0;
 	inp = sotoinpcb(so);
@@ -443,6 +448,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 		error = EINVAL;
 		goto out;
 	}
+	vflagsav = inp->inp_vflag;
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
 	SOCK_LOCK(so);
@@ -469,6 +475,9 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	if (tp->t_flags & TF_FASTOPEN)
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
 #endif
+	if (error != 0)
+		inp->inp_vflag = vflagsav;
+
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	INP_WUNLOCK(inp);
@@ -543,6 +552,8 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	struct sockaddr_in6 *sin6p;
+	u_int8_t incflagsav;
+	u_char vflagsav;
 
 	TCPDEBUG0;
 
@@ -559,6 +570,8 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
+	vflagsav = inp->inp_vflag;
+	incflagsav = inp->inp_inc.inc_flags;
 	if (inp->inp_flags & INP_TIMEWAIT) {
 		error = EADDRINUSE;
 		goto out;
@@ -584,11 +597,11 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		}
 
 		in6_sin6_2_sin(&sin, sin6p);
-		inp->inp_vflag |= INP_IPV4;
-		inp->inp_vflag &= ~INP_IPV6;
 		if ((error = prison_remote_ip4(td->td_ucred,
 		    &sin.sin_addr)) != 0)
 			goto out;
+		inp->inp_vflag |= INP_IPV4;
+		inp->inp_vflag &= ~INP_IPV6;
 		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
 			goto out;
 #ifdef TCP_OFFLOAD
@@ -601,11 +614,11 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 	}
 #endif
+	if ((error = prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr)) != 0)
+		goto out;
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_flags |= INC_ISIPV6;
-	if ((error = prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr)) != 0)
-		goto out;
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
 		goto out;
 #ifdef TCP_OFFLOAD
@@ -618,6 +631,15 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = tcp_output(tp);
 
 out:
+	/*
+	 * If the implicit bind in the connect call fails, restore
+	 * the flags we modified.
+	 */
+	if (error != 0 && inp->inp_lport == 0) {
+		inp->inp_vflag = vflagsav;
+		inp->inp_inc.inc_flags = incflagsav;
+	}
+
 	TCPDEBUG2(PRU_CONNECT);
 	INP_WUNLOCK(inp);
 	return (error);
