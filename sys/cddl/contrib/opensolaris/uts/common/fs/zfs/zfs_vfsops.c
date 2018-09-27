@@ -972,6 +972,17 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	return (0);
 }
 
+#if defined(__FreeBSD__)
+taskq_t *zfsvfs_taskq;
+
+static void
+zfsvfs_task_unlinked_drain(void *context, int pending __unused)
+{
+
+	zfs_unlinked_drain((zfsvfs_t *)context);
+}
+#endif
+
 int
 zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 {
@@ -1023,6 +1034,10 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 	mutex_init(&zfsvfs->z_lock, NULL, MUTEX_DEFAULT, NULL);
 	list_create(&zfsvfs->z_all_znodes, sizeof (znode_t),
 	    offsetof(znode_t, z_link_node));
+#if defined(__FreeBSD__)
+	TASK_INIT(&zfsvfs->z_unlinked_drain_task, 0,
+	    zfsvfs_task_unlinked_drain, zfsvfs);
+#endif
 #ifdef DIAGNOSTIC
 	rrm_init(&zfsvfs->z_teardown_lock, B_TRUE);
 #else
@@ -2018,6 +2033,11 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	}
 #endif
 
+	while (taskqueue_cancel(zfsvfs_taskq->tq_queue,
+	    &zfsvfs->z_unlinked_drain_task, NULL) != 0)
+		taskqueue_drain(zfsvfs_taskq->tq_queue,
+		    &zfsvfs->z_unlinked_drain_task);
+
 	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
 	os = zfsvfs->z_os;
 
@@ -2382,11 +2402,17 @@ zfs_init(void)
 	zfs_vnodes_adjust();
 
 	dmu_objset_register_type(DMU_OST_ZFS, zfs_space_delta_cb);
+#if defined(__FreeBSD__)
+	zfsvfs_taskq = taskq_create("zfsvfs", 1, minclsyspri, 0, 0, 0);
+#endif
 }
 
 void
 zfs_fini(void)
 {
+#if defined(__FreeBSD__)
+	taskq_destroy(zfsvfs_taskq);
+#endif
 	zfsctl_fini();
 	zfs_znode_fini();
 	zfs_vnodes_adjust_back();
