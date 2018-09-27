@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/undefined.h>
 
 static int ident_lock;
 
@@ -162,6 +163,98 @@ const struct cpu_implementers cpu_implementers[] = {
 	CPU_IMPLEMENTER_NONE,
 };
 
+struct mrs_safe_value {
+	u_int		CRm;
+	u_int		Op2;
+	uint64_t	value;
+};
+
+static struct mrs_safe_value safe_values[] = {
+	{	/* id_aa64pfr0_el1 */
+		.CRm = 4,
+		.Op2 = 0,
+		.value = ID_AA64PFR0_ADV_SIMD_NONE | ID_AA64PFR0_FP_NONE |
+		    ID_AA64PFR0_EL1_64 | ID_AA64PFR0_EL0_64,
+	},
+	{	/* id_aa64dfr0_el1 */
+		.CRm = 5,
+		.Op2 = 0,
+		.value = ID_AA64DFR0_DEBUG_VER_8,
+	},
+};
+
+static int
+user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
+    uint32_t esr)
+{
+	uint64_t value;
+	int CRm, Op2, i, reg;
+
+	if ((insn & MRS_MASK) != MRS_VALUE)
+		return (0);
+
+	/*
+	 * We only emulate Op0 == 3, Op1 == 0, CRn == 0, CRm == {0, 4-7}.
+	 * These are in the EL1 CPU identification space.
+	 * CRm == 0 holds MIDR_EL1, MPIDR_EL1, and REVID_EL1.
+	 * CRm == {4-7} holds the ID_AA64 registers.
+	 *
+	 * For full details see the ARMv8 ARM (ARM DDI 0487C.a)
+	 * Table D9-2 System instruction encodings for non-Debug System
+	 * register accesses.
+	 */
+	if (mrs_Op0(insn) != 3 || mrs_Op1(insn) != 0 || mrs_CRn(insn) != 0)
+		return (0);
+
+	CRm = mrs_CRm(insn);
+	if (CRm > 7 || (CRm < 4 && CRm != 0))
+		return (0);
+
+	Op2 = mrs_Op2(insn);
+	value = 0;
+
+	for (i = 0; i < nitems(safe_values); i++) {
+		if (safe_values[i].CRm == CRm && safe_values[i].Op2 == Op2) {
+			value = safe_values[i].value;
+			break;
+		}
+	}
+
+	if (CRm == 0) {
+		switch (Op2) {
+		case 0:
+			value = READ_SPECIALREG(midr_el1);
+			break;
+		case 5:
+			value = READ_SPECIALREG(mpidr_el1);
+			break;
+		case 6:
+			value = READ_SPECIALREG(revidr_el1);
+			break;
+		default:
+			return (0);
+		}
+	}
+
+	/*
+	 * We will handle this instruction, move to the next so we
+	 * don't trap here again.
+	 */
+	frame->tf_elr += INSN_SIZE;
+
+	reg = MRS_REGISTER(insn);
+	/* If reg is 31 then write to xzr, i.e. do nothing */
+	if (reg == 31)
+		return (1);
+
+	if (reg < nitems(frame->tf_x))
+		frame->tf_x[reg] = value;
+	else if (reg == 30)
+		frame->tf_lr = value;
+
+	return (1);
+}
+
 static void
 identify_cpu_sysinit(void *dummy __unused)
 {
@@ -170,6 +263,8 @@ identify_cpu_sysinit(void *dummy __unused)
 	CPU_FOREACH(cpu) {
 		print_cpu_features(cpu);
 	}
+
+	install_undef_handler(true, user_mrs_handler);
 }
 SYSINIT(idenrity_cpu, SI_SUB_SMP, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
 
