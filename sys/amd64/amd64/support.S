@@ -1122,34 +1122,33 @@ ENTRY(copystr)
 	PUSH_FRAME_POINTER
 	movq	%rdx,%r8			/* %r8 = maxlen */
 
-	xchgq	%rdi,%rsi
-	incq	%rdx
+	incq    %rdx
 1:
 	decq	%rdx
 	jz	4f
-	lodsb
-	stosb
-	orb	%al,%al
+	movb	(%rdi),%al
+	movb	%al,(%rsi)
+	incq	%rsi
+	incq	%rdi
+	testb	%al,%al
 	jnz	1b
 
 	/* Success -- 0 byte reached */
 	decq	%rdx
 	xorl	%eax,%eax
-	jmp	6f
-4:
-	/* rdx is zero -- return ENAMETOOLONG */
-	movq	$ENAMETOOLONG,%rax
-
-6:
-
+2:
 	testq	%rcx,%rcx
-	jz	7f
+	jz      3f
 	/* set *lencopied and return %rax */
 	subq	%rdx,%r8
 	movq	%r8,(%rcx)
-7:
+3:
 	POP_FRAME_POINTER
 	ret
+4:
+	/* rdx is zero -- return ENAMETOOLONG */
+	movl    $ENAMETOOLONG,%eax
+	jmp	2b
 END(copystr)
 
 /*
