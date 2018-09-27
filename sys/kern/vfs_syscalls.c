@@ -600,6 +600,8 @@ freebsd4_getfsstat(struct thread *td, struct freebsd4_getfsstat_args *uap)
 	size = count * sizeof(struct statfs);
 	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE,
 	    uap->mode);
+	if (buf == NULL)
+		return (EINVAL);
 	td->td_retval[0] = count;
 	if (size != 0) {
 		sp = buf;
