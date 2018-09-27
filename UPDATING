@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180927	p15	FreeBSD-EN-18:09.ip
+			FreeBSD-EN-18:10.syscall
+			FreeBSD-EN-18:11.listen
+			FreeBSD-EN-18:12.mem
+
+	Fix regression in IPv6 fragment reassembly. [EN-18:09.ip]
+
+	Fix NULL pointer dereference in freebsd4_getfsstat. [EN-18:10.syscall]
+
+	Fix DoS in listen syscall over IPv6 socket. [EN-18:11.listen]
+
+	Fix small kernel memory disclosures. [EN-18:12.mem]
+
 20180912	p14	FreeBSD-SA-18:12.elf
 			FreeBSD-EN-18:08.lazyfpu
 
