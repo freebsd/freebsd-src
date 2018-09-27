@@ -281,6 +281,7 @@ zfs_unlinked_drain(zfsvfs_t *zfsvfs)
 	zap_attribute_t zap;
 	dmu_object_info_t doi;
 	znode_t		*zp;
+	dmu_tx_t	*tx;
 	int		error;
 
 	/*
@@ -317,6 +318,26 @@ zfs_unlinked_drain(zfsvfs_t *zfsvfs)
 			continue;
 
 		vn_lock(ZTOV(zp), LK_EXCLUSIVE | LK_RETRY);
+#if defined(__FreeBSD__)
+		/*
+		 * Due to changes in zfs_rmnode we need to make sure the
+		 * link count is set to zero here.
+		 */
+		if (zp->z_links != 0) {
+			tx = dmu_tx_create(zfsvfs->z_os);
+			dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
+			error = dmu_tx_assign(tx, TXG_WAIT);
+			if (error != 0) {
+				dmu_tx_abort(tx);
+				vput(ZTOV(zp));
+				continue;
+			}
+			zp->z_links = 0;
+			VERIFY0(sa_update(zp->z_sa_hdl, SA_ZPL_LINKS(zfsvfs),
+			    &zp->z_links, sizeof (zp->z_links), tx));
+			dmu_tx_commit(tx);
+		}
+#endif
 		zp->z_unlinked = B_TRUE;
 		vput(ZTOV(zp));
 	}
@@ -388,12 +409,15 @@ zfs_purgedir(znode_t *dzp)
 	return (skipped);
 }
 
+#if defined(__FreeBSD__)
+extern taskq_t *zfsvfs_taskq;
+#endif
+
 void
 zfs_rmnode(znode_t *zp)
 {
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	objset_t	*os = zfsvfs->z_os;
-	znode_t		*xzp = NULL;
 	dmu_tx_t	*tx;
 	uint64_t	acl_obj;
 	uint64_t	xattr_obj;
@@ -443,11 +467,8 @@ zfs_rmnode(znode_t *zp)
 	 */
 	error = sa_lookup(zp->z_sa_hdl, SA_ZPL_XATTR(zfsvfs),
 	    &xattr_obj, sizeof (xattr_obj));
-	if (error == 0 && xattr_obj) {
-		error = zfs_zget(zfsvfs, xattr_obj, &xzp);
-		ASSERT3S(error, ==, 0);
-		vn_lock(ZTOV(xzp), LK_EXCLUSIVE | LK_RETRY);
-	}
+	if (error)
+		xattr_obj = 0;
 
 	acl_obj = zfs_external_acl(zp);
 
@@ -457,10 +478,8 @@ zfs_rmnode(znode_t *zp)
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_free(tx, zp->z_id, 0, DMU_OBJECT_END);
 	dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
-	if (xzp) {
+	if (xattr_obj)
 		dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, TRUE, NULL);
-		dmu_tx_hold_sa(tx, xzp->z_sa_hdl, B_FALSE);
-	}
 	if (acl_obj)
 		dmu_tx_hold_free(tx, acl_obj, 0, DMU_OBJECT_END);
 
@@ -475,9 +494,25 @@ zfs_rmnode(znode_t *zp)
 		dmu_tx_abort(tx);
 		zfs_znode_dmu_fini(zp);
 		zfs_znode_free(zp);
-		goto out;
+		return;
 	}
 
+#if defined(__FreeBSD__)
+	/*
+	 * FreeBSD's implemention of zfs_zget requires a vnode to back it.
+	 * This means that we could end up calling into getnewvnode while
+	 * calling zfs_rmnode as a result of a prior call to getnewvnode
+	 * trying to clear vnodes out of the cache. If this repeats we can
+	 * recurse enough that we overflow our stack. To avoid this, we
+	 * avoid calling zfs_zget on the xattr znode and instead simply add
+	 * it to the unlinked set and schedule a call to zfs_unlinked_drain.
+	 */
+	if (xattr_obj) {
+		/* Add extended attribute directory to the unlinked set. */
+		VERIFY3U(0, ==,
+		    zap_add_int(os, zfsvfs->z_unlinkedobj, xattr_obj, tx));
+	}
+#else
 	if (xzp) {
 		ASSERT(error == 0);
 		xzp->z_unlinked = B_TRUE;	/* mark xzp for deletion */
@@ -486,6 +521,7 @@ zfs_rmnode(znode_t *zp)
 		    &xzp->z_links, sizeof (xzp->z_links), tx));
 		zfs_unlinked_add(xzp, tx);
 	}
+#endif
 
 	/* Remove this znode from the unlinked set */
 	VERIFY3U(0, ==,
@@ -494,9 +530,18 @@ zfs_rmnode(znode_t *zp)
 	zfs_znode_delete(zp, tx);
 
 	dmu_tx_commit(tx);
-out:
-	if (xzp)
-		vput(ZTOV(xzp));
+
+#if defined(__FreeBSD__)
+	if (xattr_obj) {
+		/*
+		 * We're using the FreeBSD taskqueue API here instead of
+		 * the Solaris taskq API since the FreeBSD API allows for a
+		 * task to be enqueued multiple times but executed once.
+		 */
+		taskqueue_enqueue(zfsvfs_taskq->tq_queue,
+		    &zfsvfs->z_unlinked_drain_task);
+	}
+#endif
 }
 
 static uint64_t
