@@ -1011,96 +1011,86 @@ fusufault:
  *	EFAULT on protection violations. If lencopied is non-zero,
  *	return the actual length in *lencopied.
  */
-ENTRY(copyinstr_nosmap)
+.macro COPYINSTR smap
 	PUSH_FRAME_POINTER
 	movq	%rdx,%r8			/* %r8 = maxlen */
-	movq	%rcx,%r9			/* %r9 = *len */
-	xchgq	%rdi,%rsi			/* %rdi = from, %rsi = to */
-	movq	PCPU(CURPCB),%rcx
-	movq	$cpystrflt,PCB_ONFAULT(%rcx)
+	movq	PCPU(CURPCB),%r9
+	movq	$cpystrflt,PCB_ONFAULT(%r9)
 
 	movq	$VM_MAXUSER_ADDRESS,%rax
 
 	/* make sure 'from' is within bounds */
-	subq	%rsi,%rax
+	subq	%rdi,%rax
 	jbe	cpystrflt
+
+	SMAP_DISABLE \smap
 
 	/* restrict maxlen to <= VM_MAXUSER_ADDRESS-from */
 	cmpq	%rdx,%rax
-	jae	1f
-	movq	%rax,%rdx
-	movq	%rax,%r8
+	jb	8f
 1:
 	incq	%rdx
-
 2:
 	decq	%rdx
+.if \smap == 0
 	jz	copyinstr_toolong
-
-	lodsb
-	stosb
-	orb	%al,%al
-	jnz	2b
-
-	jmp	copyinstr_succ
-END(copyinstr_nosmap)
-
-ENTRY(copyinstr_smap)
-	PUSH_FRAME_POINTER
-	movq	%rdx,%r8			/* %r8 = maxlen */
-	movq	%rcx,%r9			/* %r9 = *len */
-	xchgq	%rdi,%rsi			/* %rdi = from, %rsi = to */
-	movq	PCPU(CURPCB),%rcx
-	movq	$cpystrflt,PCB_ONFAULT(%rcx)
-
-	movq	$VM_MAXUSER_ADDRESS,%rax
-
-	/* make sure 'from' is within bounds */
-	subq	%rsi,%rax
-	jbe	cpystrflt
-
-	stac
-
-	/* restrict maxlen to <= VM_MAXUSER_ADDRESS-from */
-	cmpq	%rdx,%rax
-	jae	1f
-	movq	%rax,%rdx
-	movq	%rax,%r8
-1:
-	incq	%rdx
-
-2:
-	decq	%rdx
+.else
 	jz	copyinstr_toolong_smap
+.endif
 
-	lodsb
-	stosb
-	orb	%al,%al
+	movb	(%rdi),%al
+	movb	%al,(%rsi)
+	incq	%rsi
+	incq	%rdi
+	testb	%al,%al
 	jnz	2b
 
-	clac
+	SMAP_ENABLE \smap
 
-copyinstr_succ:
 	/* Success -- 0 byte reached */
 	decq	%rdx
 	xorl	%eax,%eax
 
+	/* set *lencopied and return %eax */
+	movq	%rax,PCB_ONFAULT(%r9)
+
+	testq	%rcx,%rcx
+	jz	3f
+	subq	%rdx,%r8
+	movq	%r8,(%rcx)
+3:
+	POP_FRAME_POINTER
+	ret
+	ALIGN_TEXT
+8:
+	movq	%rax,%rdx
+	movq	%rax,%r8
+	jmp 1b
+
+.endm
+
+ENTRY(copyinstr_nosmap)
+	COPYINSTR smap=0
+END(copyinstr_nosmap)
+
+ENTRY(copyinstr_smap)
+	COPYINSTR smap=1
+END(copyinstr_smap)
+
+cpystrflt:
+	/* Fault entry clears PSL.AC */
+	movl	$EFAULT,%eax
 cpystrflt_x:
 	/* set *lencopied and return %eax */
-	movq	PCPU(CURPCB),%rcx
-	movq	$0,PCB_ONFAULT(%rcx)
+	movq	$0,PCB_ONFAULT(%r9)
 
-	testq	%r9,%r9
+	testq	%rcx,%rcx
 	jz	1f
 	subq	%rdx,%r8
-	movq	%r8,(%r9)
+	movq	%r8,(%rcx)
 1:
 	POP_FRAME_POINTER
 	ret
-	/* Fault entry clears PSL.AC */
-cpystrflt:
-	movq	$EFAULT,%rax
-	jmp	cpystrflt_x
 
 copyinstr_toolong_smap:
 	clac
@@ -1109,10 +1099,8 @@ copyinstr_toolong:
 	movq	$VM_MAXUSER_ADDRESS,%rax
 	cmpq	%rax,%rsi
 	jae	cpystrflt
-	movq	$ENAMETOOLONG,%rax
+	movl	$ENAMETOOLONG,%eax
 	jmp	cpystrflt_x
-
-END(copyinstr_smap)
 
 /*
  * copystr(from, to, maxlen, int *lencopied)
