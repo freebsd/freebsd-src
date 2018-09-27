@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd September 20, 2018
+.Dd September 27, 2018
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -24,7 +24,7 @@ These variables must be set before loading the driver, either via
 or through the use of
 .Xr kenv 1 .
 They are all prefixed by
-.Va dev.X.Y.iflib.
+.Va dev.X.Y.iflib\&.
 where X is the driver name, and Y is the instance number.
 .Bl -tag -width indent
 .It Va override_nrxds
@@ -153,7 +153,8 @@ The transmit queue consumer index of the oldest descriptor to reclaim.
 The transmit queue producer index where the next descriptor to transmit will
 be inserted.
 .It Va no_tx_dma_setup
-Number of times DMA mapping a transmit mbuf failed for reasons other than EFBIG.
+Number of times DMA mapping a transmit mbuf failed for reasons other than
+.Er EFBIG .
 .It Va txd_encap_efbig
 Number of times DMA mapping a transmit mbuf failed due to requiring too many
 segments.
@@ -168,12 +169,18 @@ Number of times both
 .Xr m_collapse 9
 and
 .Xr m_defrag 9
-failed after an EFBIG error
+failed after an
+.Er EFBIG
+error
 result from DMA mapping a transmit mbuf.
 .It Va m_pullups
-Number of times m_pullup was called attempting to parse a header.
+Number of times
+.Xr m_pullup 9
+was called attempting to parse a header.
 .It Va mbuf_defrag
-Number of times m_defrag was called.
+Number of times
+.Xr m_defrag 9
+was called.
 .El
 .It Va rxqZ
 The following are repeated for each receive queue, where Z is the
@@ -187,9 +194,11 @@ Current receive ring consumer index.
 Current receive ring producer index.
 .El
 .El
+.Pp
 Additional OIDs useful for driver and iflib development are exposed when the
 INVARIANTS and/or WITNESS options are enabled in the kernel.
 .Sh SEE ALSO
 .Xr iflib 9
 .Sh HISTORY
-This framework was introduced in 11.0.
+This framework was introduced in
+.Fx 11.0 .
