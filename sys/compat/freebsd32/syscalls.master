@@ -343,10 +343,10 @@
 181	AUE_SETGID	NOPROTO	{ int setgid(gid_t gid); }
 182	AUE_SETEGID	NOPROTO	{ int setegid(gid_t egid); }
 183	AUE_SETEUID	NOPROTO	{ int seteuid(uid_t euid); }
-184	AUE_NULL	UNIMPL	lfs_bmapv
-185	AUE_NULL	UNIMPL	lfs_markv
-186	AUE_NULL	UNIMPL	lfs_segclean
-187	AUE_NULL	UNIMPL	lfs_segwait
+184	AUE_NULL	OBSOL	lfs_bmapv
+185	AUE_NULL	OBSOL	lfs_markv
+186	AUE_NULL	OBSOL	lfs_segclean
+187	AUE_NULL	OBSOL	lfs_segwait
 188	AUE_STAT	COMPAT11 { int freebsd32_stat(char *path, \
 				    struct freebsd11_stat32 *ub); }
 189	AUE_FSTAT	COMPAT11 { int freebsd32_fstat(int fd, \
@@ -414,7 +414,7 @@
 				    int semflg); }
 222	AUE_SEMOP	NOSTD|NOPROTO	{ int semop(int semid, \
 				    struct sembuf *sops, u_int nsops); }
-223	AUE_NULL	UNIMPL	semconfig
+223	AUE_NULL	OBSOL	semconfig
 224	AUE_MSGCTL	COMPAT7|NOSTD	{ int freebsd32_msgctl( \
 				    int msqid, int cmd, \
 				    struct msqid_ds32_old *buf); }
@@ -662,12 +662,12 @@
 				    struct kevent32_freebsd11 *eventlist, \
 				    int nevents, \
 				    const struct timespec32 *timeout); }
-364	AUE_NULL	UNIMPL	__cap_get_proc
-365	AUE_NULL	UNIMPL	__cap_set_proc
-366	AUE_NULL	UNIMPL	__cap_get_fd
-367	AUE_NULL	UNIMPL	__cap_get_file
-368	AUE_NULL	UNIMPL	__cap_set_fd
-369	AUE_NULL	UNIMPL	__cap_set_file
+364	AUE_NULL	OBSOL	__cap_get_proc
+365	AUE_NULL	OBSOL	__cap_set_proc
+366	AUE_NULL	OBSOL	__cap_get_fd
+367	AUE_NULL	OBSOL	__cap_get_file
+368	AUE_NULL	OBSOL	__cap_set_fd
+369	AUE_NULL	OBSOL	__cap_set_file
 370	AUE_NULL	UNIMPL	nosys
 371	AUE_EXTATTR_SET_FD	NOPROTO	{ ssize_t extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
@@ -679,16 +679,16 @@
 				    int attrnamespace, \
 				    const char *attrname); }
 374	AUE_SETUGID	NOPROTO	{ int __setugid(int flag); }
-375	AUE_NULL	UNIMPL	nfsclnt
+375	AUE_NULL	OBSOL	nfsclnt
 376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int amode); }
 377	AUE_NULL	UNIMPL	afs_syscall
 378	AUE_NMOUNT	STD	{ int freebsd32_nmount(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
-379	AUE_NULL	UNIMPL	kse_exit
-380	AUE_NULL	UNIMPL	kse_wakeup
-381	AUE_NULL	UNIMPL	kse_create
-382	AUE_NULL	UNIMPL	kse_thr_interrupt
-383	AUE_NULL	UNIMPL	kse_release
+379	AUE_NULL	OBSOL	kse_exit
+380	AUE_NULL	OBSOL	kse_wakeup
+381	AUE_NULL	OBSOL	kse_create
+382	AUE_NULL	OBSOL	kse_thr_interrupt
+383	AUE_NULL	OBSOL	kse_release
 384	AUE_NULL	UNIMPL	__mac_get_proc
 385	AUE_NULL	UNIMPL	__mac_set_proc
 386	AUE_NULL	UNIMPL	__mac_get_fd
@@ -787,7 +787,7 @@
 439	AUE_EXTATTR_LIST_LINK	NOPROTO	{ ssize_t extattr_list_link( \
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
-440	AUE_NULL	UNIMPL	kse_switchin
+440	AUE_NULL	OBSOL	kse_switchin
 441	AUE_SEMWAIT	NOSTD	{ int freebsd32_ksem_timedwait(semid_t id, \
 				    const struct timespec32 *abstime); }
 442	AUE_NULL	STD	{ int freebsd32_thr_suspend( \
@@ -1074,8 +1074,8 @@
 547	AUE_FUTIMESAT	STD	{ int freebsd32_utimensat(int fd, \
 				    char *path, \
 				    struct timespec *times, int flag); }
-548	AUE_NULL	UNIMPL	numa_getaffinity
-549	AUE_NULL	UNIMPL	numa_setaffinity
+548	AUE_NULL	OBSOL	numa_getaffinity
+549	AUE_NULL	OBSOL	numa_setaffinity
 550	AUE_FSYNC	NOPROTO	{ int fdatasync(int fd); }
 551	AUE_FSTAT	STD	{ int freebsd32_fstat(int fd, \
 				    struct stat32 *ub); }
