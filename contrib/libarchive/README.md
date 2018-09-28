@@ -78,7 +78,6 @@ Currently, the library automatically detects and reads the following fomats:
   * POSIX pax interchange format
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
-  * POSIX octet-oriented cpio
   * Binary cpio (big-endian or little-endian)
   * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries, including support for encrypted Zip archives)
