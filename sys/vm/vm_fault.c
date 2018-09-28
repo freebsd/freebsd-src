@@ -1633,16 +1633,16 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		dst_object->flags |= OBJ_COLORED;
 		dst_object->pg_color = atop(dst_entry->start);
 #endif
+		dst_object->domain = src_object->domain;
+		dst_object->charge = dst_entry->end - dst_entry->start;
 	}
 
 	VM_OBJECT_WLOCK(dst_object);
 	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
 	if (src_object != dst_object) {
-		dst_object->domain = src_object->domain;
 		dst_entry->object.vm_object = dst_object;
 		dst_entry->offset = 0;
-		dst_object->charge = dst_entry->end - dst_entry->start;
 	}
 	if (fork_charge != NULL) {
 		KASSERT(dst_entry->cred == NULL,
