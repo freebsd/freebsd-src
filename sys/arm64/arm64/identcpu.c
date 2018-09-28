@@ -186,6 +186,32 @@ struct mrs_field {
 
 #define	MRS_FIELD_END	{ .type = MRS_INVALID, }
 
+static struct mrs_field id_aa64isar0_fields[] = {
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_DP_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SM4_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SM3_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA3_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_RDM_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_ATOMIC_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_CRC32_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA2_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA1_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_AES_SHIFT),
+	MRS_FIELD_END,
+};
+
+static struct mrs_field id_aa64isar1_fields[] = {
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_GPI_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_GPA_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_LRCPC_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_FCMA_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_JSCVT_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_API_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_APA_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR1_DPB_SHIFT),
+	MRS_FIELD_END,
+};
+
 static struct mrs_field id_aa64pfr0_fields[] = {
 	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_SVE_SHIFT),
 	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_RAS_SHIFT),
@@ -218,6 +244,18 @@ struct mrs_user_reg {
 };
 
 static struct mrs_user_reg user_regs[] = {
+	{	/* id_aa64isar0_el1 */
+		.CRm = 6,
+		.Op2 = 0,
+		.offset = __offsetof(struct cpu_desc, id_aa64isar0),
+		.fields = id_aa64isar0_fields,
+	},
+	{	/* id_aa64isar1_el1 */
+		.CRm = 6,
+		.Op2 = 1,
+		.offset = __offsetof(struct cpu_desc, id_aa64isar1),
+		.fields = id_aa64isar1_fields,
+	},
 	{	/* id_aa64pfr0_el1 */
 		.CRm = 4,
 		.Op2 = 0,
