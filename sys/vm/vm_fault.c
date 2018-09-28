@@ -1739,6 +1739,13 @@ again:
 			dst_m = src_m;
 			if (vm_page_sleep_if_busy(dst_m, "fltupg"))
 				goto again;
+			if (dst_m->pindex >= dst_object->size)
+				/*
+				 * We are upgrading.  Index can occur
+				 * out of bounds if the object type is
+				 * vnode and the file was truncated.
+				 */
+				break;
 			vm_page_xbusy(dst_m);
 			KASSERT(dst_m->valid == VM_PAGE_BITS_ALL,
 			    ("invalid dst page %p", dst_m));
