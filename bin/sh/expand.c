@@ -896,7 +896,7 @@ reprocess(int startloc, int flag, int subtype, int quoted,
 
 	startp = stackblock() + startloc;
 	len = expdest - startp;
-	if (len >= SIZE_MAX / 2)
+	if (len >= SIZE_MAX / 2 || len > PTRDIFF_MAX)
 		abort();
 	INTOFF;
 	if (len >= buflen) {
@@ -912,7 +912,7 @@ reprocess(int startloc, int flag, int subtype, int quoted,
 	INTON;
 	memcpy(buf, startp, len);
 	buf[len] = '\0';
-	STADJUST(-len, expdest);
+	STADJUST(-(ptrdiff_t)len, expdest);
 	for (zpos = 0;;) {
 		zlen = strlen(buf + zpos);
 		strtodest(buf + zpos, flag, subtype, quoted, dst);
