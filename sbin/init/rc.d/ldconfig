@@ -41,7 +41,7 @@ ldconfig_start()
 		${ldconfig} -elf ${_ins} ${_LDC}
 
 		case `sysctl -n hw.machine_arch` in
-		amd64|powerpc64)
+		amd64|mips64|powerpc64)
 			for i in ${ldconfig_local32_dirs}; do
 				if [ -d "${i}" ]; then
 					_files=`find ${i} -type f`
