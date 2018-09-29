@@ -1456,6 +1456,7 @@ pmap_force_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
+#ifdef DEV_APIC
 	/*
 	 * XXX: Some CPUs fault, hang, or trash the local APIC
 	 * registers if we use CLFLUSH on the local APIC
@@ -1464,6 +1465,7 @@ pmap_force_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 	 */
 	if (pmap_kextract(sva) == lapic_paddr)
 		return;
+#endif
 
 	if ((cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0) {
 		/*
