@@ -64,6 +64,8 @@
 #include <sys/dmu_objset.h>
 #include <sys/spa_boot.h>
 #include <sys/jail.h>
+#include <ufs/ufs/quota.h>
+
 #include "zfs_comutil.h"
 
 struct mtx zfs_debug_mtx;
@@ -90,6 +92,7 @@ static int zfs_version_zpl = ZPL_VERSION;
 SYSCTL_INT(_vfs_zfs_version, OID_AUTO, zpl, CTLFLAG_RD, &zfs_version_zpl, 0,
     "ZPL_VERSION");
 
+static int zfs_quotactl(vfs_t *vfsp, int cmds, uid_t id, void *arg);
 static int zfs_mount(vfs_t *vfsp);
 static int zfs_umount(vfs_t *vfsp, int fflag);
 static int zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp);
@@ -111,6 +114,7 @@ struct vfsops zfs_vfsops = {
 	.vfs_sync =		zfs_sync,
 	.vfs_checkexp =		zfs_checkexp,
 	.vfs_fhtovp =		zfs_fhtovp,
+	.vfs_quotactl =		zfs_quotactl,
 };
 
 VFS_SET(zfs_vfsops, zfs, VFCF_JAIL | VFCF_DELEGADMIN);
@@ -121,6 +125,163 @@ VFS_SET(zfs_vfsops, zfs, VFCF_JAIL | VFCF_DELEGADMIN);
  * from being unloaded after a umount -f
  */
 static uint32_t	zfs_active_fs_count = 0;
+
+static int
+zfs_getquota(zfsvfs_t *zfsvfs, uid_t id, int isgroup, struct dqblk64 *dqp)
+{
+	int error = 0;
+	char buf[32];
+	int err;
+	uint64_t usedobj, quotaobj;
+	uint64_t quota, used = 0;
+	timespec_t now;
+	
+	usedobj = isgroup ? DMU_GROUPUSED_OBJECT : DMU_USERUSED_OBJECT;
+	quotaobj = isgroup ? zfsvfs->z_groupquota_obj : zfsvfs->z_userquota_obj;
+
+	if (quotaobj == 0 || zfsvfs->z_replay) {
+		error = ENOENT;
+		goto done;
+	}
+	(void)sprintf(buf, "%llx", (longlong_t)id);
+	if ((error = zap_lookup(zfsvfs->z_os, quotaobj,
+				buf, sizeof(quota), 1, &quota)) != 0) {
+		dprintf("%s(%d): quotaobj lookup failed\n", __FUNCTION__, __LINE__);
+		goto done;
+	}
+	/*
+	 * quota(8) uses bsoftlimit as "quoota", and hardlimit as "limit".
+	 * So we set them to be the same.
+	 */
+	dqp->dqb_bsoftlimit = dqp->dqb_bhardlimit = btodb(quota);
+	error = zap_lookup(zfsvfs->z_os, usedobj, buf, sizeof(used), 1, &used);
+	if (error && error != ENOENT) {
+		dprintf("%s(%d):  usedobj failed; %d\n", __FUNCTION__, __LINE__, error);
+		goto done;
+	}
+	dqp->dqb_curblocks = btodb(used);
+	dqp->dqb_ihardlimit = dqp->dqb_isoftlimit = 0;
+	vfs_timestamp(&now);
+	/*
+	 * Setting this to 0 causes FreeBSD quota(8) to print
+	 * the number of days since the epoch, which isn't
+	 * particularly useful.
+	 */
+	dqp->dqb_btime = dqp->dqb_itime = now.tv_sec;
+done:
+	return (error);
+}
+
+static int
+zfs_quotactl(vfs_t *vfsp, int cmds, uid_t id, void *arg)
+{
+	zfsvfs_t *zfsvfs = vfsp->vfs_data;
+	struct thread *td;
+	int cmd, type, error = 0;
+	int bitsize;
+	uint64_t fuid;
+	zfs_userquota_prop_t quota_type;
+	struct dqblk64 dqblk = { 0 };
+	
+	td = curthread;
+	cmd = cmds >> SUBCMDSHIFT;
+	type = cmds & SUBCMDMASK;
+
+	ZFS_ENTER(zfsvfs);
+	if (id == -1) {
+		switch (type) {
+		case USRQUOTA:
+			id = td->td_ucred->cr_ruid;
+			break;
+		case GRPQUOTA:
+			id = td->td_ucred->cr_rgid;
+			break;
+		default:
+			error = EINVAL;
+			if (cmd == Q_QUOTAON || cmd == Q_QUOTAOFF)
+				vfs_unbusy(vfsp);
+			goto done;
+		}
+	}
+	/*
+	 * Map BSD type to:
+	 * ZFS_PROP_USERUSED,
+	 * ZFS_PROP_USERQUOTA,
+	 * ZFS_PROP_GROUPUSED,
+	 * ZFS_PROP_GROUPQUOTA
+	 */
+	switch (cmd) {
+	case Q_SETQUOTA:
+	case Q_SETQUOTA32:
+		if (type == USRQUOTA)
+			quota_type = ZFS_PROP_USERQUOTA;
+		else if (type == GRPQUOTA)
+			quota_type = ZFS_PROP_GROUPQUOTA;
+		else
+			error = EINVAL;
+		break;
+	case Q_GETQUOTA:
+	case Q_GETQUOTA32:
+		if (type == USRQUOTA)
+			quota_type = ZFS_PROP_USERUSED;
+		else if (type == GRPQUOTA)
+			quota_type = ZFS_PROP_GROUPUSED;
+		else
+			error = EINVAL;
+		break;
+	}
+
+	/*
+	 * Depending on the cmd, we may need to get
+	 * the ruid and domain (see fuidstr_to_sid?),
+	 * the fuid (how?), or other information.
+	 * Create fuid using zfs_fuid_create(zfsvfs, id,
+	 * ZFS_OWNER or ZFS_GROUP, cr, &fuidp)?
+	 * I think I can use just the id?
+	 *
+	 * Look at zfs_fuid_overquota() to look up a quota.
+	 * zap_lookup(something, quotaobj, fuidstring, sizeof(long long), 1, &quota)
+	 *
+	 * See zfs_set_userquota() to set a quota.
+	 */
+	if ((u_int)type >= MAXQUOTAS) {
+		error = EINVAL;
+		goto done;
+	}
+
+	switch (cmd) {
+	case Q_GETQUOTASIZE:
+		bitsize = 64;
+		error = copyout(&bitsize, arg, sizeof(int));
+		break;
+	case Q_QUOTAON:
+		// As far as I can tell, you can't turn quotas on or off on zfs
+		error = 0;
+		vfs_unbusy(vfsp);
+		break;
+	case Q_QUOTAOFF:
+		error = ENOTSUP;
+		vfs_unbusy(vfsp);
+		break;
+	case Q_SETQUOTA:
+		error = copyin(&dqblk, arg, sizeof(dqblk));
+		if (error == 0)
+			error = zfs_set_userquota(zfsvfs, quota_type,
+						  "", id, dbtob(dqblk.dqb_bhardlimit));
+		break;
+	case Q_GETQUOTA:
+		error = zfs_getquota(zfsvfs, id, type == GRPQUOTA, &dqblk);
+		if (error == 0)
+			error = copyout(&dqblk, arg, sizeof(dqblk));
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+done:
+	ZFS_EXIT(zfsvfs);
+	return (error);
+}
 
 /*ARGSUSED*/
 static int

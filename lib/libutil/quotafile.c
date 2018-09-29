@@ -118,8 +118,6 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 	struct stat st;
 	int qcmd, serrno;
 
-	if (strcmp(fs->fs_vfstype, "ufs"))
-		return (NULL);
 	if ((qf = calloc(1, sizeof(*qf))) == NULL)
 		return (NULL);
 	qf->fd = -1;
@@ -128,10 +126,15 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 	if (stat(qf->fsname, &st) != 0)
 		goto error;
 	qf->dev = st.st_dev;
-	serrno = hasquota(fs, quotatype, qf->qfname, sizeof(qf->qfname));
 	qcmd = QCMD(Q_GETQUOTASIZE, quotatype);
 	if (quotactl(qf->fsname, qcmd, 0, &qf->wordsize) == 0)
 		return (qf);
+	/* We only check the quota file for ufs */
+	if (strcmp(fs->fs_vfstype, "ufs")) {
+		errno = 0;
+		goto error;
+	}
+	serrno = hasquota(fs, quotatype, qf->qfname, sizeof(qf->qfname));
 	if (serrno == 0) {
 		errno = EOPNOTSUPP;
 		goto error;
