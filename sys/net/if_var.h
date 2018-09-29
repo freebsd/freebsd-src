@@ -760,6 +760,8 @@ int if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *);
 /* accessors for struct ifreq */
 void *ifr_data_get_ptr(void *ifrp);
 
+int ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
+
 #ifdef DEVICE_POLLING
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
 

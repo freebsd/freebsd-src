@@ -264,7 +264,6 @@ static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
-static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
@@ -2512,7 +2511,7 @@ ifr_data_get_ptr(void *ifrp)
 /*
  * Hardware specific interface ioctls.
  */
-static int
+int
 ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 {
 	struct ifreq *ifr;
