@@ -60,7 +60,6 @@ ENTRY(bcopy)
 	subq	%rsi,%r8
 	cmpq	%rcx,%r8	/* overlapping? */
 	jb	1f
-	cld			/* nope, copy forwards. */
 	shrq	$3,%rcx		/* copy by words */
 	rep
 	movsq

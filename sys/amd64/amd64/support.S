@@ -1097,7 +1097,7 @@ copyinstr_toolong_smap:
 copyinstr_toolong:
 	/* rdx is zero - return ENAMETOOLONG or EFAULT */
 	movq	$VM_MAXUSER_ADDRESS,%rax
-	cmpq	%rax,%rsi
+	cmpq	%rax,%rdi
 	jae	cpystrflt
 	movl	$ENAMETOOLONG,%eax
 	jmp	cpystrflt_x

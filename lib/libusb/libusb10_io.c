@@ -312,6 +312,9 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 	if (tv == NULL) {
 		pthread_cond_wait(&ctx->ctx_cond,
 		    &ctx->ctx_lock);
+		/* try to grab polling of actual events, if any */
+		if (ctx->ctx_handler == NO_THREAD)
+			ctx->ctx_handler = pthread_self();
 		return (0);
 	}
 	err = clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -330,6 +333,9 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 	}
 	err = pthread_cond_timedwait(&ctx->ctx_cond,
 	    &ctx->ctx_lock, &ts);
+	/* try to grab polling of actual events, if any */
+	if (ctx->ctx_handler == NO_THREAD)
+		ctx->ctx_handler = pthread_self();
 
 	if (err == ETIMEDOUT)
 		return (1);

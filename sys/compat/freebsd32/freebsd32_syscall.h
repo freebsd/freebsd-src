@@ -171,6 +171,10 @@
 #define	FREEBSD32_SYS_setgid	181
 #define	FREEBSD32_SYS_setegid	182
 #define	FREEBSD32_SYS_seteuid	183
+				/* 184 is obsolete lfs_bmapv */
+				/* 185 is obsolete lfs_markv */
+				/* 186 is obsolete lfs_segclean */
+				/* 187 is obsolete lfs_segwait */
 #define	FREEBSD32_SYS_freebsd11_freebsd32_stat	188
 #define	FREEBSD32_SYS_freebsd11_freebsd32_fstat	189
 #define	FREEBSD32_SYS_freebsd11_freebsd32_lstat	190
@@ -194,6 +198,7 @@
 #define	FREEBSD32_SYS_freebsd7_freebsd32_semctl	220
 #define	FREEBSD32_SYS_semget	221
 #define	FREEBSD32_SYS_semop	222
+				/* 223 is obsolete semconfig */
 #define	FREEBSD32_SYS_freebsd7_freebsd32_msgctl	224
 #define	FREEBSD32_SYS_msgget	225
 #define	FREEBSD32_SYS_freebsd32_msgsnd	226
@@ -300,12 +305,24 @@
 #define	FREEBSD32_SYS_getresgid	361
 #define	FREEBSD32_SYS_kqueue	362
 #define	FREEBSD32_SYS_freebsd11_freebsd32_kevent	363
+				/* 364 is obsolete __cap_get_proc */
+				/* 365 is obsolete __cap_set_proc */
+				/* 366 is obsolete __cap_get_fd */
+				/* 367 is obsolete __cap_get_file */
+				/* 368 is obsolete __cap_set_fd */
+				/* 369 is obsolete __cap_set_file */
 #define	FREEBSD32_SYS_extattr_set_fd	371
 #define	FREEBSD32_SYS_extattr_get_fd	372
 #define	FREEBSD32_SYS_extattr_delete_fd	373
 #define	FREEBSD32_SYS___setugid	374
+				/* 375 is obsolete nfsclnt */
 #define	FREEBSD32_SYS_eaccess	376
 #define	FREEBSD32_SYS_freebsd32_nmount	378
+				/* 379 is obsolete kse_exit */
+				/* 380 is obsolete kse_wakeup */
+				/* 381 is obsolete kse_create */
+				/* 382 is obsolete kse_thr_interrupt */
+				/* 383 is obsolete kse_release */
 #define	FREEBSD32_SYS_kenv	390
 #define	FREEBSD32_SYS_lchflags	391
 #define	FREEBSD32_SYS_uuidgen	392
@@ -343,6 +360,7 @@
 #define	FREEBSD32_SYS_extattr_list_fd	437
 #define	FREEBSD32_SYS_extattr_list_file	438
 #define	FREEBSD32_SYS_extattr_list_link	439
+				/* 440 is obsolete kse_switchin */
 #define	FREEBSD32_SYS_freebsd32_ksem_timedwait	441
 #define	FREEBSD32_SYS_freebsd32_thr_suspend	442
 #define	FREEBSD32_SYS_thr_wake	443
@@ -455,6 +473,8 @@
 #define	FREEBSD32_SYS_freebsd32_ppoll	545
 #define	FREEBSD32_SYS_freebsd32_futimens	546
 #define	FREEBSD32_SYS_freebsd32_utimensat	547
+				/* 548 is obsolete numa_getaffinity */
+				/* 549 is obsolete numa_setaffinity */
 #define	FREEBSD32_SYS_fdatasync	550
 #define	FREEBSD32_SYS_freebsd32_fstat	551
 #define	FREEBSD32_SYS_freebsd32_fstatat	552
