@@ -80,6 +80,8 @@ static int ig4iic_pci_detach(device_t dev);
 #define PCI_CHIP_SKYLAKE_I2C_3		0x9d638086
 #define PCI_CHIP_SKYLAKE_I2C_4		0x9d648086
 #define PCI_CHIP_SKYLAKE_I2C_5		0x9d658086
+#define PCI_CHIP_KABYLAKE_I2C_0		0xa1608086
+#define PCI_CHIP_KABYLAKE_I2C_1		0xa1618086
 #define PCI_CHIP_APL_I2C_0		0x5aac8086
 #define PCI_CHIP_APL_I2C_1		0x5aae8086
 #define PCI_CHIP_APL_I2C_2		0x5ab08086
@@ -110,6 +112,8 @@ static struct ig4iic_pci_device ig4iic_pci_devices[] = {
 	{ PCI_CHIP_SKYLAKE_I2C_3, "Intel Sunrise Point-LP I2C Controller-3", IG4_SKYLAKE},
 	{ PCI_CHIP_SKYLAKE_I2C_4, "Intel Sunrise Point-LP I2C Controller-4", IG4_SKYLAKE},
 	{ PCI_CHIP_SKYLAKE_I2C_5, "Intel Sunrise Point-LP I2C Controller-5", IG4_SKYLAKE},
+	{ PCI_CHIP_KABYLAKE_I2C_0, "Intel Sunrise Point-H I2C Controller-0", IG4_SKYLAKE},
+	{ PCI_CHIP_KABYLAKE_I2C_1, "Intel Sunrise Point-H I2C Controller-1", IG4_SKYLAKE},
 	{ PCI_CHIP_APL_I2C_0, "Intel Apollo Lake I2C Controller-0", IG4_APL},
 	{ PCI_CHIP_APL_I2C_1, "Intel Apollo Lake I2C Controller-1", IG4_APL},
 	{ PCI_CHIP_APL_I2C_2, "Intel Apollo Lake I2C Controller-2", IG4_APL},
