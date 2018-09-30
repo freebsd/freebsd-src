@@ -4263,6 +4263,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				atomic_subtract_int(&stcb->asoc.refcnt, 1);
 			}
 #endif
+			if (port) {
+				UDPSTAT_INC(udps_opackets);
+			}
 			SCTP_STAT_INCR(sctps_sendpackets);
 			SCTP_STAT_INCR_COUNTER64(sctps_outpackets);
 			if (ret)
@@ -4603,6 +4606,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sin6->sin6_port = prev_port;
 			}
 			SCTPDBG(SCTP_DEBUG_OUTPUT3, "return from send is %d\n", ret);
+			if (port) {
+				UDPSTAT_INC(udps_opackets);
+			}
 			SCTP_STAT_INCR(sctps_sendpackets);
 			SCTP_STAT_INCR_COUNTER64(sctps_outpackets);
 			if (ret) {
@@ -11290,6 +11296,9 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		return;
 	}
 	SCTPDBG(SCTP_DEBUG_OUTPUT3, "return from send is %d\n", ret);
+	if (port) {
+		UDPSTAT_INC(udps_opackets);
+	}
 	SCTP_STAT_INCR(sctps_sendpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_outpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
