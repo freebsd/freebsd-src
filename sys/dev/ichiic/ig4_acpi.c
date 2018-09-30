@@ -60,6 +60,7 @@ static char *ig4iic_ids[] = {
 	"80860F41",
 	"808622C1",
 	"AMDI0510",
+	"AMDI0010",
 	"APMC0D0F",
 	NULL
 };
@@ -67,10 +68,20 @@ static char *ig4iic_ids[] = {
 static int
 ig4iic_acpi_probe(device_t dev)
 {
+	ig4iic_softc_t *sc;
+	char *hid;
 
-	if (acpi_disabled("ig4iic") ||
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, ig4iic_ids) == NULL)
-	return (ENXIO);
+	sc = device_get_softc(dev);
+
+	if (acpi_disabled("ig4iic"))
+		return (ENXIO);
+
+	hid = ACPI_ID_PROBE(device_get_parent(dev), dev, ig4iic_ids);
+	if (hid == NULL)
+		return (ENXIO);
+
+	if (strcmp("AMDI0010", hid) == 0)
+		sc->access_intr_mask = 1;
 
 	device_set_desc(dev, "Designware I2C Controller");
 	return (0);
