@@ -4367,6 +4367,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			/* KAME hack: embed scopeid */
 			if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 				SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+				sctp_m_freem(m);
 				return (EINVAL);
 			}
 			if (net == NULL) {
@@ -4431,6 +4432,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					/* KAME hack: embed scopeid */
 					if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 						SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+						sctp_m_freem(m);
 						return (EINVAL);
 					}
 					/* Cache the source address */
@@ -4457,6 +4459,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				/* KAME hack: embed scopeid */
 				if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 					SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+					sctp_m_freem(m);
 					return (EINVAL);
 				}
 				if (over_addr == NULL) {
