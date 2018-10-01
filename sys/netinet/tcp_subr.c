@@ -655,6 +655,10 @@ tcp_init(void)
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
+#ifdef TCP_RFC7413
+	tcp_fastopen_init();
+#endif
+
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
@@ -707,10 +711,6 @@ tcp_init(void)
 		EVENTHANDLER_PRI_ANY);
 #ifdef TCPPCAP
 	tcp_pcap_init();
-#endif
-
-#ifdef TCP_RFC7413
-	tcp_fastopen_init();
 #endif
 }
 
