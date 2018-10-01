@@ -1424,26 +1424,10 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 			sa = NULL;
 		}
 
-		/*
-		 * The connector's (client's) credentials are copied from its
-		 * process structure at the time of connect() (which is now).
-		 */
-		cru2x(td->td_ucred, &unp3->unp_peercred);
-		unp3->unp_flags |= UNP_HAVEPC;
-
-		/*
-		 * The receiver's (server's) credentials are copied from the
-		 * unp_peercred member of socket on which the former called
-		 * listen(); uipc_listen() cached that process's credentials
-		 * at that time so we can use them now.
-		 */
 		KASSERT(unp2->unp_flags & UNP_HAVEPCCACHED,
 		    ("unp_connect: listener without cached peercred"));
-		memcpy(&unp->unp_peercred, &unp2->unp_peercred,
-		    sizeof(unp->unp_peercred));
-		unp->unp_flags |= UNP_HAVEPC;
-		if (unp2->unp_flags & UNP_WANTCRED)
-			unp3->unp_flags |= UNP_WANTCRED;
+		unp_copy_peercred(td, unp3, unp, unp2);
+
 		UNP_PCB_UNLOCK(unp3);
 		UNP_PCB_UNLOCK(unp2);
 		UNP_PCB_UNLOCK(unp);
@@ -1474,6 +1458,27 @@ bad:
 	unp->unp_flags &= ~UNP_CONNECTING;
 	UNP_PCB_UNLOCK(unp);
 	return (error);
+}
+
+/*
+ * Set socket peer credentials at connection time.
+ *
+ * The client's PCB credentials are copied from its process structure.  The
+ * server's PCB credentials are copied from the socket on which it called
+ * listen(2).  uipc_listen cached that process's credentials at the time.
+ */
+void
+unp_copy_peercred(struct thread *td, struct unpcb *client_unp,
+    struct unpcb *server_unp, struct unpcb *listen_unp)
+{
+	cru2x(td->td_ucred, &client_unp->unp_peercred);
+	client_unp->unp_flags |= UNP_HAVEPC;
+
+	memcpy(&server_unp->unp_peercred, &listen_unp->unp_peercred,
+	    sizeof(server_unp->unp_peercred));
+	server_unp->unp_flags |= UNP_HAVEPC;
+	if (listen_unp->unp_flags & UNP_WANTCRED)
+		client_unp->unp_flags |= UNP_WANTCRED;
 }
 
 static int
