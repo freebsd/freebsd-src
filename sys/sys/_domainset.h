@@ -54,7 +54,7 @@ typedef struct _domainset domainset_t;
 struct domainset;
 struct domainset_ref {
 	struct domainset * volatile	dr_policy;
-	int				dr_iterator;
+	unsigned int			dr_iterator;
 };
 
 #endif /* !_SYS__DOMAINSET_H_ */
