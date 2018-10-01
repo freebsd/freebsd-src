@@ -1142,7 +1142,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
-	 * Count bootstrap data as being resident.
+	 * Count bootstrap data as being resident in case any of this data is
+	 * later unmapped (using pmap_remove()) and freed.
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
