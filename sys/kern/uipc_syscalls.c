@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/un.h>
+#include <sys/unpcb.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
@@ -758,6 +760,15 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 		 error = soconnect2(so2, so1);
 		 if (error != 0)
 			goto free4;
+	} else if (so1->so_proto->pr_flags & PR_CONNREQUIRED) {
+		struct unpcb *unp, *unp2;
+		unp = sotounpcb(so1);
+		unp2 = sotounpcb(so2);
+		/* 
+		 * No need to lock the unps, because the sockets are brand-new.
+		 * No other threads can be using them yet
+		 */
+		unp_copy_peercred(td, unp, unp2, unp);
 	}
 	finit(fp1, FREAD | FWRITE | fflag, DTYPE_SOCKET, fp1->f_data,
 	    &socketops);
