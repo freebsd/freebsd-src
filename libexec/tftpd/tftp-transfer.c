@@ -277,6 +277,8 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					send_error(peer, ENOSPACE);
 				goto abort;
 			}
+			if (n_data != segsize)
+				write_close();
 		}
 
 send_ack:
@@ -301,8 +303,6 @@ send_ack:
 		}
 		gettimeofday(&(ts->tstop), NULL);
 	} while (n_data == segsize);
-
-	write_close();
 
 	/* Don't do late packet management for the client implementation */
 	if (acting_as_client)
