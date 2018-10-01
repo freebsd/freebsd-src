@@ -1004,6 +1004,7 @@ initarm(struct arm64_bootparams *abp)
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 	init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *), 0);
+	link_elf_ireloc(kmdp);
 
 #ifdef FDT
 	try_load_dtb(kmdp);
