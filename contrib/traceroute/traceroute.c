@@ -1021,8 +1021,13 @@ main(int argc, char **argv)
 	 * We must connect(2) our socket before this point.
 	 */
 	if (cansandbox && cap_enter() < 0) {
-		Fprintf(stderr, "%s: cap_enter: %s\n", prog, strerror(errno));
-		exit(1);
+		if (errno != ENOSYS) {
+			Fprintf(stderr, "%s: cap_enter: %s\n", prog,
+			    strerror(errno));
+			exit(1);
+		} else {
+			cansandbox = false;
+		}
 	}
 
 	cap_rights_init(&rights, CAP_SEND, CAP_SETSOCKOPT);
