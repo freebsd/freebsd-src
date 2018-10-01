@@ -235,14 +235,15 @@ const char *
 debug_show(int d)
 {
 	static char s[100];
+	size_t space = sizeof(s);
 	int i = 0;
 
 	s[0] = '\0';
 	while (debugs[i].name != NULL) {
 		if (d&debugs[i].value) {
-			if (s[0] != '\0') 
-				strcat(s, " ");
-			strcat(s, debugs[i].name);
+			if (s[0] != '\0')
+				strlcat(s, " ", space);
+			strlcat(s, debugs[i].name, space);
 		}
 		i++;
 	}

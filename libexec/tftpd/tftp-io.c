@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -191,16 +192,16 @@ send_wrq(int peer, char *filename, char *mode)
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)WRQ);
-	size = 2;
+	size = offsetof(struct tftphdr, th_stuff);
 
 	bp = tp->th_stuff;
-	strcpy(bp, filename);
+	strlcpy(bp, filename, sizeof(buf) - size);
 	bp += strlen(filename);
 	*bp = 0;
 	bp++;
 	size += strlen(filename) + 1;
 
-	strcpy(bp, mode);
+	strlcpy(bp, mode, sizeof(buf) - size);
 	bp += strlen(mode);
 	*bp = 0;
 	bp++;
@@ -239,16 +240,16 @@ send_rrq(int peer, char *filename, char *mode)
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)RRQ);
-	size = 2;
+	size = offsetof(struct tftphdr, th_stuff);
 
 	bp = tp->th_stuff;
-	strcpy(bp, filename);
+	strlcpy(bp, filename, sizeof(buf) - size);
 	bp += strlen(filename);
 	*bp = 0;
 	bp++;
 	size += strlen(filename) + 1;
 
-	strcpy(bp, mode);
+	strlcpy(bp, mode, sizeof(buf) - size);
 	bp += strlen(mode);
 	*bp = 0;
 	bp++;
