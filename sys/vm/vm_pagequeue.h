@@ -151,7 +151,8 @@ struct vm_domain {
 
 extern struct vm_domain vm_dom[MAXMEMDOM];
 
-#define	VM_DOMAIN(n)	(&vm_dom[(n)])
+#define	VM_DOMAIN(n)		(&vm_dom[(n)])
+#define	VM_DOMAIN_EMPTY(n)	(vm_dom[(n)].vmd_page_count == 0)
 
 #define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
 #define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)

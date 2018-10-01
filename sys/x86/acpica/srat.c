@@ -311,8 +311,20 @@ check_domains(void)
 	}
 	for (i = 0; i <= max_apic_id; i++)
 		if (cpus[i].enabled && !cpus[i].has_memory) {
-			printf("SRAT: No memory found for CPU %d\n", i);
-			return (ENXIO);
+			found = 0;
+			for (j = 0; j < num_mem && !found; j++) {
+				if (mem_info[j].domain == cpus[i].domain)
+					found = 1;
+			}
+			if (!found) {
+				if (bootverbose)
+					printf("SRAT: mem dom %d is empty\n",
+					    cpus[i].domain);
+				mem_info[num_mem].start = 0;
+				mem_info[num_mem].end = 0;
+				mem_info[num_mem].domain = cpus[i].domain;
+				num_mem++;
+			}
 		}
 	return (0);
 }
