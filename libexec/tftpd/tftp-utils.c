@@ -268,11 +268,13 @@ char *
 rp_strerror(int error)
 {
 	static char s[100];
+	size_t space = sizeof(s);
 	int i = 0;
 
 	while (rp_errors[i].desc != NULL) {
 		if (rp_errors[i].error == error) {
-			strcpy(s, rp_errors[i].desc);
+			strlcpy(s, rp_errors[i].desc, space);
+			space -= strlen(rp_errors[i].desc);
 		}
 		i++;
 	}
