@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/tftp.h>
 #include <arpa/inet.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -393,7 +394,7 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	struct sockaddr_storage *pfrom;
 	socklen_t fromlen;
 	int n;
-	static int waiting;
+	static int timed_out;
 
 	if (debug&DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG,
@@ -401,23 +402,16 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 
 	pkt = (struct tftphdr *)data;
 
-	waiting = 0;
 	signal(SIGALRM, timeout);
-	setjmp(timeoutbuf);
+	timed_out = setjmp(timeoutbuf);
 	alarm(thistimeout);
 
-	if (waiting > 0) {
-		alarm(0);
-		return (RP_TIMEOUT);
-	}
-
-	if (waiting > 0) {
+	if (timed_out != 0) {
 		tftp_log(LOG_ERR, "receive_packet: timeout");
 		alarm(0);
 		return (RP_TIMEOUT);
 	}
 
-	waiting++;
 	pfrom = (from == NULL) ? &from_local : from;
 	fromlen = sizeof(*pfrom);
 	n = recvfrom(peer, data, size, 0, (struct sockaddr *)pfrom, &fromlen);
@@ -430,8 +424,6 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 		tftp_log(LOG_ERR, "receive_packet: timeout");
 		return (RP_TIMEOUT);
 	}
-
-	alarm(0);
 
 	if (n < 0) {
 		/* No idea what could have happened if it isn't a timeout */
