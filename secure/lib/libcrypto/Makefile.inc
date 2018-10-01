@@ -21,16 +21,9 @@ CFLAGS+=	-DL_ENDIAN
 CFLAGS+=	-DB_ENDIAN
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386"
 ASM_${MACHINE_CPUARCH}=
-.elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-_ASM_AVX!=	{ \
-		    echo vzeroall | \
-		    ${CC} -x assembler -o /dev/null -c - 2> /dev/null; \
-		} && echo yes || echo no
-.if ${_ASM_AVX} == yes
-ASM_${MACHINE_CPUARCH}=
-.endif
 .endif
 
 .if defined(ASM_${MACHINE_CPUARCH})
