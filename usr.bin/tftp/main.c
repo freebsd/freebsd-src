@@ -475,6 +475,7 @@ put(int argc, char *argv[])
 			printf("putting %s to %s:%s [%s]\n",
 			    cp, hostname, targ, mode);
 		xmitfile(peer, port, fd, targ, mode);
+		close(fd);
 		return;
 	}
 				/* this assumes the target is a directory */
