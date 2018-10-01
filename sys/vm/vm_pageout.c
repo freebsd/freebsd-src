@@ -2082,6 +2082,13 @@ vm_pageout(void)
 	if (error != 0)
 		panic("starting laundry for domain 0, error %d", error);
 	for (i = 1; i < vm_ndomains; i++) {
+		if (VM_DOMAIN_EMPTY(i)) {
+			if (bootverbose)
+				printf("domain %d empty; skipping pageout\n",
+				    i);
+			continue;
+		}
+
 		error = kthread_add(vm_pageout_worker, (void *)(uintptr_t)i,
 		    curproc, NULL, 0, 0, "dom%d", i);
 		if (error != 0) {
