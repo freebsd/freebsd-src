@@ -2281,14 +2281,14 @@ dump_dir(objset_t *os)
 		object_count++;
 	}
 
-	ASSERT3U(object_count, ==, usedobjs);
-
 	(void) printf("\n");
 
 	if (error != ESRCH) {
 		(void) fprintf(stderr, "dmu_object_next() = %d\n", error);
 		abort();
 	}
+
+	ASSERT3U(object_count, ==, usedobjs);
 }
 
 static void
@@ -2788,6 +2788,7 @@ zdb_blkptr_done(zio_t *zio)
 
 	mutex_enter(&spa->spa_scrub_lock);
 	spa->spa_scrub_inflight--;
+	spa->spa_load_verify_ios--;
 	cv_broadcast(&spa->spa_scrub_io_cv);
 
 	if (ioerr && !(zio->io_flags & ZIO_FLAG_SPECULATIVE)) {
@@ -2859,9 +2860,10 @@ zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 			flags |= ZIO_FLAG_SPECULATIVE;
 
 		mutex_enter(&spa->spa_scrub_lock);
-		while (spa->spa_scrub_inflight > max_inflight)
+		while (spa->spa_load_verify_ios > max_inflight)
 			cv_wait(&spa->spa_scrub_io_cv, &spa->spa_scrub_lock);
 		spa->spa_scrub_inflight++;
+		spa->spa_load_verify_ios++;
 		mutex_exit(&spa->spa_scrub_lock);
 
 		zio_nowait(zio_read(NULL, spa, bp, abd, size,

@@ -1111,6 +1111,7 @@ vdev_ops_t vdev_indirect_ops = {
 	NULL,
 	NULL,
 	NULL,
+	NULL,
 	vdev_indirect_remap,
 	VDEV_TYPE_INDIRECT,	/* name of this vdev type */
 	B_FALSE			/* leaf vdev */
