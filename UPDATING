@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20181002:
+	The cam(4) based nda(4) driver will be used over nvd(4) by default on
+	powerpc64. You may set 'options NVME_USE_NVD=1' in your kernel conf or
+	loader tunable 'hw.nvme.use_nvd=1' if you wish to use the existing
+	driver.  Make sure to edit /boot/etc/kboot.conf and fstab to use the
+	nda device name.
+
 20180913:
 	Reproducible build mode is now on by default, in preparation for
 	FreeBSD 12.0.  This eliminates build metadata such as the user,
