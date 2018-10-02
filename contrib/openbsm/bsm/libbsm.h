@@ -868,21 +868,6 @@ void			 au_print_tok_xml(FILE *outfp, tokenstr_t *tok,
 void			 au_print_xml_header(FILE *outfp);
 void			 au_print_xml_footer(FILE *outfp);
 
-/*
- * BSM library routines for converting between local and BSM constant spaces.
- * (Note: some of these are replicated in audit_record.h for the benefit of
- * the FreeBSD and Mac OS X kernels)
- */
-int	 au_bsm_to_domain(u_short bsm_domain, int *local_domainp);
-int	 au_bsm_to_errno(u_char bsm_error, int *errorp);
-int	 au_bsm_to_fcntl_cmd(u_short bsm_fcntl_cmd, int *local_fcntl_cmdp);
-int	 au_bsm_to_socket_type(u_short bsm_socket_type,
-	    int *local_socket_typep);
-u_short	 au_domain_to_bsm(int local_domain);
-u_char	 au_errno_to_bsm(int local_errno);
-u_short	 au_fcntl_cmd_to_bsm(int local_fcntl_command);
-u_short	 au_socket_type_to_bsm(int local_socket_type);
-
 const char	 *au_strerror(u_char bsm_error);
 __END_DECLS
 
