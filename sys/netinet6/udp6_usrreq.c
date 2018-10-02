@@ -784,8 +784,20 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 			return ((*pru->pru_send)(so, flags_arg, m,
 			    (struct sockaddr *)sin6, control, td));
 		}
-	}
+	} else
 #endif
+	if (sin6 && IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+		/*
+		 * Given this is either an IPv6-only socket or no INET is
+		 * supported we will fail the send if the given destination
+		 * address is a v4mapped address.
+		 */
+		if (unlock_inp == UH_WLOCKED)
+			INP_WUNLOCK(inp);
+		else
+			INP_RUNLOCK(inp);
+		return (EINVAL);
+	}
 
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
