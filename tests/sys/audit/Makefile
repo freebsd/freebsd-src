@@ -2,16 +2,41 @@
 
 TESTSDIR=	${TESTSBASE}/sys/audit
 
-ATF_TESTS_C=	file-create
+ATF_TESTS_C=	file-attribute-access
+ATF_TESTS_C+=	file-attribute-modify
+ATF_TESTS_C+=	file-create
+ATF_TESTS_C+=	file-delete
+ATF_TESTS_C+=	file-close
+ATF_TESTS_C+=	file-write
+ATF_TESTS_C+=	file-read
+ATF_TESTS_C+=	open
+ATF_TESTS_C+=	network
 
+SRCS.file-attribute-access+=	file-attribute-access.c
+SRCS.file-attribute-access+=	utils.c
+SRCS.file-attribute-modify+=	file-attribute-modify.c
+SRCS.file-attribute-modify+=	utils.c
 SRCS.file-create+=	file-create.c
 SRCS.file-create+=	utils.c
+SRCS.file-delete+=	file-delete.c
+SRCS.file-delete+=	utils.c
+SRCS.file-close+=	file-close.c
+SRCS.file-close+=	utils.c
+SRCS.file-write+=	file-write.c
+SRCS.file-write+=	utils.c
+SRCS.file-read+=	file-read.c
+SRCS.file-read+=	utils.c
+SRCS.open+=		open.c
+SRCS.open+=		utils.c
+SRCS.network+=		network.c
+SRCS.network+=		utils.c
 
 TEST_METADATA+= timeout="30"
 TEST_METADATA+= required_user="root"
+TEST_METADATA+= is_exclusive="true"
 
 WARNS?=	6
 
-LDFLAGS+=	-lbsm
+LDFLAGS+=	-lbsm -lutil
 
 .include <bsd.test.mk>
