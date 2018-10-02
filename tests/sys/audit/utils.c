@@ -1,6 +1,5 @@
 /*-
  * Copyright 2018 Aniket Pandey
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,15 +27,16 @@
 
 #include <sys/ioctl.h>
 
-#include <time.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <atf-c.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <bsm/libbsm.h>
 #include <security/audit/audit_ioctl.h>
+
+#include <atf-c.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "utils.h"
 
@@ -80,7 +80,7 @@ get_records(const char *auditregex, FILE *pipestream)
 	}
 
 	free(buff);
-	fclose(memstream);
+	ATF_REQUIRE_EQ(0, fclose(memstream));
 	return (atf_utils_grep_string("%s", membuff, auditregex));
 }
 
@@ -195,9 +195,8 @@ void
 check_audit(struct pollfd fd[], const char *auditrgx, FILE *pipestream) {
 	check_auditpipe(fd, auditrgx, pipestream);
 
-	/* Cleanup */
-	fclose(pipestream);
-	close(fd[0].fd);
+	/* Teardown: /dev/auditpipe's instance opened for this test-suite */
+	ATF_REQUIRE_EQ(0, fclose(pipestream));
 }
 
 FILE
@@ -208,9 +207,9 @@ FILE
 	nomask = get_audit_mask("no");
 	FILE *pipestream;
 
-	fd[0].fd = open("/dev/auditpipe", O_RDONLY);
+	ATF_REQUIRE((fd[0].fd = open("/dev/auditpipe", O_RDONLY)) != -1);
+	ATF_REQUIRE((pipestream = fdopen(fd[0].fd, "r")) != NULL);
 	fd[0].events = POLLIN;
-	pipestream = fdopen(fd[0].fd, "r");
 
 	/* Set local preselection audit_class as "no" for audit startup */
 	set_preselect_mode(fd[0].fd, &nomask);

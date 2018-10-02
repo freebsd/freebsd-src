@@ -1,6 +1,5 @@
 /*-
  * Copyright 2018 Aniket Pandey
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,6 +37,7 @@
 
 static struct pollfd fds[1];
 static mode_t mode = 0777;
+static int filedesc;
 static dev_t dev =  0;
 static const char *auclass = "fc";
 static const char *path = "fileforaudit";
@@ -306,10 +306,11 @@ ATF_TC_HEAD(rename_success, tc)
 
 ATF_TC_BODY(rename_success, tc)
 {
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
 	ATF_REQUIRE_EQ(0, rename(path, "renamed"));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(rename_success, tc)
@@ -348,10 +349,11 @@ ATF_TC_HEAD(renameat_success, tc)
 
 ATF_TC_BODY(renameat_success, tc)
 {
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
 	ATF_REQUIRE_EQ(0, renameat(AT_FDCWD, path, AT_FDCWD, "renamed"));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(renameat_success, tc)
@@ -390,10 +392,11 @@ ATF_TC_HEAD(link_success, tc)
 
 ATF_TC_BODY(link_success, tc)
 {
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
 	ATF_REQUIRE_EQ(0, link(path, "hardlink"));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(link_success, tc)
@@ -432,10 +435,11 @@ ATF_TC_HEAD(linkat_success, tc)
 
 ATF_TC_BODY(linkat_success, tc)
 {
-	ATF_REQUIRE(open(path, O_CREAT, mode) != -1);
+	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
 	ATF_REQUIRE_EQ(0, linkat(AT_FDCWD, path, AT_FDCWD, "hardlink", 0));
 	check_audit(fds, successreg, pipefd);
+	close(filedesc);
 }
 
 ATF_TC_CLEANUP(linkat_success, tc)
