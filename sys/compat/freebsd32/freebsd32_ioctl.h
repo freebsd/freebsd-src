@@ -38,13 +38,6 @@
 
 typedef __uint32_t caddr_t32;
 
-struct ioc_read_toc_entry32 {
-	u_char	address_format;
-	u_char	starting_track;
-	u_short	data_len;
-	uint32_t data;		/* struct cd_toc_entry* */
-};
-
 struct fiodgname_arg32 {
 	int		len;
 	caddr_t32	buf;
@@ -67,7 +60,6 @@ struct pci_bar_mmap32 {
 	int		pbm_memattr;
 };
 
-#define	CDIOREADTOCENTRYS_32 _IOWR('c', 5, struct ioc_read_toc_entry32)
 #define	FIODGNAME_32	_IOW('f', 120, struct fiodgname_arg32)
 #define	MEMRANGE_GET32	_IOWR('m', 50, struct mem_range_op32)
 #define	MEMRANGE_SET32	_IOW('m', 51, struct mem_range_op32)
