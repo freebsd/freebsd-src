@@ -422,6 +422,8 @@
         ..
         audit
         ..
+        auditpipe
+        ..
         capsicum
         ..
         fifo

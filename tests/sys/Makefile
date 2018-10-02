@@ -5,6 +5,7 @@ TESTSDIR=		${TESTSBASE}/sys
 TESTS_SUBDIRS+=		acl
 TESTS_SUBDIRS+=		aio
 TESTS_SUBDIRS+=		audit
+TESTS_SUBDIRS+=		auditpipe
 TESTS_SUBDIRS+=		capsicum
 TESTS_SUBDIRS+=		fifo
 TESTS_SUBDIRS+=		file
