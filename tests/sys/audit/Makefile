@@ -13,6 +13,7 @@ ATF_TESTS_C+=	open
 ATF_TESTS_C+=	ioctl
 ATF_TESTS_C+=	network
 ATF_TESTS_C+=	administrative
+ATF_TESTS_C+=	miscellaneous
 
 SRCS.file-attribute-access+=	file-attribute-access.c
 SRCS.file-attribute-access+=	utils.c
@@ -36,6 +37,8 @@ SRCS.network+=		network.c
 SRCS.network+=		utils.c
 SRCS.administrative+=		administrative.c
 SRCS.administrative+=		utils.c
+SRCS.miscellaneous+=		miscellaneous.c
+SRCS.miscellaneous+=		utils.c
 
 TEST_METADATA+= timeout="30"
 TEST_METADATA+= required_user="root"
