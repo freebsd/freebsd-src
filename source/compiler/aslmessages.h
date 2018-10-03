@@ -361,6 +361,7 @@ typedef enum
     ASL_MSG_OEM_ID,
     ASL_MSG_UNLOAD,
     ASL_MSG_OFFSET,
+    ASL_MSG_LONG_SLEEP,
 
     /* These messages are used by the Data Table compiler only */
 

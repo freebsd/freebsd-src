@@ -501,6 +501,16 @@ TrTransformSubtree (
         AslError (ASL_WARNING, ASL_MSG_UNLOAD, Op, NULL);
         break;
 
+    case PARSEOP_SLEEP:
+
+        /* Remark for very long sleep values */
+
+        if (Op->Asl.Child->Asl.Value.Integer > 1000)
+        {
+            AslError (ASL_REMARK, ASL_MSG_LONG_SLEEP, Op, NULL);
+        }
+        break;
+
     default:
 
         /* Nothing to do here for other opcodes */

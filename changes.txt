@@ -1,4 +1,18 @@
 ----------------------------------------
+03 October 2018. Summary of changes for version 20181003:
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Fixed a regression introduced in version 20180927 that could cause the 
+compiler to fault, especially with NamePaths containing one or more 
+carats (^). Such as: ^^_SB_PCI0
+
+Added a new remark for the Sleep() operator when the sleep time operand 
+is larger than one second. This is a very long time for the ASL/BIOS code 
+and may not be what was intended by the ASL writer.
+
+----------------------------------------
 27 September 2018. Summary of changes for version 20180927:
 
 
