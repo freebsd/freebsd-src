@@ -1823,10 +1823,9 @@ cleanup1:
 		if (dl > hint_stat.st_size)
 			goto cleanup1;
 		p = xmalloc(hdr.dirlistlen + 1);
-
-		if (lseek(fd, hdr.strtab + hdr.dirlist, SEEK_SET) == -1 ||
-		    read(fd, p, hdr.dirlistlen + 1) !=
-		    (ssize_t)hdr.dirlistlen + 1 || p[hdr.dirlistlen] != '\0') {
+		if (pread(fd, p, hdr.dirlistlen + 1,
+		    hdr.strtab + hdr.dirlist) != (ssize_t)hdr.dirlistlen + 1 ||
+		    p[hdr.dirlistlen] != '\0') {
 			free(p);
 			goto cleanup1;
 		}
