@@ -742,6 +742,8 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ndn->dn_datablkszsec = odn->dn_datablkszsec;
 	ndn->dn_datablksz = odn->dn_datablksz;
 	ndn->dn_maxblkid = odn->dn_maxblkid;
+	bcopy(&odn->dn_next_type[0], &ndn->dn_next_type[0],
+	    sizeof (odn->dn_next_type));
 	bcopy(&odn->dn_next_nblkptr[0], &ndn->dn_next_nblkptr[0],
 	    sizeof (odn->dn_next_nblkptr));
 	bcopy(&odn->dn_next_nlevels[0], &ndn->dn_next_nlevels[0],
