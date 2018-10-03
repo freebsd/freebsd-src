@@ -1619,27 +1619,54 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
      * nodeflib.
      */
     if (objgiven && refobj->rpath != NULL && ld_library_path_rpath) {
-	if ((pathname = search_library_path(name, ld_library_path)) != NULL ||
-	  (refobj != NULL &&
-	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
-	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
-          (pathname = search_library_path(name, gethints(false))) != NULL ||
-	  (pathname = search_library_path(name, ld_standard_library_path)) != NULL)
+	pathname = search_library_path(name, ld_library_path);
+	if (pathname != NULL)
+	    return (pathname);
+	if (refobj != NULL) {
+	    pathname = search_library_path(name, refobj->rpath);
+	    if (pathname != NULL)
+	      return (pathname);
+	}
+	pathname = search_library_pathfds(name, ld_library_dirs, fdp);
+	if (pathname != NULL)
+	    return (pathname);
+	pathname = search_library_path(name, gethints(false));
+	if (pathname != NULL)
+	    return (pathname);
+	pathname = search_library_path(name, ld_standard_library_path);
+	if (pathname != NULL)
 	    return (pathname);
     } else {
 	nodeflib = objgiven ? refobj->z_nodeflib : false;
-	if ((objgiven &&
-	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
-	  (objgiven && refobj->runpath == NULL && refobj != obj_main &&
-	  (pathname = search_library_path(name, obj_main->rpath)) != NULL) ||
-	  (pathname = search_library_path(name, ld_library_path)) != NULL ||
-	  (objgiven &&
-	  (pathname = search_library_path(name, refobj->runpath)) != NULL) ||
-	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
-	  (pathname = search_library_path(name, gethints(nodeflib))) != NULL ||
-	  (objgiven && !nodeflib &&
-	  (pathname = search_library_path(name, ld_standard_library_path)) != NULL))
+	if (objgiven) {
+	    pathname = search_library_path(name, refobj->rpath);
+	    if (pathname != NULL)
+		return (pathname);
+	}
+	if (objgiven && refobj->runpath == NULL && refobj != obj_main) {
+	    pathname = search_library_path(name, obj_main->rpath);
+	    if (pathname != NULL)
+		return (pathname);
+	}
+	pathname = search_library_path(name, ld_library_path);
+	if (pathname != NULL)
 	    return (pathname);
+	if (objgiven) {
+	    pathname = search_library_path(name, refobj->runpath);
+	    if (pathname != NULL)
+		return (pathname);
+	}
+	pathname = search_library_pathfds(name, ld_library_dirs, fdp);
+	if (pathname != NULL)
+	    return (pathname);
+	pathname = search_library_path(name, gethints(nodeflib));
+	if (pathname != NULL)
+	    return (pathname);
+	if (objgiven && !nodeflib) {
+	    pathname = search_library_path(name, ld_standard_library_path);
+	    if (pathname != NULL)
+		return (pathname);
+	}
     }
 
     if (objgiven && refobj->path != NULL) {
