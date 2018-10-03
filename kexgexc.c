@@ -37,6 +37,8 @@
 #include <string.h>
 #include <signal.h>
 
+#include "openbsd-compat/openssl-compat.h"
+
 #include "sshkey.h"
 #include "cipher.h"
 #include "digest.h"
@@ -93,6 +95,7 @@ input_kex_dh_gex_group(int type, u_int32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	BIGNUM *p = NULL, *g = NULL;
+	const BIGNUM *pub_key;
 	int r, bits;
 
 	debug("got SSH2_MSG_KEX_DH_GEX_GROUP");
@@ -118,16 +121,18 @@ input_kex_dh_gex_group(int type, u_int32_t seq, struct ssh *ssh)
 	p = g = NULL; /* belong to kex->dh now */
 
 	/* generate and send 'e', client DH public key */
-	if ((r = dh_gen_key(kex->dh, kex->we_need * 8)) != 0 ||
-	    (r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_INIT)) != 0 ||
-	    (r = sshpkt_put_bignum2(ssh, kex->dh->pub_key)) != 0 ||
+	if ((r = dh_gen_key(kex->dh, kex->we_need * 8)) != 0)
+		goto out;
+	DH_get0_key(kex->dh, &pub_key, NULL);
+	if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_INIT)) != 0 ||
+	    (r = sshpkt_put_bignum2(ssh, pub_key)) != 0 ||
 	    (r = sshpkt_send(ssh)) != 0)
 		goto out;
 	debug("SSH2_MSG_KEX_DH_GEX_INIT sent");
 #ifdef DEBUG_KEXDH
 	DHparams_print_fp(stderr, kex->dh);
 	fprintf(stderr, "pub= ");
-	BN_print_fp(stderr, kex->dh->pub_key);
+	BN_print_fp(stderr, pub_key);
 	fprintf(stderr, "\n");
 #endif
 	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_GROUP, NULL);
@@ -144,6 +149,7 @@ input_kex_dh_gex_reply(int type, u_int32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	BIGNUM *dh_server_pub = NULL, *shared_secret = NULL;
+	const BIGNUM *pub_key, *dh_p, *dh_g;
 	struct sshkey *server_host_key = NULL;
 	u_char *kbuf = NULL, *signature = NULL, *server_host_key_blob = NULL;
 	u_char hash[SSH_DIGEST_MAX_LENGTH];
@@ -211,6 +217,8 @@ input_kex_dh_gex_reply(int type, u_int32_t seq, struct ssh *ssh)
 		kex->min = kex->max = -1;
 
 	/* calc and verify H */
+	DH_get0_key(kex->dh, &pub_key, NULL);
+	DH_get0_pqg(kex->dh, &dh_p, NULL, &dh_g);
 	hashlen = sizeof(hash);
 	if ((r = kexgex_hash(
 	    kex->hash_alg,
@@ -220,8 +228,8 @@ input_kex_dh_gex_reply(int type, u_int32_t seq, struct ssh *ssh)
 	    sshbuf_ptr(kex->peer), sshbuf_len(kex->peer),
 	    server_host_key_blob, sbloblen,
 	    kex->min, kex->nbits, kex->max,
-	    kex->dh->p, kex->dh->g,
-	    kex->dh->pub_key,
+	    dh_p, dh_g,
+	    pub_key,
 	    dh_server_pub,
 	    shared_secret,
 	    hash, &hashlen)) != 0)
