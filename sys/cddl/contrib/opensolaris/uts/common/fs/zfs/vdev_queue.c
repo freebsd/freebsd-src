@@ -267,6 +267,9 @@ SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RWTUN,
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, queue_depth_pct, CTLFLAG_RWTUN,
     &zfs_vdev_queue_depth_pct, 0,
     "Queue depth percentage for each top-level");
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, def_queue_depth, CTLFLAG_RWTUN,
+    &zfs_vdev_def_queue_depth, 0,
+    "Default queue depth for each allocator");
 
 static int
 sysctl_zfs_async_write_active_min_dirty_percent(SYSCTL_HANDLER_ARGS)
