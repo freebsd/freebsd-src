@@ -138,7 +138,7 @@ static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
 static void *rtld_dlopen(const char *name, int fd, int mode);
 static void rtld_exit(void);
-static char *search_library_path(const char *, const char *);
+static char *search_library_path(const char *, const char *, int *);
 static char *search_library_pathfds(const char *, const char *, int *);
 static const void **get_program_var_addr(const char *, RtldLockState *);
 static void set_program_var(const char *, const void *);
@@ -1619,52 +1619,52 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	 * nodeflib.
 	 */
 	if (objgiven && refobj->rpath != NULL && ld_library_path_rpath) {
-		pathname = search_library_path(name, ld_library_path);
+		pathname = search_library_path(name, ld_library_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
 		if (refobj != NULL) {
-			pathname = search_library_path(name, refobj->rpath);
+			pathname = search_library_path(name, refobj->rpath, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
 		pathname = search_library_pathfds(name, ld_library_dirs, fdp);
 		if (pathname != NULL)
 			return (pathname);
-		pathname = search_library_path(name, gethints(false));
+		pathname = search_library_path(name, gethints(false), fdp);
 		if (pathname != NULL)
 			return (pathname);
-		pathname = search_library_path(name, ld_standard_library_path);
+		pathname = search_library_path(name, ld_standard_library_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
 	} else {
 		nodeflib = objgiven ? refobj->z_nodeflib : false;
 		if (objgiven) {
-			pathname = search_library_path(name, refobj->rpath);
+			pathname = search_library_path(name, refobj->rpath, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
 		if (objgiven && refobj->runpath == NULL && refobj != obj_main) {
-			pathname = search_library_path(name, obj_main->rpath);
+			pathname = search_library_path(name, obj_main->rpath, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
-		pathname = search_library_path(name, ld_library_path);
+		pathname = search_library_path(name, ld_library_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
 		if (objgiven) {
-			pathname = search_library_path(name, refobj->runpath);
+			pathname = search_library_path(name, refobj->runpath, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
 		pathname = search_library_pathfds(name, ld_library_dirs, fdp);
 		if (pathname != NULL)
 			return (pathname);
-		pathname = search_library_path(name, gethints(nodeflib));
+		pathname = search_library_path(name, gethints(nodeflib), fdp);
 		if (pathname != NULL)
 			return (pathname);
 		if (objgiven && !nodeflib) {
 			pathname = search_library_path(name,
-			    ld_standard_library_path);
+			    ld_standard_library_path, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
@@ -3021,12 +3021,14 @@ struct try_library_args {
     size_t	 namelen;
     char	*buffer;
     size_t	 buflen;
+    int		 fd;
 };
 
 static void *
 try_library_path(const char *dir, size_t dirlen, void *param)
 {
     struct try_library_args *arg;
+    int fd;
 
     arg = param;
     if (*dir == '/' || trust) {
@@ -3041,17 +3043,23 @@ try_library_path(const char *dir, size_t dirlen, void *param)
 	strcpy(pathname + dirlen + 1, arg->name);
 
 	dbg("  Trying \"%s\"", pathname);
-	if (access(pathname, F_OK) == 0) {		/* We found it */
+	fd = open(pathname, O_RDONLY | O_CLOEXEC | O_VERIFY);
+	if (fd >= 0) {
+	    dbg("  Opened \"%s\", fd %d", pathname, fd);
 	    pathname = xmalloc(dirlen + 1 + arg->namelen + 1);
 	    strcpy(pathname, arg->buffer);
+	    arg->fd = fd;
 	    return (pathname);
+	} else {
+	    dbg("  Failed to open \"%s\": %s",
+		pathname, rtld_strerror(errno));
 	}
     }
     return (NULL);
 }
 
 static char *
-search_library_path(const char *name, const char *path)
+search_library_path(const char *name, const char *path, int *fdp)
 {
     char *p;
     struct try_library_args arg;
@@ -3063,8 +3071,10 @@ search_library_path(const char *name, const char *path)
     arg.namelen = strlen(name);
     arg.buffer = xmalloc(PATH_MAX);
     arg.buflen = PATH_MAX;
+    arg.fd = -1;
 
     p = path_enumerate(path, try_library_path, &arg);
+    *fdp = arg.fd;
 
     free(arg.buffer);
 
