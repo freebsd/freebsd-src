@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <paths.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1071,6 +1072,31 @@ restart:
 			}
 		}
 		return;
+	}
+	if (*pflags & D_SKIPBLANKLINES) {
+		char *line;
+		/*
+		 * All lines in the change, insert, or delete must not be
+		 * empty for the change to be ignored.
+		 */
+		if (a <= b) {		/* Changes and deletes. */
+			for (i = a; i <= b; i++) {
+				line = preadline(fileno(f1),
+				    ixold[i] - ixold[i - 1], ixold[i - 1]);
+				if (*line != '\0')
+					goto proceed;
+			}
+		}
+		if (a > b || c <= d) {	/* Changes and inserts. */
+			for (i = c; i <= d; i++) {
+				line = preadline(fileno(f2),
+				    ixnew[i] - ixnew[i - 1], ixnew[i - 1]);
+				if (*line != '\0')
+					goto proceed;
+			}
+		}
+		return;
+
 	}
 proceed:
 	if (*pflags & D_HEADER && diff_format != D_BRIEF) {
