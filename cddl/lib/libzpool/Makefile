@@ -47,7 +47,6 @@ CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris
 CFLAGS+=	-I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+=	-I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
 CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
-CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs/lua
 CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
