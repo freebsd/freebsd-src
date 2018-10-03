@@ -43,6 +43,8 @@
 #define SSHKEY_INTERNAL
 #include "sshkey.h"
 
+#include "openbsd-compat/openssl-compat.h"
+
 #define INTBLOB_LEN	20
 #define SIGBLOB_LEN	(2*INTBLOB_LEN)
 
@@ -51,6 +53,7 @@ ssh_dss_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
     const u_char *data, size_t datalen, u_int compat)
 {
 	DSA_SIG *sig = NULL;
+	const BIGNUM *sig_r, *sig_s;
 	u_char digest[SSH_DIGEST_MAX_LENGTH], sigblob[SIGBLOB_LEN];
 	size_t rlen, slen, len, dlen = ssh_digest_bytes(SSH_DIGEST_SHA1);
 	struct sshbuf *b = NULL;
@@ -76,15 +79,16 @@ ssh_dss_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
 		goto out;
 	}
 
-	rlen = BN_num_bytes(sig->r);
-	slen = BN_num_bytes(sig->s);
+	DSA_SIG_get0(sig, &sig_r, &sig_s);
+	rlen = BN_num_bytes(sig_r);
+	slen = BN_num_bytes(sig_s);
 	if (rlen > INTBLOB_LEN || slen > INTBLOB_LEN) {
 		ret = SSH_ERR_INTERNAL_ERROR;
 		goto out;
 	}
 	explicit_bzero(sigblob, SIGBLOB_LEN);
-	BN_bn2bin(sig->r, sigblob + SIGBLOB_LEN - INTBLOB_LEN - rlen);
-	BN_bn2bin(sig->s, sigblob + SIGBLOB_LEN - slen);
+	BN_bn2bin(sig_r, sigblob + SIGBLOB_LEN - INTBLOB_LEN - rlen);
+	BN_bn2bin(sig_s, sigblob + SIGBLOB_LEN - slen);
 
 	if ((b = sshbuf_new()) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
@@ -118,6 +122,7 @@ ssh_dss_verify(const struct sshkey *key,
     const u_char *data, size_t datalen, u_int compat)
 {
 	DSA_SIG *sig = NULL;
+	BIGNUM *sig_r = NULL, *sig_s = NULL;
 	u_char digest[SSH_DIGEST_MAX_LENGTH], *sigblob = NULL;
 	size_t len, dlen = ssh_digest_bytes(SSH_DIGEST_SHA1);
 	int ret = SSH_ERR_INTERNAL_ERROR;
@@ -155,16 +160,21 @@ ssh_dss_verify(const struct sshkey *key,
 
 	/* parse signature */
 	if ((sig = DSA_SIG_new()) == NULL ||
-	    (sig->r = BN_new()) == NULL ||
-	    (sig->s = BN_new()) == NULL) {
+	    (sig_r = BN_new()) == NULL ||
+	    (sig_s = BN_new()) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if ((BN_bin2bn(sigblob, INTBLOB_LEN, sig->r) == NULL) ||
-	    (BN_bin2bn(sigblob+ INTBLOB_LEN, INTBLOB_LEN, sig->s) == NULL)) {
+	if ((BN_bin2bn(sigblob, INTBLOB_LEN, sig_r) == NULL) ||
+	    (BN_bin2bn(sigblob + INTBLOB_LEN, INTBLOB_LEN, sig_s) == NULL)) {
 		ret = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
+	if (!DSA_SIG_set0(sig, sig_r, sig_s)) {
+		ret = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
+	sig_r = sig_s = NULL; /* transferred */
 
 	/* sha1 the data */
 	if ((ret = ssh_digest_memory(SSH_DIGEST_SHA1, data, datalen,
@@ -186,6 +196,8 @@ ssh_dss_verify(const struct sshkey *key,
  out:
 	explicit_bzero(digest, sizeof(digest));
 	DSA_SIG_free(sig);
+	BN_clear_free(sig_r);
+	BN_clear_free(sig_s);
 	sshbuf_free(b);
 	free(ktype);
 	if (sigblob != NULL) {
