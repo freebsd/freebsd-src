@@ -358,7 +358,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_OEM_TABLE_ID */               "Invalid OEM Table ID",
 /*    ASL_MSG_OEM_ID */                     "Invalid OEM ID",
 /*    ASL_MSG_UNLOAD */                     "Unload is not supported by all operating systems",
-/*    ASL_MSG_OFFSET */                     "Unnecessary/redundant use of Offset operator"
+/*    ASL_MSG_OFFSET */                     "Unnecessary/redundant use of Offset operator",
+/*    ASL_MSG_LONG_SLEEP */                 "Very long Sleep, greater than 1 second"
 };
 
 /* Table compiler */

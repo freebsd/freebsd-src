@@ -522,7 +522,6 @@ OptBuildShortestPath (
 
 Cleanup:
 
-    ACPI_FREE (NewPathExternal);
     return (Status);
 }
 
