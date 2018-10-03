@@ -124,6 +124,7 @@ ZFS_COMMON_OBJS +=		\
 	vdev_indirect.o		\
 	vdev_indirect_births.o	\
 	vdev_indirect_mapping.o	\
+	vdev_initialize.o	\
 	vdev_label.o		\
 	vdev_mirror.o		\
 	vdev_missing.o		\
