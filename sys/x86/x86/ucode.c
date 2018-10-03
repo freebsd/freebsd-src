@@ -269,7 +269,7 @@ ucode_load_ap(int cpu)
 	KASSERT(cpu_info[cpu_apic_ids[cpu]].cpu_present,
 	    ("cpu %d not present", cpu));
 
-	if (!cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
+	if (cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
 		return;
 #endif
 
