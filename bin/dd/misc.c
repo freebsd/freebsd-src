@@ -109,7 +109,7 @@ progress(void)
 {
 	static int outlen;
 	char si[4 + 1 + 2 + 1];		/* 123 <space> <suffix> NUL */
-	char iec[4 + 1 + 2 + 1];	/* 123 <space> <suffix> NUL */
+	char iec[4 + 1 + 3 + 1];	/* 123 <space> <suffix> NUL */
 	char persec[4 + 1 + 2 + 1];	/* 123 <space> <suffix> NUL */
 	char *buf;
 	double secs;
@@ -119,11 +119,11 @@ progress(void)
 	    HN_DECIMAL | HN_DIVISOR_1000);
 	humanize_number(iec, sizeof(iec), (int64_t)st.bytes, "B", HN_AUTOSCALE,
 	    HN_DECIMAL | HN_IEC_PREFIXES);
-	humanize_number(persec, sizeof(iec), (int64_t)(st.bytes / secs), "B",
+	humanize_number(persec, sizeof(persec), (int64_t)(st.bytes / secs), "B",
 	    HN_AUTOSCALE, HN_DECIMAL | HN_DIVISOR_1000);
 	asprintf(&buf, "  %'ju bytes (%s, %s) transferred %.3fs, %s/s",
 	    (uintmax_t)st.bytes, si, iec, secs, persec);
-	outlen = fprintf(stderr, "%-*s\r", outlen, buf);
+	outlen = fprintf(stderr, "%-*s\r", outlen, buf) - 1;
 	fflush(stderr);
 	free(buf);
 	need_progress = 0;
