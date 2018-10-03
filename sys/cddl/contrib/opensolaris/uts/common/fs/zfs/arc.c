@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Joyent, Inc.
- * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
@@ -5177,12 +5177,13 @@ arc_getbuf_func(zio_t *zio, const zbookmark_phys_t *zb, const blkptr_t *bp,
     arc_buf_t *buf, void *arg)
 {
 	arc_buf_t **bufp = arg;
-
 	if (buf == NULL) {
+		ASSERT(zio == NULL || zio->io_error != 0);
 		*bufp = NULL;
 	} else {
+		ASSERT(zio == NULL || zio->io_error == 0);
 		*bufp = buf;
-		ASSERT(buf->b_data);
+		ASSERT(buf->b_data != NULL);
 	}
 }
 
@@ -5210,6 +5211,7 @@ arc_read_done(zio_t *zio)
 	arc_callback_t	*callback_list;
 	arc_callback_t	*acb;
 	boolean_t	freeable = B_FALSE;
+	boolean_t	no_zio_error = (zio->io_error == 0);
 
 	/*
 	 * The hdr was inserted into hash-table and removed from lists
@@ -5235,7 +5237,7 @@ arc_read_done(zio_t *zio)
 		ASSERT3P(hash_lock, !=, NULL);
 	}
 
-	if (zio->io_error == 0) {
+	if (no_zio_error) {
 		/* byteswap if necessary */
 		if (BP_SHOULD_BYTESWAP(zio->io_bp)) {
 			if (BP_GET_LEVEL(zio->io_bp) > 0) {
@@ -5256,8 +5258,7 @@ arc_read_done(zio_t *zio)
 	callback_list = hdr->b_l1hdr.b_acb;
 	ASSERT3P(callback_list, !=, NULL);
 
-	if (hash_lock && zio->io_error == 0 &&
-	    hdr->b_l1hdr.b_state == arc_anon) {
+	if (hash_lock && no_zio_error && hdr->b_l1hdr.b_state == arc_anon) {
 		/*
 		 * Only call arc_access on anonymous buffers.  This is because
 		 * if we've issued an I/O for an evicted buffer, we've already
@@ -5280,20 +5281,38 @@ arc_read_done(zio_t *zio)
 
 		callback_cnt++;
 
-		if (zio->io_error != 0)
-			continue;
-		
-		int error = arc_buf_alloc_impl(hdr, acb->acb_private,
-		    acb->acb_compressed,
-		    B_TRUE, &acb->acb_buf);
-		if (error != 0) {
-			arc_buf_destroy(acb->acb_buf, acb->acb_private);
-			acb->acb_buf = NULL;
+		if (no_zio_error) {
+			int error = arc_buf_alloc_impl(hdr, acb->acb_private,
+			    acb->acb_compressed, zio->io_error == 0,
+			    &acb->acb_buf);
+			if (error != 0) {
+				/*
+				 * Decompression failed.  Set io_error
+				 * so that when we call acb_done (below),
+				 * we will indicate that the read failed.
+				 * Note that in the unusual case where one
+				 * callback is compressed and another
+				 * uncompressed, we will mark all of them
+				 * as failed, even though the uncompressed
+				 * one can't actually fail.  In this case,
+				 * the hdr will not be anonymous, because
+				 * if there are multiple callbacks, it's
+				 * because multiple threads found the same
+				 * arc buf in the hash table.
+				 */
+				zio->io_error = error;
+			}
 		}
-
-		if (zio->io_error == 0)
-			zio->io_error = error;
 	}
+	/*
+	 * If there are multiple callbacks, we must have the hash lock,
+	 * because the only way for multiple threads to find this hdr is
+	 * in the hash table.  This ensures that if there are multiple
+	 * callbacks, the hdr is not anonymous.  If it were anonymous,
+	 * we couldn't use arc_buf_destroy() in the error case below.
+	 */
+	ASSERT(callback_cnt < 2 || hash_lock != NULL);
+
 	hdr->b_l1hdr.b_acb = NULL;
 	arc_hdr_clear_flags(hdr, ARC_FLAG_IO_IN_PROGRESS);
 	if (callback_cnt == 0) {
@@ -5305,7 +5324,7 @@ arc_read_done(zio_t *zio)
 	ASSERT(refcount_is_zero(&hdr->b_l1hdr.b_refcnt) ||
 	    callback_list != NULL);
 
-	if (zio->io_error == 0) {
+	if (no_zio_error) {
 		arc_hdr_verify(hdr, zio->io_bp);
 	} else {
 		arc_hdr_set_flags(hdr, ARC_FLAG_IO_ERROR);
@@ -5338,7 +5357,16 @@ arc_read_done(zio_t *zio)
 
 	/* execute each callback and free its structure */
 	while ((acb = callback_list) != NULL) {
-		if (acb->acb_done) {
+		if (acb->acb_done != NULL) {
+			if (zio->io_error != 0 && acb->acb_buf != NULL) {
+				/*
+				 * If arc_buf_alloc_impl() fails during
+				 * decompression, the buf will still be
+				 * allocated, and needs to be freed here.
+				 */
+				arc_buf_destroy(acb->acb_buf, acb->acb_private);
+				acb->acb_buf = NULL;
+			}
 			acb->acb_done(zio, &zio->io_bookmark, zio->io_bp,
 			    acb->acb_buf, acb->acb_private);
 		}
