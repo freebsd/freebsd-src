@@ -3552,7 +3552,7 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 	int zio_flags = ZIO_FLAG_SCAN_THREAD | ZIO_FLAG_RAW | ZIO_FLAG_CANFAIL;
 	int d;
 	
-	count_block(dp->dp_blkstats, bp);
+	count_block(scn, dp->dp_blkstats, bp);
 
 	if (phys_birth <= scn->scn_phys.scn_min_txg ||
 	    phys_birth >= scn->scn_phys.scn_max_txg)
