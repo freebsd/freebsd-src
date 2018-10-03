@@ -1590,92 +1590,93 @@ gnu_hash(const char *s)
 static char *
 find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 {
-    char *pathname;
-    char *name;
-    bool nodeflib, objgiven;
+	char *pathname;
+	char *name;
+	bool nodeflib, objgiven;
 
-    objgiven = refobj != NULL;
+	objgiven = refobj != NULL;
 
-    if (libmap_disable || !objgiven ||
-      (name = lm_find(refobj->path, xname)) == NULL)
-	name = (char *)xname;
+	if (libmap_disable || !objgiven ||
+	    (name = lm_find(refobj->path, xname)) == NULL)
+		name = (char *)xname;
 
-    if (strchr(name, '/') != NULL) {	/* Hard coded pathname */
-	if (name[0] != '/' && !trust) {
-	    _rtld_error("Absolute pathname required for shared object \"%s\"",
-	      name);
-	    return (NULL);
+	if (strchr(name, '/') != NULL) {	/* Hard coded pathname */
+		if (name[0] != '/' && !trust) {
+			_rtld_error("Absolute pathname required "
+			    "for shared object \"%s\"", name);
+			return (NULL);
+		}
+		return (origin_subst(__DECONST(Obj_Entry *, refobj),
+		    __DECONST(char *, name)));
 	}
-	return (origin_subst(__DECONST(Obj_Entry *, refobj),
-	  __DECONST(char *, name)));
-    }
 
-    dbg(" Searching for \"%s\"", name);
+	dbg(" Searching for \"%s\"", name);
 
-    /*
-     * If refobj->rpath != NULL, then refobj->runpath is NULL.  Fall
-     * back to pre-conforming behaviour if user requested so with
-     * LD_LIBRARY_PATH_RPATH environment variable and ignore -z
-     * nodeflib.
-     */
-    if (objgiven && refobj->rpath != NULL && ld_library_path_rpath) {
-	pathname = search_library_path(name, ld_library_path);
-	if (pathname != NULL)
-	    return (pathname);
-	if (refobj != NULL) {
-	    pathname = search_library_path(name, refobj->rpath);
-	    if (pathname != NULL)
-	      return (pathname);
+	/*
+	 * If refobj->rpath != NULL, then refobj->runpath is NULL.  Fall
+	 * back to pre-conforming behaviour if user requested so with
+	 * LD_LIBRARY_PATH_RPATH environment variable and ignore -z
+	 * nodeflib.
+	 */
+	if (objgiven && refobj->rpath != NULL && ld_library_path_rpath) {
+		pathname = search_library_path(name, ld_library_path);
+		if (pathname != NULL)
+			return (pathname);
+		if (refobj != NULL) {
+			pathname = search_library_path(name, refobj->rpath);
+			if (pathname != NULL)
+				return (pathname);
+		}
+		pathname = search_library_pathfds(name, ld_library_dirs, fdp);
+		if (pathname != NULL)
+			return (pathname);
+		pathname = search_library_path(name, gethints(false));
+		if (pathname != NULL)
+			return (pathname);
+		pathname = search_library_path(name, ld_standard_library_path);
+		if (pathname != NULL)
+			return (pathname);
+	} else {
+		nodeflib = objgiven ? refobj->z_nodeflib : false;
+		if (objgiven) {
+			pathname = search_library_path(name, refobj->rpath);
+			if (pathname != NULL)
+				return (pathname);
+		}
+		if (objgiven && refobj->runpath == NULL && refobj != obj_main) {
+			pathname = search_library_path(name, obj_main->rpath);
+			if (pathname != NULL)
+				return (pathname);
+		}
+		pathname = search_library_path(name, ld_library_path);
+		if (pathname != NULL)
+			return (pathname);
+		if (objgiven) {
+			pathname = search_library_path(name, refobj->runpath);
+			if (pathname != NULL)
+				return (pathname);
+		}
+		pathname = search_library_pathfds(name, ld_library_dirs, fdp);
+		if (pathname != NULL)
+			return (pathname);
+		pathname = search_library_path(name, gethints(nodeflib));
+		if (pathname != NULL)
+			return (pathname);
+		if (objgiven && !nodeflib) {
+			pathname = search_library_path(name,
+			    ld_standard_library_path);
+			if (pathname != NULL)
+				return (pathname);
+		}
 	}
-	pathname = search_library_pathfds(name, ld_library_dirs, fdp);
-	if (pathname != NULL)
-	    return (pathname);
-	pathname = search_library_path(name, gethints(false));
-	if (pathname != NULL)
-	    return (pathname);
-	pathname = search_library_path(name, ld_standard_library_path);
-	if (pathname != NULL)
-	    return (pathname);
-    } else {
-	nodeflib = objgiven ? refobj->z_nodeflib : false;
-	if (objgiven) {
-	    pathname = search_library_path(name, refobj->rpath);
-	    if (pathname != NULL)
-		return (pathname);
-	}
-	if (objgiven && refobj->runpath == NULL && refobj != obj_main) {
-	    pathname = search_library_path(name, obj_main->rpath);
-	    if (pathname != NULL)
-		return (pathname);
-	}
-	pathname = search_library_path(name, ld_library_path);
-	if (pathname != NULL)
-	    return (pathname);
-	if (objgiven) {
-	    pathname = search_library_path(name, refobj->runpath);
-	    if (pathname != NULL)
-		return (pathname);
-	}
-	pathname = search_library_pathfds(name, ld_library_dirs, fdp);
-	if (pathname != NULL)
-	    return (pathname);
-	pathname = search_library_path(name, gethints(nodeflib));
-	if (pathname != NULL)
-	    return (pathname);
-	if (objgiven && !nodeflib) {
-	    pathname = search_library_path(name, ld_standard_library_path);
-	    if (pathname != NULL)
-		return (pathname);
-	}
-    }
 
-    if (objgiven && refobj->path != NULL) {
-	_rtld_error("Shared object \"%s\" not found, required by \"%s\"",
-	  name, basename(refobj->path));
-    } else {
-	_rtld_error("Shared object \"%s\" not found", name);
-    }
-    return NULL;
+	if (objgiven && refobj->path != NULL) {
+		_rtld_error("Shared object \"%s\" not found, "
+		    "required by \"%s\"", name, basename(refobj->path));
+	} else {
+		_rtld_error("Shared object \"%s\" not found", name);
+	}
+	return (NULL);
 }
 
 /*
