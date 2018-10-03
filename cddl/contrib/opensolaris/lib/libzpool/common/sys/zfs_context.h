@@ -670,6 +670,9 @@ extern zoneid_t getzoneid(void);
 #define	root_mount_wait()	do { } while (0)
 #define	root_mounted()		(1)
 
+#define	noinline	__attribute__((noinline))
+#define	likely(x)	__builtin_expect((x), 1)
+
 struct file {
 	void *dummy;
 };
