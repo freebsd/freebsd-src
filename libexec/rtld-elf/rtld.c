@@ -123,7 +123,7 @@ static void objlist_remove(Objlist *, Obj_Entry *);
 static int open_binary_fd(const char *argv0, bool search_in_path);
 static int parse_args(char* argv[], int argc, bool *use_pathp, int *fdp);
 static int parse_integer(const char *);
-static void *path_enumerate(const char *, path_enum_proc, void *);
+static void *path_enumerate(const char *, path_enum_proc, const char *, void *);
 static void print_usage(const char *argv0);
 static void release_object(Obj_Entry *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
@@ -138,7 +138,8 @@ static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
 static void *rtld_dlopen(const char *name, int fd, int mode);
 static void rtld_exit(void);
-static char *search_library_path(const char *, const char *, int *);
+static char *search_library_path(const char *, const char *, const char *,
+    int *);
 static char *search_library_pathfds(const char *, const char *, int *);
 static const void **get_program_var_addr(const char *, RtldLockState *);
 static void set_program_var(const char *, const void *);
@@ -1590,8 +1591,7 @@ gnu_hash(const char *s)
 static char *
 find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 {
-	char *pathname;
-	char *name;
+	char *name, *pathname, *refobj_path;
 	bool nodeflib, objgiven;
 
 	objgiven = refobj != NULL;
@@ -1611,6 +1611,7 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	}
 
 	dbg(" Searching for \"%s\"", name);
+	refobj_path = objgiven ? refobj->path : NULL;
 
 	/*
 	 * If refobj->rpath != NULL, then refobj->runpath is NULL.  Fall
@@ -1619,52 +1620,61 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	 * nodeflib.
 	 */
 	if (objgiven && refobj->rpath != NULL && ld_library_path_rpath) {
-		pathname = search_library_path(name, ld_library_path, fdp);
+		pathname = search_library_path(name, ld_library_path,
+		    refobj_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
 		if (refobj != NULL) {
-			pathname = search_library_path(name, refobj->rpath, fdp);
+			pathname = search_library_path(name, refobj->rpath,
+			    refobj_path, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
 		pathname = search_library_pathfds(name, ld_library_dirs, fdp);
 		if (pathname != NULL)
 			return (pathname);
-		pathname = search_library_path(name, gethints(false), fdp);
+		pathname = search_library_path(name, gethints(false),
+		    refobj_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
-		pathname = search_library_path(name, ld_standard_library_path, fdp);
+		pathname = search_library_path(name, ld_standard_library_path,
+		    refobj_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
 	} else {
 		nodeflib = objgiven ? refobj->z_nodeflib : false;
 		if (objgiven) {
-			pathname = search_library_path(name, refobj->rpath, fdp);
+			pathname = search_library_path(name, refobj->rpath,
+			    refobj->path, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
 		if (objgiven && refobj->runpath == NULL && refobj != obj_main) {
-			pathname = search_library_path(name, obj_main->rpath, fdp);
+			pathname = search_library_path(name, obj_main->rpath,
+			    refobj_path, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
-		pathname = search_library_path(name, ld_library_path, fdp);
+		pathname = search_library_path(name, ld_library_path,
+		    refobj_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
 		if (objgiven) {
-			pathname = search_library_path(name, refobj->runpath, fdp);
+			pathname = search_library_path(name, refobj->runpath,
+			    refobj_path, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
 		pathname = search_library_pathfds(name, ld_library_dirs, fdp);
 		if (pathname != NULL)
 			return (pathname);
-		pathname = search_library_path(name, gethints(nodeflib), fdp);
+		pathname = search_library_path(name, gethints(nodeflib),
+		    refobj_path, fdp);
 		if (pathname != NULL)
 			return (pathname);
 		if (objgiven && !nodeflib) {
 			pathname = search_library_path(name,
-			    ld_standard_library_path, fdp);
+			    ld_standard_library_path, refobj_path, fdp);
 			if (pathname != NULL)
 				return (pathname);
 		}
@@ -1859,8 +1869,9 @@ cleanup1:
 	hargs.request = RTLD_DI_SERINFOSIZE;
 	hargs.serinfo = &hmeta;
 
-	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
-	path_enumerate(hints, fill_search_info, &hargs);
+	path_enumerate(ld_standard_library_path, fill_search_info, NULL,
+	    &sargs);
+	path_enumerate(hints, fill_search_info, NULL, &hargs);
 
 	SLPinfo = xmalloc(smeta.dls_size);
 	hintinfo = xmalloc(hmeta.dls_size);
@@ -1878,8 +1889,9 @@ cleanup1:
 	hargs.serpath = &hintinfo->dls_serpath[0];
 	hargs.strspace = (char *)&hintinfo->dls_serpath[hmeta.dls_cnt];
 
-	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
-	path_enumerate(hints, fill_search_info, &hargs);
+	path_enumerate(ld_standard_library_path, fill_search_info, NULL,
+	    &sargs);
+	path_enumerate(hints, fill_search_info, NULL, &hargs);
 
 	/*
 	 * Now calculate the difference between two sets, by excluding
@@ -2988,7 +3000,8 @@ rtld_exit(void)
  * callback on the result.
  */
 static void *
-path_enumerate(const char *path, path_enum_proc callback, void *arg)
+path_enumerate(const char *path, path_enum_proc callback,
+    const char *refobj_path, void *arg)
 {
     const char *trans;
     if (path == NULL)
@@ -3000,7 +3013,7 @@ path_enumerate(const char *path, path_enum_proc callback, void *arg)
 	char  *res;
 
 	len = strcspn(path, ":;");
-	trans = lm_findn(NULL, path, len);
+	trans = lm_findn(refobj_path, path, len);
 	if (trans)
 	    res = callback(trans, strlen(trans), arg);
 	else
@@ -3059,7 +3072,8 @@ try_library_path(const char *dir, size_t dirlen, void *param)
 }
 
 static char *
-search_library_path(const char *name, const char *path, int *fdp)
+search_library_path(const char *name, const char *path,
+    const char *refobj_path, int *fdp)
 {
     char *p;
     struct try_library_args arg;
@@ -3073,7 +3087,7 @@ search_library_path(const char *name, const char *path, int *fdp)
     arg.buflen = PATH_MAX;
     arg.fd = -1;
 
-    p = path_enumerate(path, try_library_path, &arg);
+    p = path_enumerate(path, try_library_path, refobj_path, &arg);
     *fdp = arg.fd;
 
     free(arg.buffer);
@@ -3790,12 +3804,12 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
     _info.dls_size = __offsetof(struct dl_serinfo, dls_serpath);
     _info.dls_cnt  = 0;
 
-    path_enumerate(obj->rpath, fill_search_info, &args);
-    path_enumerate(ld_library_path, fill_search_info, &args);
-    path_enumerate(obj->runpath, fill_search_info, &args);
-    path_enumerate(gethints(obj->z_nodeflib), fill_search_info, &args);
+    path_enumerate(obj->rpath, fill_search_info, NULL, &args);
+    path_enumerate(ld_library_path, fill_search_info, NULL, &args);
+    path_enumerate(obj->runpath, fill_search_info, NULL, &args);
+    path_enumerate(gethints(obj->z_nodeflib), fill_search_info, NULL, &args);
     if (!obj->z_nodeflib)
-      path_enumerate(ld_standard_library_path, fill_search_info, &args);
+      path_enumerate(ld_standard_library_path, fill_search_info, NULL, &args);
 
 
     if (request == RTLD_DI_SERINFOSIZE) {
@@ -3815,25 +3829,25 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
     args.strspace = (char *)&info->dls_serpath[_info.dls_cnt];
 
     args.flags = LA_SER_RUNPATH;
-    if (path_enumerate(obj->rpath, fill_search_info, &args) != NULL)
+    if (path_enumerate(obj->rpath, fill_search_info, NULL, &args) != NULL)
 	return (-1);
 
     args.flags = LA_SER_LIBPATH;
-    if (path_enumerate(ld_library_path, fill_search_info, &args) != NULL)
+    if (path_enumerate(ld_library_path, fill_search_info, NULL, &args) != NULL)
 	return (-1);
 
     args.flags = LA_SER_RUNPATH;
-    if (path_enumerate(obj->runpath, fill_search_info, &args) != NULL)
+    if (path_enumerate(obj->runpath, fill_search_info, NULL, &args) != NULL)
 	return (-1);
 
     args.flags = LA_SER_CONFIG;
-    if (path_enumerate(gethints(obj->z_nodeflib), fill_search_info, &args)
+    if (path_enumerate(gethints(obj->z_nodeflib), fill_search_info, NULL, &args)
       != NULL)
 	return (-1);
 
     args.flags = LA_SER_DEFAULT;
-    if (!obj->z_nodeflib &&
-      path_enumerate(ld_standard_library_path, fill_search_info, &args) != NULL)
+    if (!obj->z_nodeflib && path_enumerate(ld_standard_library_path,
+      fill_search_info, NULL, &args) != NULL)
 	return (-1);
     return (0);
 }
