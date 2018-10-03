@@ -360,7 +360,7 @@ BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
 # Lua in loader currently cause boot failures on powerpc.
 # Further debugging is required.
-.if ${__T} == "powerpc"
+.if ${__T} == "powerpc" || ${__T} == "powerpc64"
 BROKEN_OPTIONS+=LOADER_LUA
 .endif
 
