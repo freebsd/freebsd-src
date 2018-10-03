@@ -933,6 +933,12 @@ fdt_fixup(void)
 
 	fdt_platform_fixups();
 
+	/*
+	 * Re-fetch the /chosen subnode; our fixups may apply overlays or add
+	 * nodes/properties that invalidate the offset we grabbed or created
+	 * above, so we can no longer trust it.
+	 */
+	chosen = fdt_subnode_offset(fdtp, 0, "chosen");
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
 	return (1);
 }
