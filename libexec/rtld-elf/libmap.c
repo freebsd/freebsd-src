@@ -350,6 +350,7 @@ lm_add(const char *p, const char *f, const char *t)
 {
 	struct lm_list *lml;
 	struct lm *lm;
+	const char *t1;
 
 	if (p == NULL)
 		p = "$DEFAULT$";
@@ -359,11 +360,14 @@ lm_add(const char *p, const char *f, const char *t)
 	if ((lml = lmp_find(p)) == NULL)
 		lml = lmp_init(xstrdup(p));
 
-	lm = xmalloc(sizeof(struct lm));
-	lm->f = xstrdup(f);
-	lm->t = xstrdup(t);
-	TAILQ_INSERT_HEAD(lml, lm, lm_link);
-	lm_count++;
+	t1 = lml_find(lml, f);
+	if (t1 == NULL || strcmp(t1, t) != 0) {
+		lm = xmalloc(sizeof(struct lm));
+		lm->f = xstrdup(f);
+		lm->t = xstrdup(t);
+		TAILQ_INSERT_HEAD(lml, lm, lm_link);
+		lm_count++;
+	}
 }
 
 char *
