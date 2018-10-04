@@ -90,6 +90,15 @@ EXTRA_PACKAGES+= src.txz
 .endif
 .if !defined(NODOC)
 EXTRA_PACKAGES+= reldoc
+. if !defined(SVN) || empty(SVN)
+.  for S in svn svnlite
+.   for D in /usr/local/bin /usr/bin
+.    if(exists(${D}/${S}))
+SVN?=	${D}/${S}
+.    endif
+.   endfor
+.  endfor
+. endif
 .endif
 
 RELEASE_TARGETS= ftp
@@ -164,6 +173,7 @@ ports.txz:
 reldoc:
 	cd ${DOCDIR}/en_US.ISO8859-1/htdocs/releases/${REVISION}R && \
 	    env MAN4DIR=${WORLDDIR}/share/man/man4 \
+	    SVN=${SVN} \
 	    ${MAKE} all install clean "FORMATS=html txt" \
 	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc \
 	    WEBDIR=${DOCDIR} DESTDIR=${.OBJDIR}/rdoc
