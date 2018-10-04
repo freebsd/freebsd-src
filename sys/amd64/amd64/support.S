@@ -457,9 +457,9 @@ END(fillw)
 	movq	%rax,PCB_ONFAULT(%r9)
 	POP_FRAME_POINTER
 	ret
-.endif
 	ALIGN_TEXT
 1:
+.endif
 	rep
 	movsb
 
@@ -525,9 +525,9 @@ END(copyout_smap_erms)
 	movq	%rax,PCB_ONFAULT(%r9)
 	POP_FRAME_POINTER
 	ret
-.endif
 	ALIGN_TEXT
 1:
+.endif
 	rep
 	movsb
 
