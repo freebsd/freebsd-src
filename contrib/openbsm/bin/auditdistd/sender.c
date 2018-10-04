@@ -512,9 +512,6 @@ keepalive_send(void)
 	pjdlog_debug(3, "keepalive_send: Request sent.");
 }
 
-/*
- * Thread sends request to secondary node.
- */
 static void *
 send_thread(void *arg __unused)
 {
@@ -574,7 +571,7 @@ static void
 adrep_decode_header(struct adrep *adrep)
 {
 
-	/* Byte-swap only is the receiver is using different byte order. */
+	/* Byte-swap only if the receiver is using different byte order. */
 	if (adrep->adrp_byteorder != ADIST_BYTEORDER) {
 		adrep->adrp_byteorder = ADIST_BYTEORDER;
 		adrep->adrp_seq = bswap64(adrep->adrp_seq);
@@ -582,10 +579,6 @@ adrep_decode_header(struct adrep *adrep)
 	}
 }
 
-/*
- * Thread receives answer from secondary node and passes it to ggate_send
- * thread.
- */
 static void *
 recv_thread(void *arg __unused)
 {
