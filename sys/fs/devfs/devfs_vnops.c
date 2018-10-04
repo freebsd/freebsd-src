@@ -79,14 +79,6 @@ static struct fileops devfs_ops_f;
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
-#ifdef COMPAT_FREEBSD32
-struct fiodgname_arg32 {
-	int		len;
-	uint32_t	buf;	/* (void *) */
-};
-#define FIODGNAME_32	_IOC_NEWTYPE(FIODGNAME, struct fiodgname_arg32)
-#endif
-
 static MALLOC_DEFINE(M_CDEVPDATA, "DEVFSP", "Metainfo for cdev-fp data");
 
 struct mtx	devfs_de_interlock;
@@ -775,29 +767,6 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 	return (error);
 }
 
-static void *
-fiodgname_buf_get_ptr(void *fgnp, u_long com)
-{
-	union {
-		struct fiodgname_arg	fgn;
-#ifdef COMPAT_FREEBSD32
-		struct fiodgname_arg32	fgn32;
-#endif
-	} *fgnup;
-
-	fgnup = fgnp;
-	switch (com) {
-	case FIODGNAME:
-		return (fgnup->fgn.buf);
-#ifdef COMPAT_FREEBSD32
-	case FIODGNAME_32:
-		return ((void *)(uintptr_t)fgnup->fgn32.buf);
-#endif
-	default:
-		panic("Unhandled ioctl command %ld", com);
-	}
-}
-
 static int
 devfs_ioctl(struct vop_ioctl_args *ap)
 {
@@ -820,27 +789,24 @@ devfs_ioctl(struct vop_ioctl_args *ap)
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs: un-referenced struct cdev *(%s)", devtoname(dev)));
 
-	switch (com) {
-	case FIODTYPE:
+	if (com == FIODTYPE) {
 		*(int *)ap->a_data = dsw->d_flags & D_TYPEMASK;
 		error = 0;
-		break;
-	case FIODGNAME:
-#ifdef	COMPAT_FREEBSD32
-	case FIODGNAME_32:
-#endif
+		goto out;
+	} else if (com == FIODGNAME) {
 		fgn = ap->a_data;
 		p = devtoname(dev);
 		i = strlen(p) + 1;
 		if (i > fgn->len)
 			error = EINVAL;
 		else
-			error = copyout(p, fiodgname_buf_get_ptr(fgn, com), i);
-		break;
-	default:
-		error = dsw->d_ioctl(dev, com, ap->a_data, ap->a_fflag, td);
+			error = copyout(p, fgn->buf, i);
+		goto out;
 	}
 
+	error = dsw->d_ioctl(dev, com, ap->a_data, ap->a_fflag, td);
+
+out:
 	dev_relthread(dev, ref);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
