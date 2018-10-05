@@ -59,7 +59,7 @@ static int	ucode_intel_verify(struct ucode_intel_header *hdr,
 
 static struct ucode_ops {
 	const char *vendor;
-	int (*load)(void *, bool);
+	int (*load)(void *, bool, uint64_t *, uint64_t *);
 	void *(*match)(uint8_t *, size_t *);
 } loaders[] = {
 	{
@@ -72,35 +72,46 @@ static struct ucode_ops {
 /* Selected microcode update data. */
 static void *early_ucode_data;
 static void *ucode_data;
+static struct ucode_ops *ucode_loader;
 
-static char errbuf[128];
-
-static void __printflike(1, 2)
-log_err(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsnprintf(errbuf, sizeof(errbuf), fmt, ap);
-	va_end(ap);
-}
+/* Variables used for reporting success or failure. */
+enum {
+	NO_ERROR,
+	NO_MATCH,
+	VERIFICATION_FAILED,
+} ucode_error = NO_ERROR;
+static uint64_t ucode_nrev, ucode_orev;
 
 static void
-print_err(void *arg __unused)
+log_msg(void *arg __unused)
 {
 
-	if (errbuf[0] != '\0')
-		printf("microcode load error: %s\n", errbuf);
+	if (ucode_nrev != 0) {
+		printf("CPU microcode: updated from %#jx to %#jx\n",
+		    (uintmax_t)ucode_orev, (uintmax_t)ucode_nrev);
+		return;
+	}
+
+	switch (ucode_error) {
+	case NO_MATCH:
+		printf("CPU microcode: no matching update found\n");
+		break;
+	case VERIFICATION_FAILED:
+		printf("CPU microcode: microcode verification failed\n");
+		break;
+	default:
+		break;
+	}
 }
-SYSINIT(ucode_print_err, SI_SUB_CPU, SI_ORDER_FIRST, print_err, NULL);
+SYSINIT(ucode_log, SI_SUB_CPU, SI_ORDER_FIRST, log_msg, NULL);
 
 int
-ucode_intel_load(void *data, bool unsafe)
+ucode_intel_load(void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp)
 {
-	uint64_t rev0, rev1;
+	uint64_t nrev, orev;
 	uint32_t cpuid[4];
 
-	rev0 = rdmsr(MSR_BIOS_SIGN);
+	orev = rdmsr(MSR_BIOS_SIGN) >> 32;
 
 	/*
 	 * Perform update.  Flush caches first to work around seemingly
@@ -118,8 +129,15 @@ ucode_intel_load(void *data, bool unsafe)
 	 */
 	do_cpuid(0, cpuid);
 
-	rev1 = rdmsr(MSR_BIOS_SIGN);
-	if (rev1 <= rev0)
+	/*
+	 * Verify that the microcode revision changed.
+	 */
+	nrev = rdmsr(MSR_BIOS_SIGN) >> 32;
+	if (nrevp != NULL)
+		*nrevp = nrev;
+	if (orevp != NULL)
+		*orevp = orev;
+	if (nrev <= orev)
 		return (EEXIST);
 	return (0);
 }
@@ -130,36 +148,26 @@ ucode_intel_verify(struct ucode_intel_header *hdr, size_t resid)
 	uint32_t cksum, *data, size;
 	int i;
 
-	if (resid < sizeof(struct ucode_intel_header)) {
-		log_err("truncated update header");
+	if (resid < sizeof(struct ucode_intel_header))
 		return (1);
-	}
 	size = hdr->total_size;
 	if (size == 0)
 		size = UCODE_INTEL_DEFAULT_DATA_SIZE +
 		    sizeof(struct ucode_intel_header);
 
-	if (hdr->header_version != 1) {
-		log_err("unexpected header version %u", hdr->header_version);
+	if (hdr->header_version != 1)
 		return (1);
-	}
-	if (size % 16 != 0) {
-		log_err("unexpected update size %u", hdr->total_size);
+	if (size % 16 != 0)
 		return (1);
-	}
-	if (resid < size) {
-		log_err("truncated update");
+	if (resid < size)
 		return (1);
-	}
 
 	cksum = 0;
 	data = (uint32_t *)hdr;
 	for (i = 0; i < size / sizeof(uint32_t); i++)
 		cksum += data[i];
-	if (cksum != 0) {
-		log_err("checksum failed");
+	if (cksum != 0)
 		return (1);
-	}
 	return (0);
 }
 
@@ -182,8 +190,10 @@ ucode_intel_match(uint8_t *data, size_t *len)
 
 	for (resid = *len; resid > 0; data += total_size, resid -= total_size) {
 		hdr = (struct ucode_intel_header *)data;
-		if (ucode_intel_verify(hdr, resid) != 0)
+		if (ucode_intel_verify(hdr, resid) != 0) {
+			ucode_error = VERIFICATION_FAILED;
 			break;
+		}
 
 		data_size = hdr->data_size;
 		total_size = hdr->total_size;
@@ -259,12 +269,12 @@ ucode_load_ap(int cpu)
 	KASSERT(cpu_info[cpu_apic_ids[cpu]].cpu_present,
 	    ("cpu %d not present", cpu));
 
-	if (!cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
+	if (cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
 		return;
 #endif
 
 	if (ucode_data != NULL)
-		(void)ucode_intel_load(ucode_data, false);
+		(void)ucode_loader->load(ucode_data, false, NULL, NULL);
 }
 
 static void *
@@ -308,11 +318,12 @@ ucode_load_bsp(uintptr_t free)
 		uint32_t regs[4];
 		char vendor[13];
 	} cpuid;
-	struct ucode_ops *loader;
 	uint8_t *addr, *fileaddr, *match;
 	char *type;
+	uint64_t nrev, orev;
 	caddr_t file;
-	size_t i, len, ucode_len;
+	size_t i, len;
+	int error;
 
 	KASSERT(free % PAGE_SIZE == 0, ("unaligned boundary %p", (void *)free));
 
@@ -320,17 +331,16 @@ ucode_load_bsp(uintptr_t free)
 	cpuid.regs[0] = cpuid.regs[1];
 	cpuid.regs[1] = cpuid.regs[3];
 	cpuid.vendor[12] = '\0';
-	for (i = 0, loader = NULL; i < nitems(loaders); i++)
+	for (i = 0; i < nitems(loaders); i++)
 		if (strcmp(cpuid.vendor, loaders[i].vendor) == 0) {
-			loader = &loaders[i];
+			ucode_loader = &loaders[i];
 			break;
 		}
-	if (loader == NULL)
+	if (ucode_loader == NULL)
 		return (0);
 
 	file = 0;
 	fileaddr = match = NULL;
-	ucode_len = 0;
 	for (;;) {
 		file = preload_search_next_name(file);
 		if (file == 0)
@@ -341,7 +351,7 @@ ucode_load_bsp(uintptr_t free)
 
 		fileaddr = preload_fetch_addr(file);
 		len = preload_fetch_size(file);
-		match = loader->match(fileaddr, &len);
+		match = ucode_loader->match(fileaddr, &len);
 		if (match != NULL) {
 			addr = map_ucode(free, len);
 			/* We can't use memcpy() before ifunc resolution. */
@@ -349,18 +359,19 @@ ucode_load_bsp(uintptr_t free)
 				addr[i] = ((volatile uint8_t *)match)[i];
 			match = addr;
 
-			if (loader->load(match, false) == 0) {
-				ucode_data = match;
-				ucode_len = len;
-				early_ucode_data = ucode_data;
-				break;
+			error = ucode_loader->load(match, false, &nrev, &orev);
+			if (error == 0) {
+				ucode_data = early_ucode_data = match;
+				ucode_nrev = nrev;
+				ucode_orev = orev;
+				return (len);
 			}
 			unmap_ucode(free, len);
 		}
 	}
-	if (fileaddr != NULL && ucode_data == NULL)
-		log_err("no matching update found");
-	return (ucode_len);
+	if (fileaddr != NULL && ucode_error == NO_ERROR)
+		ucode_error = NO_MATCH;
+	return (0);
 }
 
 /*

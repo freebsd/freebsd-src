@@ -190,7 +190,8 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	 * Require that Q_QUOTAON handles the vfs_busy() reference on
 	 * its own, always returning with ubusied mount point.
 	 */
-	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON)
+	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON &&
+	    (uap->cmd >> SUBCMDSHIFT) != Q_QUOTAOFF)
 		vfs_unbusy(mp);
 	return (error);
 }

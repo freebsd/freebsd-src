@@ -666,7 +666,7 @@ config::shell_quote(const string &s)
 }
 
 void
-config::expand_one(const char *&src, string &dst)
+config::expand_one(const char *&src, string &dst, bool is_shell)
 {
 	int count;
 	string buffer;
@@ -705,7 +705,7 @@ config::expand_one(const char *&src, string &dst)
 	do {
 		buffer += *src++;
 	} while (is_id_char(*src));
-	dst.append(shell_quote(get_variable(buffer)));
+	dst.append(is_shell ? shell_quote(get_variable(buffer)) : get_variable(buffer));
 }
 
 const string
@@ -731,7 +731,7 @@ config::expand_string(const char *src, const char *prepend, const char *append)
 		}
 		dst.append(src, var_at - src);
 		src = var_at;
-		expand_one(src, dst);
+		expand_one(src, dst, prepend == NULL);
 	}
 
 	if (append != NULL)

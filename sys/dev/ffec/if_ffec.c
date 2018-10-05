@@ -801,7 +801,8 @@ ffec_alloc_mbufcl(struct ffec_softc *sc)
 	struct mbuf *m;
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
+	if (m != NULL)
+		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
 	return (m);
 }

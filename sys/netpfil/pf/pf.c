@@ -1719,24 +1719,28 @@ pf_purge_expired_states(u_int i, int maxcheck)
 	while (maxcheck > 0) {
 
 		ih = &V_pf_idhash[i];
+
+		/* only take the lock if we expect to do work */
+		if (!LIST_EMPTY(&ih->states)) {
 relock:
-		PF_HASHROW_LOCK(ih);
-		LIST_FOREACH(s, &ih->states, entry) {
-			if (pf_state_expires(s) <= time_uptime) {
-				V_pf_status.states -=
-				    pf_unlink_state(s, PF_ENTER_LOCKED);
-				goto relock;
+			PF_HASHROW_LOCK(ih);
+			LIST_FOREACH(s, &ih->states, entry) {
+				if (pf_state_expires(s) <= time_uptime) {
+					V_pf_status.states -=
+					    pf_unlink_state(s, PF_ENTER_LOCKED);
+					goto relock;
+				}
+				s->rule.ptr->rule_flag |= PFRULE_REFS;
+				if (s->nat_rule.ptr != NULL)
+					s->nat_rule.ptr->rule_flag |= PFRULE_REFS;
+				if (s->anchor.ptr != NULL)
+					s->anchor.ptr->rule_flag |= PFRULE_REFS;
+				s->kif->pfik_flags |= PFI_IFLAG_REFS;
+				if (s->rt_kif)
+					s->rt_kif->pfik_flags |= PFI_IFLAG_REFS;
 			}
-			s->rule.ptr->rule_flag |= PFRULE_REFS;
-			if (s->nat_rule.ptr != NULL)
-				s->nat_rule.ptr->rule_flag |= PFRULE_REFS;
-			if (s->anchor.ptr != NULL)
-				s->anchor.ptr->rule_flag |= PFRULE_REFS;
-			s->kif->pfik_flags |= PFI_IFLAG_REFS;
-			if (s->rt_kif)
-				s->rt_kif->pfik_flags |= PFI_IFLAG_REFS;
+			PF_HASHROW_UNLOCK(ih);
 		}
-		PF_HASHROW_UNLOCK(ih);
 
 		/* Return when we hit end of hash. */
 		if (++i > pf_hashmask) {

@@ -4041,7 +4041,6 @@ libkern/murmur3_32.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
 libkern/memchr.c		standard
-libkern/memcmp.c		standard
 libkern/memmem.c		optional gdb
 libkern/qsort.c			standard
 libkern/qsort_r.c		standard

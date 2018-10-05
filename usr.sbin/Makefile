@@ -59,6 +59,9 @@ SUBDIR=	adduser \
 	nologin \
 	pciconf \
 	periodic \
+	pmcannotate \
+	pmccontrol \
+	pmcstat \
 	pnfsdscopymr \
 	pnfsdsfile \
 	pnfsdskill \
@@ -185,11 +188,8 @@ SUBDIR.${MK_OPENSSL}+=	keyserv
 SUBDIR.${MK_PC_SYSINSTALL}+=	pc-sysinstall
 SUBDIR.${MK_PF}+=	ftp-proxy
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg
-.if (${COMPILER_TYPE} == "clang" || (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100 && ${MACHINE_CPUARCH} != "riscv"))
+.if ${COMPILER_FEATURES:Mc++11}
 SUBDIR.${MK_PMC}+=	pmc
-SUBDIR.${MK_PMC}+=	pmcannotate
-SUBDIR.${MK_PMC}+=	pmccontrol
-SUBDIR.${MK_PMC}+=	pmcstat
 .endif
 SUBDIR.${MK_PMC}+=	pmcstudy
 SUBDIR.${MK_PORTSNAP}+=	portsnap

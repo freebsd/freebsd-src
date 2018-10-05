@@ -218,6 +218,9 @@ reloc_plt(Obj_Entry *obj)
 		case R_AARCH64_TLSDESC:
 			reloc_tlsdesc(obj, rela, where);
 			break;
+		case R_AARCH64_IRELATIVE:
+			obj->irelative = true;
+			break;
 		default:
 			_rtld_error("Unknown relocation type %u in PLT",
 			    (unsigned int)ELF_R_TYPE(rela->r_info));
@@ -242,19 +245,22 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
 	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
-		Elf_Addr *where;
+		Elf_Addr *where, target;
 
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		switch(ELF_R_TYPE(rela->r_info)) {
 		case R_AARCH64_JUMP_SLOT:
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
 			    &defobj, SYMLOOK_IN_PLT | flags, NULL, lockstate);
-			if (def == NULL) {
-				dbg("reloc_jmpslots: sym not found");
+			if (def == NULL)
 				return (-1);
+			if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
+				obj->gnu_ifunc = true;
+				continue;
 			}
-
-			*where = (Elf_Addr)(defobj->relocbase + def->st_value);
+			target = (Elf_Addr)(defobj->relocbase + def->st_value);
+			reloc_jmpslot(where, target, defobj, obj,
+			    (const Elf_Rel *)rela);
 			break;
 		case R_AARCH64_TLSDESC:
 			if (ELF_R_SYM(rela->r_info) != 0) {
@@ -277,8 +283,24 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 int
 reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
 {
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
+	Elf_Addr *where, target, *ptr;
 
-	/* XXX not implemented */
+	if (!obj->irelative)
+		return (0);
+	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
+	for (rela = obj->pltrela;  rela < relalim;  rela++) {
+		if (ELF_R_TYPE(rela->r_info) == R_AARCH64_IRELATIVE) {
+			ptr = (Elf_Addr *)(obj->relocbase + rela->r_addend);
+			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+			lock_release(rtld_bind_lock, lockstate);
+			target = call_ifunc_resolver(ptr);
+			wlock_acquire(rtld_bind_lock, lockstate);
+			*where = target;
+		}
+	}
+	obj->irelative = false;
 	return (0);
 }
 
@@ -286,8 +308,32 @@ int
 reloc_gnu_ifunc(Obj_Entry *obj, int flags,
    struct Struct_RtldLockState *lockstate)
 {
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
+	Elf_Addr *where, target;
+	const Elf_Sym *def;
+	const Obj_Entry *defobj;
 
-	/* XXX not implemented */
+	if (!obj->gnu_ifunc)
+		return (0);
+	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
+	for (rela = obj->pltrela;  rela < relalim;  rela++) {
+		if (ELF_R_TYPE(rela->r_info) == R_AARCH64_JUMP_SLOT) {
+			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+			def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+			    SYMLOOK_IN_PLT | flags, NULL, lockstate);
+			if (def == NULL)
+				return (-1);
+			if (ELF_ST_TYPE(def->st_info) != STT_GNU_IFUNC)
+				continue;
+			lock_release(rtld_bind_lock, lockstate);
+			target = (Elf_Addr)rtld_resolve_ifunc(defobj, def);
+			wlock_acquire(rtld_bind_lock, lockstate);
+			reloc_jmpslot(where, target, defobj, obj,
+			    (const Elf_Rel *)rela);
+		}
+	}
+	obj->gnu_ifunc = false;
 	return (0);
 }
 
@@ -296,7 +342,8 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
     const Obj_Entry *obj, const Elf_Rel *rel)
 {
 
-	assert(ELF_R_TYPE(rel->r_info) == R_AARCH64_JUMP_SLOT);
+	assert(ELF_R_TYPE(rel->r_info) == R_AARCH64_JUMP_SLOT ||
+	    ELF_R_TYPE(rel->r_info) == R_AARCH64_IRELATIVE);
 
 	if (*where != target && !ld_bind_not)
 		*where = target;
@@ -327,12 +374,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	const Elf_Rela *rela;
 	const Elf_Sym *def;
 	SymCache *cache;
-	Elf_Addr *where;
-	unsigned long symnum;
-
-	if ((flags & SYMLOOK_IFUNC) != 0)
-		/* XXX not implemented */
-		return (0);
+	Elf_Addr *where, symval;
 
 	/*
 	 * The dynamic loader may be called from a thread, we have
@@ -346,19 +388,62 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 
 	relalim = (const Elf_Rela *)((caddr_t)obj->rela + obj->relasize);
 	for (rela = obj->rela; rela < relalim; rela++) {
+		/*
+		 * First, resolve symbol for relocations which
+		 * reference symbols.
+		 */
+		switch (ELF_R_TYPE(rela->r_info)) {
+		case R_AARCH64_ABS64:
+		case R_AARCH64_GLOB_DAT:
+		case R_AARCH64_TLS_TPREL64:
+			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
+			    &defobj, flags, cache, lockstate);
+			if (def == NULL)
+				return (-1);
+			/*
+			 * If symbol is IFUNC, only perform relocation
+			 * when caller allowed it by passing
+			 * SYMLOOK_IFUNC flag.  Skip the relocations
+			 * otherwise.
+			 *
+			 * Also error out in case IFUNC relocations
+			 * are specified for TLS, which cannot be
+			 * usefully interpreted.
+			 */
+			if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
+				switch (ELF_R_TYPE(rela->r_info)) {
+				case R_AARCH64_ABS64:
+				case R_AARCH64_GLOB_DAT:
+					if ((flags & SYMLOOK_IFUNC) == 0) {
+						obj->non_plt_gnu_ifunc = true;
+						continue;
+					}
+					symval = (Elf_Addr)rtld_resolve_ifunc(
+					    defobj, def);
+					break;
+				default:
+					_rtld_error("%s: IFUNC for TLS reloc",
+					    obj->path);
+					return (-1);
+				}
+			} else {
+				if ((flags & SYMLOOK_IFUNC) != 0)
+					continue;
+				symval = (Elf_Addr)defobj->relocbase +
+				    def->st_value;
+			}
+			break;
+		default:
+			if ((flags & SYMLOOK_IFUNC) != 0)
+				continue;
+		}
+
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
-		symnum = ELF_R_SYM(rela->r_info);
 
 		switch (ELF_R_TYPE(rela->r_info)) {
 		case R_AARCH64_ABS64:
 		case R_AARCH64_GLOB_DAT:
-			def = find_symdef(symnum, obj, &defobj, flags, cache,
-			    lockstate);
-			if (def == NULL)
-				return (-1);
-
-			*where = (Elf_Addr)defobj->relocbase + def->st_value +
-			    rela->r_addend;
+			*where = symval + rela->r_addend;
 			break;
 		case R_AARCH64_COPY:
 			/*
@@ -377,11 +462,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			reloc_tlsdesc(obj, rela, where);
 			break;
 		case R_AARCH64_TLS_TPREL64:
-			def = find_symdef(symnum, obj, &defobj, flags, cache,
-			    lockstate);
-			if (def == NULL)
-				return (-1);
-
 			/*
 			 * We lazily allocate offsets for static TLS as we
 			 * see the first relocation that references the

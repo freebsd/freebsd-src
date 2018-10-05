@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 22, 2017
+.Dd September 27, 2018
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -796,7 +796,7 @@ Tells
 whether to pass the descriptors of the job token queue
 even if the target is not tagged with
 .Ic .MAKE
-The default is 
+The default is
 .Ql Pa yes
 for backwards compatability with
 .Fx 9.0
@@ -2385,7 +2385,8 @@ Basic use of suffix rules (for files only in the current directory,
 not trying to chain transformations together, etc.) is also reasonably
 portable.
 .Sh SEE ALSO
-.Xr mkdep 1
+.Xr mkdep 1 ,
+.Xr style.Makefile 5
 .Sh HISTORY
 A
 .Nm

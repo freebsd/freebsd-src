@@ -1031,8 +1031,9 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			error = copyin(name, ibits[x], ncpubytes);	\
 			if (error != 0)					\
 				goto done;				\
-			bzero((char *)ibits[x] + ncpubytes,		\
-			    ncpbytes - ncpubytes);			\
+			if (ncpbytes != ncpubytes)			\
+				bzero((char *)ibits[x] + ncpubytes,	\
+				    ncpbytes - ncpubytes);		\
 		}							\
 	} while (0)
 	getbits(fd_in, 0);

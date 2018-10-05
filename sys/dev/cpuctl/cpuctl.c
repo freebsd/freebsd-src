@@ -362,7 +362,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	set_cpu(cpu, td);
 	critical_enter();
 
-	ret = ucode_intel_load(ptr, true);
+	ret = ucode_intel_load(ptr, true, NULL, NULL);
 
 	critical_exit();
 	restore_cpu(oldcpu, is_bound, td);

@@ -13,55 +13,16 @@ SUBDIR+=sendmail
 .endif
 
 BIN1=	\
-	dhclient.conf \
-	disktab \
 	group \
-	hosts \
-	hosts.allow \
-	hosts.equiv \
-	libalias.conf \
-	libmap.conf \
 	login.access \
-	mac.conf \
-	netconfig \
-	networks \
-	nsswitch.conf \
-	phones \
-	protocols \
 	rc.bsdextended \
 	rc.firewall \
-	remote \
-	rpc \
 	termcap.small
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_AMD} != "no"
-BIN1+= amd.map
-.endif
-
-.if ${MK_LOCATE} != "no"
-BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
-.endif
-
-.if ${MK_LPR} != "no"
-BIN1+=	hosts.lpd printcap
-.endif
-
-.if ${MK_MAIL} != "no"
-BIN1+=	${SRCTOP}/usr.bin/mail/misc/mail.rc
-.endif
-
-.if ${MK_OPENSSL} != "no"
-SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
-.endif
-
 .if ${MK_SENDMAIL} != "no"
 BIN1+=	rc.sendmail
-.endif
-
-.if ${MK_WIRELESS} != "no"
-BIN1+= regdomain.xml
 .endif
 
 .if ${MK_SENDMAIL} == "no"
@@ -104,7 +65,7 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+		master.passwd ${DESTDIR}/etc;
 
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
@@ -128,10 +89,6 @@ distribution:
 .endif
 .if ${MK_SENDMAIL} != "no"
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
-.endif
-.if ${MK_OPENSSL} != "no"
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
 .if ${MK_KERBEROS} != "no"
 	cd ${.CURDIR}/root; \
@@ -159,10 +116,6 @@ distribution:
 	    ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DESTDIR}/boot/device.hints
 .endif
-.endif
-.if ${MK_NIS} == "no"
-	sed -i "" -e 's/.*_compat:/# &/' -e 's/compat$$/files/' \
-		${DESTDIR}/etc/nsswitch.conf
 .endif
 
 MTREE_CMD?=	mtree
@@ -244,7 +197,7 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 
 etc-examples: ${META_DEPS}
 	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
+	    ${BIN1} ${BIN2} \
 	    ${DESTDIR}${SHAREDIR}/examples/etc
 
 .include <bsd.prog.mk>

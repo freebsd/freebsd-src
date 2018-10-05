@@ -69,6 +69,10 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/libfdt/libfdt.h>
 
+#ifdef POWERNV
+#include <powerpc/powernv/opal.h>
+#endif
+
 static void	*fdt;
 int		ofw_real_mode;
 
@@ -338,6 +342,34 @@ excise_initrd_region(struct mem_region *avail, int asz)
 	return (asz);
 }
 
+#ifdef POWERNV
+static int
+excise_msi_region(struct mem_region *avail, int asz)
+{
+        uint64_t start, end;
+        struct mem_region initrdmap[1];
+
+	/*
+	 * This range of physical addresses is used to implement optimized
+	 * 32 bit MSI interrupts on POWER9. Exclude it to avoid accidentally
+	 * using it for DMA, as this will cause an immediate PHB fence.
+	 * While we could theoretically turn off this behavior in the ETU,
+	 * doing so would break 32-bit MSI, so just reserve the range in 
+	 * the physical map instead.
+	 * See section 4.4.2.8 of the PHB4 specification.
+	 */
+	start	= 0x00000000ffff0000ul;
+	end	= 0x00000000fffffffful;
+
+	initrdmap[0].mr_start = start;
+	initrdmap[0].mr_size = end - start;
+
+	asz = excise_reserved_regions(avail, asz, initrdmap, 1);
+
+	return (asz);
+}
+#endif
+
 static int
 excise_fdt_reserved(struct mem_region *avail, int asz)
 {
@@ -428,6 +460,11 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 	 */
 	if (OF_hasprop(phandle, "linux,initrd-start"))
 		asz = excise_initrd_region(availp, asz);
+#endif
+
+#ifdef POWERNV
+	if (opal_check() == 0)
+		asz = excise_msi_region(availp, asz);
 #endif
 
 	*memsz = msz;

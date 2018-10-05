@@ -27,18 +27,29 @@ ${dir}TAG_ARGS=	-T ${${dir}TAGS:[*]:S/ /,/g}
 .      endif
 
 installdirs: installdirs-${dir}
-
-installdirs-${dir}: installdirs-${DESTDIR}${${dir}}
-
-.      if !target(installdirs-${DESTDIR}${${dir}})
-installdirs-${DESTDIR}${${dir}}:
-	@${ECHO} installing DIRS ${dir}
+# Coalesce duplicate destdirs
+.      if !defined(_uniquedirs_${${dir}})
+_uniquedirs_${${dir}}=	${dir}
+_alldirs_${dir}=	${dir}
+installdirs-${dir}: .PHONY
+	@${ECHO} installing DIRS ${_alldirs_${dir}}
 	${INSTALL} ${${dir}TAG_ARGS} -d -m ${${dir}_MODE} -o ${${dir}_OWN} \
 		-g ${${dir}_GRP} ${${dir}_FLAG} ${DESTDIR}${${dir}}
-.      endif
-.    endif
-
-realinstall: installdirs-${dir}
+.      else
+_uniquedir:=		${_uniquedirs_${${dir}}}
+_alldirs_${_uniquedir}+=${dir}
+# Connect to the single target
+installdirs-${dir}: installdirs-${_uniquedir}
+# Validate that duplicate dirs have the same metadata.
+.        for v in TAG_ARGS _MODE _OWN _GRP _FLAG
+.          if ${${dir}${v}:Uunset} != ${${_uniquedir}${v}:Uunset}
+.            warning ${RELDIR}: ${dir}${v} (${${dir}${v}:U}) does not match ${_uniquedir}${v} (${${_uniquedir}${v}:U}) but both install to ${${dir}}
+.          endif
+.        endfor
+.      endif	# !defined(_uniquedirs_${${dir}})
+.    endif	# defined(${dir}) && !empty(${dir})
 .  endfor
+
+realinstall: installdirs
 
 .endif

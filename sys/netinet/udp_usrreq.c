@@ -756,13 +756,7 @@ struct inpcb *
 udp_notify(struct inpcb *inp, int errno)
 {
 
-	/*
-	 * While udp_ctlinput() always calls udp_notify() with a read lock
-	 * when invoking it directly, in_pcbnotifyall() currently uses write
-	 * locks due to sharing code with TCP.  For now, accept either a read
-	 * or a write lock, but a read lock is sufficient.
-	 */
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	if ((errno == EHOSTUNREACH || errno == ENETUNREACH ||
 	     errno == EHOSTDOWN) && inp->inp_route.ro_rt) {
 		RTFREE(inp->inp_route.ro_rt);
@@ -808,13 +802,13 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 	if (ip != NULL) {
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 		inp = in_pcblookup(pcbinfo, faddr, uh->uh_dport,
-		    ip->ip_src, uh->uh_sport, INPLOOKUP_RLOCKPCB, NULL);
+		    ip->ip_src, uh->uh_sport, INPLOOKUP_WLOCKPCB, NULL);
 		if (inp != NULL) {
-			INP_RLOCK_ASSERT(inp);
+			INP_WLOCK_ASSERT(inp);
 			if (inp->inp_socket != NULL) {
 				udp_notify(inp, inetctlerrmap[cmd]);
 			}
-			INP_RUNLOCK(inp);
+			INP_WUNLOCK(inp);
 		} else {
 			inp = in_pcblookup(pcbinfo, faddr, uh->uh_dport,
 					   ip->ip_src, uh->uh_sport,

@@ -66,8 +66,11 @@ static uint32_t *version = NULL;
 static int verbose = 0;
 static struct g_command *class_commands = NULL;
 
-#define	GEOM_CLASS_CMDS	0x01
-#define	GEOM_STD_CMDS	0x02
+#define	GEOM_CLASS_CMDS		0x01
+#define	GEOM_STD_CMDS		0x02
+
+#define	GEOM_CLASS_WIDTH	10
+
 static struct g_command *find_command(const char *cmdstr, int flags);
 static void list_one_geom_by_provider(const char *provider_name);
 static int std_available(const char *name);
@@ -149,6 +152,7 @@ usage(void)
 	if (class_name == NULL) {
 		fprintf(stderr, "usage: geom <class> <command> [options]\n");
 		fprintf(stderr, "       geom -p <provider-name>\n");
+		fprintf(stderr, "       geom -t\n");
 		exit(EXIT_FAILURE);
 	} else {
 		struct g_command *cmd;
@@ -672,21 +676,141 @@ find_geom_by_provider(struct gmesh *mesh, const char *name)
 	return (NULL);
 }
 
+static int
+compute_tree_width_geom(struct gmesh *mesh, struct ggeom *gp, int indent)
+{
+	struct gclass *classp2;
+	struct ggeom *gp2;
+	struct gconsumer *cp2;
+	struct gprovider *pp;
+	int max_width, width;
+
+	max_width = width = indent + strlen(gp->lg_name);
+
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		LIST_FOREACH(classp2, &mesh->lg_class, lg_class) {
+			LIST_FOREACH(gp2, &classp2->lg_geom, lg_geom) {
+				LIST_FOREACH(cp2,
+				    &gp2->lg_consumer, lg_consumer) {
+					if (pp != cp2->lg_provider)
+						continue;
+					width = compute_tree_width_geom(mesh,
+					    gp2, indent + 2);
+					if (width > max_width)
+						max_width = width;
+				}
+			}
+		}
+	}
+
+	return (max_width);
+}
+
+static int
+compute_tree_width(struct gmesh *mesh)
+{
+	struct gclass *classp;
+	struct ggeom *gp;
+	int max_width, width;
+
+	max_width = width = 0;
+
+	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
+		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			if (!LIST_EMPTY(&gp->lg_consumer))
+				continue;
+			width = compute_tree_width_geom(mesh, gp, 0);
+			if (width > max_width)
+				max_width = width;
+		}
+	}
+
+	return (max_width);
+}
+
+static void
+show_tree_geom(struct gmesh *mesh, struct ggeom *gp, int indent, int width)
+{
+	struct gclass *classp2;
+	struct ggeom *gp2;
+	struct gconsumer *cp2;
+	struct gprovider *pp;
+
+	if (LIST_EMPTY(&gp->lg_provider)) {
+		printf("%*s%-*.*s %-*.*s\n", indent, "",
+		    width - indent, width - indent, gp->lg_name,
+		    GEOM_CLASS_WIDTH, GEOM_CLASS_WIDTH, gp->lg_class->lg_name);
+		return;
+	}
+
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		printf("%*s%-*.*s %-*.*s %s\n", indent, "",
+		    width - indent, width - indent, gp->lg_name,
+		    GEOM_CLASS_WIDTH, GEOM_CLASS_WIDTH, gp->lg_class->lg_name,
+		    pp->lg_name);
+
+		LIST_FOREACH(classp2, &mesh->lg_class, lg_class) {
+			LIST_FOREACH(gp2, &classp2->lg_geom, lg_geom) {
+				LIST_FOREACH(cp2,
+				    &gp2->lg_consumer, lg_consumer) {
+					if (pp != cp2->lg_provider)
+						continue;
+					show_tree_geom(mesh, gp2,
+					    indent + 2, width);
+				}
+			}
+		}
+	}
+}
+
+static void
+show_tree(void)
+{
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct ggeom *gp;
+	int error, width;
+
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+
+	width = compute_tree_width(&mesh);
+
+	printf("%-*.*s %-*.*s %s\n",
+	    width, width, "Geom",
+	    GEOM_CLASS_WIDTH, GEOM_CLASS_WIDTH, "Class",
+	    "Provider");
+
+	LIST_FOREACH(classp, &mesh.lg_class, lg_class) {
+		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			if (!LIST_EMPTY(&gp->lg_consumer))
+				continue;
+			show_tree_geom(&mesh, gp, 0, width);
+		}
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
 	char *provider_name;
+	bool tflag;
 	int ch;
 
 	provider_name = NULL;
+	tflag = false;
 
 	if (strcmp(getprogname(), "geom") == 0) {
-		while ((ch = getopt(argc, argv, "hp:")) != -1) {
+		while ((ch = getopt(argc, argv, "hp:t")) != -1) {
 			switch (ch) {
 			case 'p':
 				provider_name = strdup(optarg);
 				if (provider_name == NULL)
 					err(1, "strdup");
+				break;
+			case 't':
+				tflag = true;
 				break;
 			case 'h':
 			default:
@@ -699,8 +823,18 @@ main(int argc, char *argv[])
 		 */
 	}
 
+	if (tflag && provider_name != NULL) {
+		errx(EXIT_FAILURE,
+		    "At most one of -P and -t may be specified.");
+	}
+
 	if (provider_name != NULL) {
 		list_one_geom_by_provider(provider_name);
+		return (0);
+	}
+
+	if (tflag) {
+		show_tree();
 		return (0);
 	}
 
