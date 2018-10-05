@@ -917,12 +917,13 @@ solisten_dequeue(struct socket *head, struct socket **ret, int flags)
 	if (head->so_error) {
 		error = head->so_error;
 		head->so_error = 0;
+	} else if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->sol_comp))
+		error = EWOULDBLOCK;
+	else
+		error = 0;
+	if (error) {
 		SOLISTEN_UNLOCK(head);
 		return (error);
-        }
-	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->sol_comp)) {
-		SOLISTEN_UNLOCK(head);
-		return (EWOULDBLOCK);
 	}
 	so = TAILQ_FIRST(&head->sol_comp);
 	SOCK_LOCK(so);
@@ -2585,9 +2586,18 @@ soshutdown(struct socket *so, int how)
 		 * both backward-compatibility and POSIX requirements by forcing
 		 * ENOTCONN but still asking protocol to perform pru_shutdown().
 		 */
-		if (so->so_type != SOCK_DGRAM)
+		if (so->so_type != SOCK_DGRAM && !SOLISTENING(so))
 			return (ENOTCONN);
 		soerror_enotconn = 1;
+	}
+
+	if (SOLISTENING(so)) {
+		if (how != SHUT_WR) {
+			SOLISTEN_LOCK(so);
+			so->so_error = ECONNABORTED;
+			solisten_wakeup(so);	/* unlocks so */
+		}
+		goto done;
 	}
 
 	CURVNET_SET(so->so_vnet);
@@ -2604,6 +2614,7 @@ soshutdown(struct socket *so, int how)
 	wakeup(&so->so_timeo);
 	CURVNET_RESTORE();
 
+done:
 	return (soerror_enotconn ? ENOTCONN : 0);
 }
 
@@ -3279,6 +3290,8 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 			revents = 0;
 		else if (!TAILQ_EMPTY(&so->sol_comp))
 			revents = events & (POLLIN | POLLRDNORM);
+		else if ((events & POLLINIGNEOF) == 0 && so->so_error)
+			revents = (events & (POLLIN | POLLRDNORM)) | POLLHUP;
 		else {
 			selrecord(td, &so->so_rdsel);
 			revents = 0;
@@ -3555,6 +3568,11 @@ filt_soread(struct knote *kn, long hint)
 	if (SOLISTENING(so)) {
 		SOCK_LOCK_ASSERT(so);
 		kn->kn_data = so->sol_qlen;
+		if (so->so_error) {
+			kn->kn_flags |= EV_EOF;
+			kn->kn_fflags = so->so_error;
+			return (1);
+		}
 		return (!TAILQ_EMPTY(&so->sol_comp));
 	}
 

@@ -1237,7 +1237,7 @@ MODULE_DEPEND(i915kms, iicbus, 1, 1, 1);
 MODULE_DEPEND(i915kms, iic, 1, 1, 1);
 MODULE_DEPEND(i915kms, iicbb, 1, 1, 1);
 MODULE_PNP_INFO("U32:vendor;U32:device;P:#;D:#", vgapci, i915, pciidlist,
-    sizeof(pciidlist[0]), nitems(pciidlist) - 1);
+    nitems(pciidlist) - 1);
 
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \

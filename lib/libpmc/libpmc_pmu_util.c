@@ -237,6 +237,7 @@ pmu_parse_event(struct pmu_event_desc *ped, const char *eventin)
 		return (ENOMEM);
 	r = event;
 	bzero(ped, sizeof(*ped));
+	ped->ped_period = DEFAULT_SAMPLE_COUNT;
 	ped->ped_umask = -1;
 	while ((kvp = strsep(&event, ",")) != NULL) {
 		key = strsep(&kvp, "=");

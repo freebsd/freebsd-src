@@ -58,6 +58,7 @@ struct swcr_data {
 };
 
 struct swcr_session {
+	struct mtx	swcr_lock;
 	struct swcr_data swcr_algorithms[2];
 	unsigned swcr_nalgs;
 };

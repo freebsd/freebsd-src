@@ -670,6 +670,7 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   Config->ZExecstack = hasZOption(Args, "execstack");
   Config->ZHazardplt = hasZOption(Args, "hazardplt");
   Config->ZIfuncnoplt = hasZOption(Args, "ifunc-noplt");
+  Config->ZInterpose = hasZOption(Args, "interpose");
   Config->ZNocopyreloc = hasZOption(Args, "nocopyreloc");
   Config->ZNodelete = hasZOption(Args, "nodelete");
   Config->ZNodlopen = hasZOption(Args, "nodlopen");

@@ -2058,6 +2058,12 @@ next_field(const char **p, const char **start,
 	}
 	*sep = **p;
 
+	/* If the field is only whitespace, bail out now. */
+	if (**p == '\0') {
+		*end = *p;
+		return;
+	}
+
 	/* Trim trailing whitespace to locate end of field. */
 	*end = *p - 1;
 	while (**end == ' ' || **end == '\t' || **end == '\n') {

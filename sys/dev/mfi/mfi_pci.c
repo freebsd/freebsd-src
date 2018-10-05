@@ -106,8 +106,6 @@ static driver_t mfi_pci_driver = {
 };
 
 static devclass_t	mfi_devclass;
-DRIVER_MODULE(mfi, pci, mfi_pci_driver, mfi_devclass, 0, 0);
-MODULE_VERSION(mfi, 1);
 
 static int	mfi_msi = 1;
 SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
@@ -158,6 +156,11 @@ struct mfi_ident {
 	{0x1028, 0x0015, 0xffff, 0xffff, MFI_FLAGS_1064R, "Dell PERC 5/i"},
 	{0, 0, 0, 0, 0, NULL}
 };
+
+DRIVER_MODULE(mfi, pci, mfi_pci_driver, mfi_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;U16:subvendor;U16:subdevice", pci, mfi,
+    mfi_identifiers, nitems(mfi_identifiers) - 1);
+MODULE_VERSION(mfi, 1);
 
 static struct mfi_ident *
 mfi_find_ident(device_t dev)

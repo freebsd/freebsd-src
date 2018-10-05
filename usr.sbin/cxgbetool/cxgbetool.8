@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 8, 2018
+.Dd Sep 21, 2018
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -418,9 +418,12 @@ Filter has priority over active and server regions of TCAM: 0 (default) or 1.
 Operational parameters that can be used with filters with
 .Cm action pass Ns :
 .It Cm queue
-Rx queue index to which to deliver the packet.  By default, packets that hit a
-filter with action pass are delivered based on their RSS hash as usual.  Use
-this to steer them to a particular queue.
+Context id of an ingress queue to which to deliver the packet.
+The context id is available in
+.Va dev.cxgbe.%d.rxq.%d.cntxt_id .
+By default, packets that hit a filter with action pass are delivered based on
+their RSS hash as usual.
+Use this to steer them to a particular queue.
 .It Cm rpttid
 Report the filter tid instead of the RSS hash in the rx descriptor.
 0 (default) or 1.
@@ -447,11 +450,11 @@ eport.
 .It Cm vlan
 Insert, remove, or rewrite the VLAN tag before switching the packet out of
 eport.
-.Cm vlan=none
+.Cm none
 removes the tag,
-.Cm vlan= Ns Ar tag
+.Cm = Ns Ar tag
 replaces the existing tag with the one provided, and
-.Cm vlan=+ Ns Ar tag
+.Cm + Ns Ar tag
 inserts the given tag into the frame.
 .It Cm nat
 Specify the desired NAT mode. Valid NAT modes values are:

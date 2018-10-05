@@ -79,6 +79,8 @@ static const struct sdhci_acpi_device {
 	    SDHCI_QUIRK_MMC_DDR52 |
 	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
+	{ "AMDI0040",	0, "AMD eMMC 5.0 Controller",
+	    SDHCI_QUIRK_32BIT_DMA_SIZE },
 	{ NULL, 0, NULL, 0}
 };
 
@@ -87,6 +89,7 @@ static char *sdhci_ids[] = {
 	"80860F16",
 	"80865ACA",
 	"80865ACC",
+	"AMDI0040",
 	NULL
 };
 

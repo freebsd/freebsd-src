@@ -1581,6 +1581,21 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	identify_cpu2();
 
+	/*
+	 * Check for pti, pcid, and invpcid before ifuncs are
+	 * resolved, to correctly select the implementation for
+	 * pmap_activate_sw_mode().
+	 */
+	pti = pti_get_default();
+	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
+	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
+	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
+		invpcid_works = (cpu_stdext_feature &
+		    CPUID_STDEXT_INVPCID) != 0;
+	} else {
+		pmap_pcid_enabled = 0;
+	}
+
 	link_elf_ireloc(kmdp);
 
 	/*
@@ -1645,9 +1660,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_DEF);
 
 	/* exceptions */
-	pti = pti_get_default();
-	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
-
 	for (x = 0; x < NIDT; x++)
 		setidt(x, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_SYSIGT,
 		    SEL_KPL, 0);
@@ -2692,4 +2704,13 @@ DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull, size_t),
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
 		memcpy_erms : memcpy_std);
+}
+
+void	pagezero_std(void *addr);
+void	pagezero_erms(void *addr);
+DEFINE_IFUNC(, void , pagezero, (void *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
+		pagezero_erms : pagezero_std);
 }

@@ -569,6 +569,8 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 		goto drop;
 	}
 	af = m->m_pkthdr.csum_data;
+	BPF_MTAP2(ifp, &af, sizeof(af), m);
+	m->m_flags &= ~(M_BCAST|M_MCAST);
 	M_SETFIB(m, sc->gre_fibnum);
 	M_PREPEND(m, sc->gre_hlen, M_NOWAIT);
 	if (m == NULL) {

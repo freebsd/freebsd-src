@@ -86,14 +86,16 @@ struct xform_data {
 #define	XF_IPCOMP	6	/* IPCOMP */
 
 struct xformsw {
-	u_short	xf_type;		/* xform ID */
-	char	*xf_name;		/* human-readable name */
+	u_short			xf_type;	/* xform ID */
+	const char		*xf_name;	/* human-readable name */
 	int	(*xf_init)(struct secasvar*, struct xformsw*);	/* setup */
 	int	(*xf_zeroize)(struct secasvar*);		/* cleanup */
 	int	(*xf_input)(struct mbuf*, struct secasvar*,	/* input */
 			int, int);
 	int	(*xf_output)(struct mbuf*,			/* output */
 	    struct secpolicy *, struct secasvar *, u_int, int, int);
+
+	volatile u_int		xf_cntr;
 	LIST_ENTRY(xformsw)	chain;
 };
 
@@ -103,6 +105,7 @@ const struct comp_algo * comp_algorithm_lookup(int);
 
 void xform_attach(void *);
 void xform_detach(void *);
+int xform_init(struct secasvar *, u_short);
 
 struct cryptoini;
 /* XF_AH */
