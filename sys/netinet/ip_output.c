@@ -932,10 +932,11 @@ in_delayed_cksum(struct mbuf *m)
 
 	if (m->m_pkthdr.csum_flags & CSUM_UDP) {
 		/* if udp header is not in the first mbuf copy udplen */
-		if (offset + sizeof(struct udphdr) > m->m_len)
+		if (offset + sizeof(struct udphdr) > m->m_len) {
 			m_copydata(m, offset + offsetof(struct udphdr,
 			    uh_ulen), sizeof(cklen), (caddr_t)&cklen);
-		else {
+			cklen = ntohs(cklen);
+		} else {
 			uh = (struct udphdr *)mtodo(m, offset);
 			cklen = ntohs(uh->uh_ulen);
 		}
