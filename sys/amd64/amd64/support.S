@@ -320,43 +320,92 @@ END(memcpy_erms)
  * memset(dst, c,   len)
  *        rdi, rsi, rdx
  */
-ENTRY(memset_std)
+.macro MEMSET erms
 	PUSH_FRAME_POINTER
 	movq	%rdi,%r9
 	movq	%rdx,%rcx
 	movzbq	%sil,%r8
 	movabs	$0x0101010101010101,%rax
 	imulq	%r8,%rax
-	cmpq	$15,%rcx
-	jbe	1f
-	shrq	$3,%rcx
-	rep
-	stosq
-	movq	%rdx,%rcx
-	andq	$7,%rcx
-	jne	1f
+
+	cmpq	$32,%rcx
+	jb	1016f
+
+	cmpq	$256,%rcx
+	ja	1256f
+
+1032:
+	movq	%rax,(%rdi)
+	movq	%rax,8(%rdi)
+	movq	%rax,16(%rdi)
+	movq	%rax,24(%rdi)
+	leaq	32(%rdi),%rdi
+	subq	$32,%rcx
+	cmpq	$32,%rcx
+	jae	1032b
+	cmpb	$0,%cl
+	je	1000f
+1016:
+	cmpb	$16,%cl
+	jl	1008f
+	movq	%rax,(%rdi)
+	movq	%rax,8(%rdi)
+	subb	$16,%cl
+	jz	1000f
+	leaq	16(%rdi),%rdi
+1008:
+	cmpb	$8,%cl
+	jl	1004f
+	movq	%rax,(%rdi)
+	subb	$8,%cl
+	jz	1000f
+	leaq	8(%rdi),%rdi
+1004:
+	cmpb	$4,%cl
+	jl	1002f
+	movl	%eax,(%rdi)
+	subb	$4,%cl
+	jz	1000f
+	leaq	4(%rdi),%rdi
+1002:
+	cmpb	$2,%cl
+	jl	1001f
+	movw	%ax,(%rdi)
+	subb	$2,%cl
+	jz	1000f
+	leaq	2(%rdi),%rdi
+1001:
+	cmpb	$1,%cl
+	jl	1000f
+	movb	%al,(%rdi)
+1000:
 	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
 	ALIGN_TEXT
-1:
+1256:
+.if \erms == 1
 	rep
 	stosb
+.else
+	shrq	$3,%rcx
+	rep
+	stosq
+	movq	%rdx,%rcx
+	andb	$7,%cl
+	jne	1004b
+.endif
 	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
+.endm
+
+ENTRY(memset_std)
+	MEMSET erms=0
 END(memset_std)
 
 ENTRY(memset_erms)
-	PUSH_FRAME_POINTER
-	movq	%rdi,%r9
-	movq	%rdx,%rcx
-	movb	%sil,%al
-	rep
-	stosb
-	movq	%r9,%rax
-	POP_FRAME_POINTER
-	ret
+	MEMSET erms=1
 END(memset_erms)
 
 /* fillw(pat, base, cnt) */
