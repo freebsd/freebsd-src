@@ -338,7 +338,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		 * memory map on a 16-byte boundary (the bootinfo block is page
 		 * aligned).
 		 */
-		efihdr = (struct efi_map_header *)addr;
+		efihdr = (struct efi_map_header *)(uintptr_t)addr;
 		mm = (void *)((uint8_t *)efihdr + efisz);
 		sz = (EFI_PAGE_SIZE * pages) - efisz;
 
