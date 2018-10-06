@@ -736,7 +736,7 @@ auth2_record_key(Authctxt *authctxt, int authenticated,
 	struct sshkey **tmp, *dup;
 	int r;
 
-	if ((r = sshkey_demote(key, &dup)) != 0)
+	if ((r = sshkey_from_private(key, &dup)) != 0)
 		fatal("%s: copy key: %s", __func__, ssh_err(r));
 	sshkey_free(authctxt->auth_method_key);
 	authctxt->auth_method_key = dup;
@@ -745,7 +745,7 @@ auth2_record_key(Authctxt *authctxt, int authenticated,
 		return;
 
 	/* If authenticated, make sure we don't accept this key again */
-	if ((r = sshkey_demote(key, &dup)) != 0)
+	if ((r = sshkey_from_private(key, &dup)) != 0)
 		fatal("%s: copy key: %s", __func__, ssh_err(r));
 	if (authctxt->nprev_keys >= INT_MAX ||
 	    (tmp = recallocarray(authctxt->prev_keys, authctxt->nprev_keys,
