@@ -2143,6 +2143,11 @@ main(int ac, char **av)
 	 */
 	remote_ip = ssh_remote_ipaddr(ssh);
 
+#ifdef HAVE_LOGIN_CAP
+	/* Also caches remote hostname for sandboxed child. */
+	auth_get_canonical_hostname(ssh, options.use_dns);
+#endif
+
 #ifdef SSH_AUDIT_EVENTS
 	audit_connection_from(remote_ip, remote_port);
 #endif
