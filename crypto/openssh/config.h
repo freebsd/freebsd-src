@@ -394,6 +394,21 @@
 /* Define if you have /dev/ptc */
 /* #undef HAVE_DEV_PTS_AND_PTC */
 
+/* Define if libcrypto has DH_get0_key */
+/* #undef HAVE_DH_GET0_KEY */
+
+/* Define if libcrypto has DH_get0_pqg */
+/* #undef HAVE_DH_GET0_PQG */
+
+/* Define if libcrypto has DH_set0_key */
+/* #undef HAVE_DH_SET0_KEY */
+
+/* Define if libcrypto has DH_set0_pqg */
+/* #undef HAVE_DH_SET0_PQG */
+
+/* Define if libcrypto has DH_set_length */
+/* #undef HAVE_DH_SET_LENGTH */
+
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
@@ -405,6 +420,30 @@
 
 /* Define to 1 if you have the `DSA_generate_parameters_ex' function. */
 #define HAVE_DSA_GENERATE_PARAMETERS_EX 1
+
+/* Define if libcrypto has DSA_get0_key */
+/* #undef HAVE_DSA_GET0_KEY */
+
+/* Define if libcrypto has DSA_get0_pqg */
+/* #undef HAVE_DSA_GET0_PQG */
+
+/* Define if libcrypto has DSA_set0_key */
+/* #undef HAVE_DSA_SET0_KEY */
+
+/* Define if libcrypto has DSA_set0_pqg */
+/* #undef HAVE_DSA_SET0_PQG */
+
+/* Define if libcrypto has DSA_SIG_get0 */
+/* #undef HAVE_DSA_SIG_GET0 */
+
+/* Define if libcrypto has DSA_SIG_set0 */
+/* #undef HAVE_DSA_SIG_SET0 */
+
+/* Define if libcrypto has ECDSA_SIG_get0 */
+/* #undef HAVE_ECDSA_SIG_GET0 */
+
+/* Define if libcrypto has ECDSA_SIG_set0 */
+/* #undef HAVE_ECDSA_SIG_SET0 */
 
 /* Define to 1 if you have the <elf.h> header file. */
 #define HAVE_ELF_H 1
@@ -436,6 +475,15 @@
 /* Define if libcrypto has EVP_CIPHER_CTX_ctrl */
 #define HAVE_EVP_CIPHER_CTX_CTRL 1
 
+/* Define if libcrypto has EVP_CIPHER_CTX_set_iv */
+/* #undef HAVE_EVP_CIPHER_CTX_GET_IV */
+
+/* Define if libcrypto has EVP_CIPHER_CTX_iv */
+/* #undef HAVE_EVP_CIPHER_CTX_IV */
+
+/* Define if libcrypto has EVP_CIPHER_CTX_iv_noconst */
+/* #undef HAVE_EVP_CIPHER_CTX_IV_NOCONST */
+
 /* Define to 1 if you have the `EVP_DigestFinal_ex' function. */
 #define HAVE_EVP_DIGESTFINAL_EX 1
 
@@ -448,8 +496,17 @@
 /* Define to 1 if you have the `EVP_MD_CTX_copy_ex' function. */
 #define HAVE_EVP_MD_CTX_COPY_EX 1
 
+/* Define if libcrypto has EVP_MD_CTX_free */
+/* #undef HAVE_EVP_MD_CTX_FREE */
+
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 #define HAVE_EVP_MD_CTX_INIT 1
+
+/* Define if libcrypto has EVP_MD_CTX_new */
+/* #undef HAVE_EVP_MD_CTX_NEW */
+
+/* Define if libcrypto has EVP_PKEY_get0_RSA */
+/* #undef HAVE_EVP_PKEY_GET0_RSA */
 
 /* Define to 1 if you have the `EVP_ripemd160' function. */
 #define HAVE_EVP_RIPEMD160 1
@@ -973,8 +1030,47 @@
 /* Define to 1 if you have the `RSA_generate_key_ex' function. */
 #define HAVE_RSA_GENERATE_KEY_EX 1
 
+/* Define if libcrypto has RSA_get0_crt_params */
+/* #undef HAVE_RSA_GET0_CRT_PARAMS */
+
+/* Define if libcrypto has RSA_get0_factors */
+/* #undef HAVE_RSA_GET0_FACTORS */
+
+/* Define if libcrypto has RSA_get0_key */
+/* #undef HAVE_RSA_GET0_KEY */
+
 /* Define to 1 if you have the `RSA_get_default_method' function. */
 #define HAVE_RSA_GET_DEFAULT_METHOD 1
+
+/* Define if libcrypto has RSA_meth_dup */
+/* #undef HAVE_RSA_METH_DUP */
+
+/* Define if libcrypto has RSA_meth_free */
+/* #undef HAVE_RSA_METH_FREE */
+
+/* Define if libcrypto has RSA_meth_get_finish */
+/* #undef HAVE_RSA_METH_GET_FINISH */
+
+/* Define if libcrypto has RSA_meth_set1_name */
+/* #undef HAVE_RSA_METH_SET1_NAME */
+
+/* Define if libcrypto has RSA_meth_set_finish */
+/* #undef HAVE_RSA_METH_SET_FINISH */
+
+/* Define if libcrypto has RSA_meth_set_priv_dec */
+/* #undef HAVE_RSA_METH_SET_PRIV_DEC */
+
+/* Define if libcrypto has RSA_meth_set_priv_enc */
+/* #undef HAVE_RSA_METH_SET_PRIV_ENC */
+
+/* Define if libcrypto has RSA_get0_srt_params */
+/* #undef HAVE_RSA_SET0_CRT_PARAMS */
+
+/* Define if libcrypto has RSA_set0_factors */
+/* #undef HAVE_RSA_SET0_FACTORS */
+
+/* Define if libcrypto has RSA_set0_key */
+/* #undef HAVE_RSA_SET0_KEY */
 
 /* Define to 1 if you have the <sandbox.h> header file. */
 /* #undef HAVE_SANDBOX_H */
