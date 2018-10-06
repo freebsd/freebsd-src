@@ -28,6 +28,8 @@
 #ifndef _MM_WRAP_H_
 #define _MM_WRAP_H_
 
+#include <login_cap.h>
+
 extern int use_privsep;
 #define PRIVSEP(x)	(use_privsep ? mm_##x : x)
 
@@ -45,6 +47,8 @@ int mm_sshkey_sign(struct sshkey *, u_char **, size_t *, const u_char *, size_t,
     const char *, u_int compat);
 void mm_inform_authserv(char *, char *);
 struct passwd *mm_getpwnamallow(const char *);
+login_cap_t *mm_login_getpwclass(const struct passwd *pwd);
+void mm_login_close(login_cap_t *lc);
 char *mm_auth2_read_banner(void);
 int mm_auth_password(struct ssh *, char *);
 int mm_key_allowed(enum mm_keytype, const char *, const char *, struct sshkey *,

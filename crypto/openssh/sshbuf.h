@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <pwd.h>
 #ifdef WITH_OPENSSL
 # include <openssl/bn.h>
 # ifdef OPENSSL_HAS_ECC
@@ -245,6 +246,21 @@ int	sshbuf_b64tod(struct sshbuf *buf, const char *b64);
  * nul character.
  */
 char *sshbuf_dup_string(struct sshbuf *buf);
+
+/*
+ * store struct pwd
+ */
+int sshbuf_put_passwd(struct sshbuf *buf, const struct passwd *pwent);
+
+/*
+ * extract struct pwd
+ */
+struct passwd *sshbuf_get_passwd(struct sshbuf *buf);
+
+/*
+ * free struct passwd obtained from sshbuf_get_passwd.
+ */
+void sshbuf_free_passwd(struct passwd *pwent);
 
 /* Macros for decoding/encoding integers */
 #define PEEK_U64(p) \
