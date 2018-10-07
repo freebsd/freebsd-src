@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015, 2017 The FreeBSD Foundation
+ * Copyright (c) 2015-2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
@@ -32,27 +32,19 @@
 #ifndef __X86_IFUNC_H
 #define	__X86_IFUNC_H
 
-#define	DECLARE_LIFUNC(ret_type, name, args)				\
-ret_type name args
-
-#define	DEFINE_LIFUNC(scope, selector_qual, ret_type, name, args)	\
-__asm__ (scope "\t" #name "\n"						\
-	 "\t.type\t" #name ",@function\n"				\
-	 #name ":\n"							\
-	 "\tjmp	*" #name "_selector\n"					\
-	 "\t.size\t" #name ",\t. - "#name);				\
-selector_qual ret_type (*name##_selector)args  __used;			\
-DECLARE_LIFUNC(ret_type, name, args)
-
-#define	DEFINE_STATIC_LIFUNC(ret_type, name, args)			\
-	DEFINE_LIFUNC(".local", static, ret_type, name, args)
-
-#define	DEFINE_GLOBAL_LIFUNC(ret_type, name, args)			\
-	DEFINE_LIFUNC(".globl", , ret_type, name, args)
-
-#define	DEFINE_IFUNC(qual, ret_type, name, args, resolver_qual)	\
+#define	DEFINE_IFUNC(qual, ret_type, name, args, resolver_qual)		\
     resolver_qual ret_type (*name##_resolver(void))args __used;		\
     qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
     resolver_qual ret_type (*name##_resolver(void))args
+
+#define	DEFINE_UIFUNC(qual, ret_type, name, args, resolver_qual)	\
+    resolver_qual ret_type (*name##_resolver(uint32_t, uint32_t,	\
+	uint32_t, uint32_t))args __used;				\
+    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
+    resolver_qual ret_type (*name##_resolver(				\
+	uint32_t cpu_feature __unused,					\
+	uint32_t cpu_feature2 __unused,					\
+	uint32_t cpu_stdext_feature __unused,				\
+	uint32_t cpu_stdext_feature2 __unused))args
 
 #endif
