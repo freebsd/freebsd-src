@@ -87,6 +87,7 @@ INCLUDE_DIRECTORIES(${APR_INCLUDE_DIRECTORIES})
 SET(APR_PUBLIC_HEADERS_STATIC
   include/apr_allocator.h
   include/apr_atomic.h
+  include/apr_cstr.h
   include/apr_dso.h
   include/apr_env.h
   include/apr_errno.h
@@ -102,6 +103,7 @@ SET(APR_PUBLIC_HEADERS_STATIC
   include/apr_lib.h
   include/apr_mmap.h
   include/apr_network_io.h
+  include/apr_perms_set.h
   include/apr_poll.h
   include/apr_pools.h
   include/apr_portable.h
@@ -179,11 +181,13 @@ SET(APR_SOURCES
   poll/unix/pollcb.c
   poll/unix/pollset.c
   poll/unix/select.c
+  poll/unix/wakeup.c
   random/unix/apr_random.c
   random/unix/sha2.c
   random/unix/sha2_glue.c
   shmem/win32/shm.c
   strings/apr_cpystrn.c
+  strings/apr_cstr.c
   strings/apr_fnmatch.c
   strings/apr_snprintf.c
   strings/apr_strings.c

@@ -354,12 +354,13 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
                                       const apr_pollfd_t **descriptors)
 {
     apr_os_sock_t fd;
-    int ret, i, j;
-    unsigned int nget;
+    int ret;
+    unsigned int nget, i;
+    apr_int32_t nres = 0;
     pfd_elem_t *ep;
     apr_status_t rv = APR_SUCCESS;
-    apr_pollfd_t fp;
 
+    *num = 0;
     nget = 1;
 
     pollset_lock_rings();
@@ -403,49 +404,41 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
        port_associate within apr_pollset_add() */
     apr_atomic_dec32(&pollset->p->waiting);
 
-    (*num) = nget;
-    if (nget) {
+    pollset_lock_rings();
 
-        pollset_lock_rings();
-
-        for (i = 0, j = 0; i < nget; i++) {
-            fp = (((pfd_elem_t*)(pollset->p->port_set[i].portev_user))->pfd);
-            if ((pollset->flags & APR_POLLSET_WAKEABLE) &&
-                fp.desc_type == APR_POLL_FILE &&
-                fp.desc.f == pollset->wakeup_pipe[0]) {
-                apr_pollset_drain_wakeup_pipe(pollset);
-                rv = APR_EINTR;
-            }
-            else {
-                pollset->p->result_set[j] = fp;            
-                pollset->p->result_set[j].rtnevents =
-                    get_revent(pollset->p->port_set[i].portev_events);
-
-                /* If the ring element is still on the query ring, move it
-                 * to the add ring for re-association with the event port
-                 * later.  (It may have already been moved to the dead ring
-                 * by a call to pollset_remove on another thread.)
-                 */
-                ep = (pfd_elem_t *)pollset->p->port_set[i].portev_user;
-                if (ep->on_query_ring) {
-                    APR_RING_REMOVE(ep, link);
-                    ep->on_query_ring = 0;
-                    APR_RING_INSERT_TAIL(&(pollset->p->add_ring), ep,
-                                         pfd_elem_t, link);
-                }
-                j++;
-            }
+    for (i = 0; i < nget; i++) {
+        ep = (pfd_elem_t *)pollset->p->port_set[i].portev_user;
+        if ((pollset->flags & APR_POLLSET_WAKEABLE) &&
+            ep->pfd.desc_type == APR_POLL_FILE &&
+            ep->pfd.desc.f == pollset->wakeup_pipe[0]) {
+            apr_poll_drain_wakeup_pipe(pollset->wakeup_pipe);
+            rv = APR_EINTR;
         }
-        pollset_unlock_rings();
-        if ((*num = j)) { /* any event besides wakeup pipe? */
-            rv = APR_SUCCESS;
-            if (descriptors) {
-                *descriptors = pollset->p->result_set;
-            }
+        else {
+            pollset->p->result_set[nres] = ep->pfd;
+            pollset->p->result_set[nres].rtnevents =
+                get_revent(pollset->p->port_set[i].portev_events);
+            ++nres;
+        }
+        /* If the ring element is still on the query ring, move it
+         * to the add ring for re-association with the event port
+         * later.  (It may have already been moved to the dead ring
+         * by a call to pollset_remove on another thread.)
+         */
+        if (ep->on_query_ring) {
+            APR_RING_REMOVE(ep, link);
+            ep->on_query_ring = 0;
+            APR_RING_INSERT_TAIL(&(pollset->p->add_ring), ep,
+                                 pfd_elem_t, link);
         }
     }
-
-    pollset_lock_rings();
+    if (nres > 0) { /* any event besides wakeup pipe? */
+        *num = nres;
+        rv = APR_SUCCESS;
+        if (descriptors) {
+            *descriptors = pollset->p->result_set;
+        }
+    }
 
     /* Shift all PFDs in the Dead Ring to the Free Ring */
     APR_RING_CONCAT(&(pollset->p->free_ring), &(pollset->p->dead_ring), pfd_elem_t, link);
@@ -455,7 +448,7 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
     return rv;
 }
 
-static apr_pollset_provider_t impl = {
+static const apr_pollset_provider_t impl = {
     impl_pollset_create,
     impl_pollset_add,
     impl_pollset_remove,
@@ -464,11 +457,10 @@ static apr_pollset_provider_t impl = {
     "port"
 };
 
-apr_pollset_provider_t *apr_pollset_provider_port = &impl;
+const apr_pollset_provider_t *apr_pollset_provider_port = &impl;
 
-static apr_status_t cb_cleanup(void *p_)
+static apr_status_t impl_pollcb_cleanup(apr_pollcb_t *pollcb)
 {
-    apr_pollcb_t *pollcb = (apr_pollcb_t *) p_;
     close(pollcb->fd);
     return APR_SUCCESS;
 }
@@ -505,7 +497,6 @@ static apr_status_t impl_pollcb_create(apr_pollcb_t *pollcb,
     }
 
     pollcb->pollset.port = apr_palloc(p, size * sizeof(port_event_t));
-    apr_pool_cleanup_register(p, pollcb, cb_cleanup, apr_pool_cleanup_null);
 
     return APR_SUCCESS;
 }
@@ -558,16 +549,25 @@ static apr_status_t impl_pollcb_poll(apr_pollcb_t *pollcb,
                                      apr_pollcb_cb_t func,
                                      void *baton)
 {
-    apr_pollfd_t *pollfd;
     apr_status_t rv;
-    unsigned int i, nget = 1;
+    unsigned int nget = 1;
 
     rv = call_port_getn(pollcb->fd, pollcb->pollset.port, pollcb->nalloc,
                         &nget, timeout);
 
     if (nget) {
+        unsigned int i;
+
         for (i = 0; i < nget; i++) {
-            pollfd = (apr_pollfd_t *)(pollcb->pollset.port[i].portev_user);
+            apr_pollfd_t *pollfd = (apr_pollfd_t *)(pollcb->pollset.port[i].portev_user);
+
+            if ((pollcb->flags & APR_POLLSET_WAKEABLE) &&
+                pollfd->desc_type == APR_POLL_FILE &&
+                pollfd->desc.f == pollcb->wakeup_pipe[0]) {
+                apr_poll_drain_wakeup_pipe(pollcb->wakeup_pipe);
+                return APR_EINTR;
+            }
+
             pollfd->rtnevents = get_revent(pollcb->pollset.port[i].portev_events);
 
             rv = func(baton, pollfd);
@@ -581,14 +581,15 @@ static apr_status_t impl_pollcb_poll(apr_pollcb_t *pollcb,
     return rv;
 }
 
-static apr_pollcb_provider_t impl_cb = {
+static const apr_pollcb_provider_t impl_cb = {
     impl_pollcb_create,
     impl_pollcb_add,
     impl_pollcb_remove,
     impl_pollcb_poll,
+    impl_pollcb_cleanup,
     "port"
 };
 
-apr_pollcb_provider_t *apr_pollcb_provider_port = &impl_cb;
+const apr_pollcb_provider_t *apr_pollcb_provider_port = &impl_cb;
 
 #endif /* HAVE_PORT_CREATE */

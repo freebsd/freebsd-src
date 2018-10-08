@@ -3,14 +3,14 @@
 
 Summary: Apache Portable Runtime library
 Name: apr
-Version: 1.5.2
+Version: 1.6.5
 Release: 1
 License: Apache Software License
 Group: System Environment/Libraries
 URL: http://apr.apache.org/
 Source0: http://www.apache.org/dist/apr/%{name}-%{version}.tar.bz2
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
-BuildRequires: autoconf, libtool, doxygen, python
+BuildRequires: autoconf, libtool, doxygen, libuuid-devel, python
 
 %description
 The mission of the Apache Portable Runtime (APR) is to provide a

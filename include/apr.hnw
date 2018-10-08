@@ -180,6 +180,7 @@ extern "C" {
 #else
 #define APR_HAVE_IPV6                   0
 #endif
+#define APR_HAVE_SOCKADDR_UN            0
 #define APR_HAVE_MEMCHR                 1
 #define APR_HAVE_MEMMOVE                1
 #define APR_HAVE_SETRLIMIT              0

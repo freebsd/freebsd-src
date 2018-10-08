@@ -40,7 +40,22 @@ extern "C" {
  * passed to indicate a string-valued key, and have the length computed
  * automatically.
  */
-#define APR_ESCAPE_STRING     (-1)
+#define APR_ESCAPE_STRING      (-1)
+
+/**
+ * Apply LDAP distinguished name escaping as per RFC4514.
+ */
+#define APR_ESCAPE_LDAP_DN     (0x01)
+
+/**
+ * Apply LDAP filter escaping as per RFC4515.
+ */
+#define APR_ESCAPE_LDAP_FILTER (0x02)
+
+/**
+ * Apply both RFC4514 and RFC4515 LDAP escaping.
+ */
+#define APR_ESCAPE_LDAP_ALL    (0x03)
 
 /**
  * Perform shell escaping on the provided string.
@@ -208,8 +223,8 @@ APR_DECLARE(const char *) apr_pescape_urlencoded(apr_pool_t *p,
 
 /**
  * Apply entity encoding to a string. Characters are replaced as follows:
- * '<' becomes '&lt;', '>' becomes '&gt;', '&' becomes '&amp;', the
- * double quote becomes '&quot;" and the single quote becomes '&apos;'.
+ * '<' becomes '\&lt;', '>' becomes '\&gt;', '&' becomes '\&amp;', the
+ * double quote becomes '\&quot;" and the single quote becomes '\&apos;'.
  *
  * If toasc is not zero, any non ascii character will be encoded as
  * '%\#ddd;', where ddd is the decimal code of the character.
@@ -227,9 +242,9 @@ APR_DECLARE(apr_status_t) apr_escape_entity(char *escaped, const char *str,
 
 /**
  * Apply entity encoding to a string, returning the result from a pool.
- * Characters are replaced as follows: '<' becomes '&lt;', '>' becomes
- * '&gt;', '&' becomes '&amp;', the double quote becomes '&quot;" and the
- * single quote becomes '&apos;'.
+ * Characters are replaced as follows: '<' becomes '\&lt;', '>' becomes
+ * '\&gt;', '&' becomes '\&amp;', the double quote becomes '\&quot;" and the
+ * single quote becomes '\&apos;'.
  * @param p Pool to allocate from
  * @param str The original string
  * @param toasc If non zero, encode non ascii characters
@@ -365,6 +380,35 @@ APR_DECLARE(apr_status_t) apr_unescape_hex(void *dest, const char *str,
  */
 APR_DECLARE(const void *) apr_punescape_hex(apr_pool_t *p, const char *str,
         int colon, apr_size_t *len);
+
+/**
+ * Apply LDAP escaping to binary data. Characters from RFC4514 and RFC4515
+ * are escaped with their hex equivalents.
+ * @param dest The destination buffer, can be NULL
+ * @param src The original buffer
+ * @param srclen The length of the original buffer
+ * @param flags APR_ESCAPE_LDAP_DN for RFC4514, APR_ESCAPE_LDAP_FILTER for
+ * RFC4515, APR_ESCAPE_LDAP_ALL for both
+ * @param len If present, returns the length of the string
+ * @return APR_SUCCESS, or APR_NOTFOUND if the string was NULL
+ */
+APR_DECLARE(apr_status_t) apr_escape_ldap(char *dest, const void *src,
+        apr_ssize_t srclen, int flags, apr_size_t *len);
+
+/**
+ * Apply LDAP escaping to binary data, and return the results from a
+ * pool. Characters from RFC4514 and RFC4515 are escaped with their hex
+ * equivalents.
+ * @param p Pool to allocate from
+ * @param src The original buffer
+ * @param slen The length of the original buffer
+ * @param flags APR_ESCAPE_LDAP_DN for RFC4514, APR_ESCAPE_LDAP_FILTER for
+ * RFC4515, APR_ESCAPE_LDAP_ALL for both
+ * @return A zero padded buffer allocated from the pool on success, or
+ * NULL if src was NULL.
+ */
+APR_DECLARE(const char *) apr_pescape_ldap(apr_pool_t *p, const void *src,
+        apr_ssize_t slen, int flags) __attribute__((nonnull(1)));
 
 /** @} */
 #ifdef __cplusplus

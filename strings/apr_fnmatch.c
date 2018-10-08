@@ -462,7 +462,7 @@ APR_DECLARE(apr_status_t) apr_match_glob(const char *pattern,
         path = ".";
     }
     else {
-        path = apr_pstrndup(p, pattern, idx - pattern);
+        path = apr_pstrmemdup(p, pattern, idx - pattern);
         pattern = idx + 1;
     }
 

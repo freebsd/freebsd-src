@@ -1328,7 +1328,7 @@ APR_DECLARE(int) apr_vformatter(int (*flush_func)(apr_vformatter_buff_t *),
              */
             if (print_something == YES) {
                 for (i = s_len; i != 0; i--) {
-                      INS_CHAR(*s, sp, bep, cc);
+                    INS_CHAR(*s, sp, bep, cc);
                     s++;
                 }
             }

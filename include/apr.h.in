@@ -245,6 +245,7 @@ extern "C" {
 #define APR_HAVE_INET_ADDR      @have_inet_addr@
 #define APR_HAVE_INET_NETWORK   @have_inet_network@
 #define APR_HAVE_IPV6           @have_ipv6@
+#define APR_HAVE_SOCKADDR_UN    @have_sockaddr_un@
 #define APR_HAVE_MEMMOVE        @have_memmove@
 #define APR_HAVE_SETRLIMIT      @have_setrlimit@
 #define APR_HAVE_SIGACTION      @have_sigaction@

@@ -272,8 +272,8 @@ AC_PROG_LIBTOOL
     ;;
 esac
 
-AC_ARG_WITH(installbuilddir, [  --with-installbuilddir=DIR location to store APR build files (defaults to '${datadir}/build')],
-  [ installbuilddir=$withval ], [ installbuilddir="${datadir}/build-${APR_MAJOR_VERSION}" ] )
+AC_ARG_WITH(installbuilddir, [  --with-installbuilddir=DIR location to store APR build files],
+  [ installbuilddir=$withval ] )
 AC_SUBST(installbuilddir)
 
 AC_ARG_WITH(libtool, [  --without-libtool       avoid using libtool to link the library],
@@ -346,6 +346,11 @@ AC_ARG_ENABLE(maintainer-mode,[  --enable-maintainer-mode  Turn on debugging and
   [APR_ADDTO(CFLAGS,-g)
    if test "$GCC" = "yes"; then
      APR_ADDTO(CFLAGS,[-Wall -Wmissing-prototypes -Wstrict-prototypes -Wmissing-declarations])
+      case `($CC --version) 2>/dev/null` in
+        *clang-900* | *"clang version 5.0.0"*)
+          APR_ADDTO(CFLAGS,[-Wno-error=strict-prototypes])
+          ;;
+      esac
    elif test "$AIX_XLC" = "yes"; then
      APR_ADDTO(CFLAGS,-qfullpath -qinitauto=FE -qcheck=all -qinfo=pro)
    fi
@@ -546,6 +551,11 @@ case $host in
              ;;
        esac
        ;;
+   *apple-darwin*)
+       ac_cv_func_fdatasync="no" # Mac OS X wrongly reports it has fdatasync()
+       OSDIR="unix"
+       eolstr="\\n"
+       ;;
    *os390)
        OSDIR="os390"
        OBJECTS_PLATFORM='$(OBJECTS_os390)'
@@ -570,6 +580,11 @@ case $host in
        ;;
    *hpux10* ) 
        enable_threads="no"
+       OSDIR="unix"
+       eolstr="\\n"
+       ;;
+   *darwin* ) 
+       ac_cv_func_fdatasync="no" # Mac OS X wrongly reports it has fdatasync()
        OSDIR="unix"
        eolstr="\\n"
        ;;
@@ -845,6 +860,22 @@ AC_ARG_WITH(efence,
                  [ APR_ADDTO(LIBS,-lefence) ],
                  [ AC_MSG_ERROR(Electric Fence requested but not detected) ])
   ])
+
+AC_ARG_WITH(valgrind,
+  [  --with-valgrind[[=DIR]]   Enable code to teach valgrind about apr pools
+                          (optionally: set path to valgrind headers) ],
+  [ if test "$withval" != no; then
+      if test "$withval" = yes; then
+        withval=/usr/include/valgrind
+      fi
+      APR_ADDTO(CPPFLAGS, -I$withval)
+      AC_CHECK_HEADERS(valgrind.h memcheck.h)
+      APR_IFALLYES(header:valgrind.h header:memcheck.h,
+        [AC_DEFINE(HAVE_VALGRIND, 1, [Compile in valgrind support]) ],
+        [AC_MSG_ERROR(valgrind headers not found) ]
+      )
+    fi ]
+)
 
 AC_CHECK_FUNCS(sigsuspend, [ have_sigsuspend="1" ], [ have_sigsuspend="0" ])
 AC_CHECK_FUNCS(sigwait, [ have_sigwait="1" ], [ have_sigwait="0" ]) 
@@ -1131,9 +1162,17 @@ case $host in
 #endif";;
 esac
 
-AC_CHECK_HEADERS([sys/types.h sys/mman.h sys/ipc.h sys/mutex.h sys/shm.h sys/file.h kernel/OS.h os2.h windows.h])
+AC_CHECK_HEADERS([sys/types.h sys/mman.h sys/ipc.h sys/mutex.h \
+                  sys/shm.h sys/file.h sys/socket.h kernel/OS.h os2.h windows.h])
+AC_CHECK_HEADERS([net/if.h],[],[],
+[
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <net/if.h>
+])
 AC_CHECK_FUNCS([mmap munmap shm_open shm_unlink shmget shmat shmdt shmctl \
-                create_area])
+                create_area mprotect])
 
 APR_CHECK_DEFINE(MAP_ANON, sys/mman.h)
 AC_CHECK_FILE(/dev/zero)
@@ -1578,6 +1617,27 @@ AC_ARG_ENABLE(allocator-uses-mmap,
                                 [Define if apr_allocator should use mmap]) ],
 		     [AC_MSG_ERROR([mmap()/MAP_ANON not supported]) ]
 		    )
+    fi ]
+)
+
+AC_ARG_ENABLE(allocator-guard-pages,
+  [  --enable-allocator-guard-pages  Use guard pages in apr_allocator
+                                  (implies --enable-allocator-uses-mmap) ] ,
+  [ if test "$enableval" = "yes"; then
+        APR_IFALLYES(header:sys/mman.h func:mmap func:munmap func:mprotect define:MAP_ANON,
+                     [AC_DEFINE(APR_ALLOCATOR_GUARD_PAGES, 1,
+                                [Define if apr_allocator should use guard pages]) ],
+                     [AC_MSG_ERROR([mmap()/MAP_ANON/mprotect() not supported]) ]
+                   )
+    fi ]
+)
+
+
+AC_ARG_ENABLE(pool-concurrency-check,
+  [  --enable-pool-concurrency-check Check for concurrent usage of memory pools],
+  [ if test "$enableval" = "yes"; then
+    AC_DEFINE(APR_POOL_CONCURRENCY_CHECK, 1,
+               [Define if pool functions should abort if concurrent usage is detected])
     fi ]
 )
 
@@ -2695,6 +2755,7 @@ APR_CHECK_NEGATIVE_EAI
 APR_CHECK_WORKING_GETNAMEINFO
 APR_CHECK_SOCKADDR_IN6
 APR_CHECK_SOCKADDR_STORAGE
+APR_CHECK_SOCKADDR_UN
 
 have_ipv6="0"
 if test "$user_disabled_ipv6" = 1; then

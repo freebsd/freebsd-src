@@ -41,6 +41,7 @@ static apr_status_t apr_file_transfer_contents(const char *from_path,
             return status;
         }
         perms = finfo.protection;
+        apr_file_perms_set(to_path, perms); /* ignore any failure */
     }
     else
         perms = to_perms;

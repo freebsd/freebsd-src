@@ -32,8 +32,8 @@ APR_DECLARE(apr_status_t) apr_file_lock(apr_file_t *thefile, int type)
         struct flock l = { 0 };
         int fc;
 
-        l.l_whence = SEEK_SET;  /* lock from current point */
-        l.l_start = 0;          /* begin lock at this offset */
+        l.l_whence = SEEK_SET;  /* count l_start from start of file */
+        l.l_start = 0;          /* lock from start of file */
         l.l_len = 0;            /* lock to end of file */
         if ((type & APR_FLOCK_TYPEMASK) == APR_FLOCK_SHARED)
             l.l_type = F_RDLCK;
@@ -90,8 +90,8 @@ APR_DECLARE(apr_status_t) apr_file_unlock(apr_file_t *thefile)
     {
         struct flock l = { 0 };
 
-        l.l_whence = SEEK_SET;  /* lock from current point */
-        l.l_start = 0;          /* begin lock at this offset */
+        l.l_whence = SEEK_SET;  /* count l_start from start of file */
+        l.l_start = 0;          /* lock from start of file */
         l.l_len = 0;            /* lock to end of file */
         l.l_type = F_UNLCK;
 

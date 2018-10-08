@@ -25,7 +25,7 @@
  * And please, make an effort to stub apr.hnw and apr.h.in in the process.
  *
  * This is the Win32 specific version of apr.h.  It is copied from
- * apr.hw by the apr.dsp and libapr.dsp projects. 
+ * apr.hw by the apr.dsp and libapr.dsp projects.
  */
 
 /**
@@ -60,7 +60,9 @@
  *   C4244: int to char/short - precision loss
  *   C4514: unreferenced inline function removed
  */
+#if defined(_MSC_VER)
 #pragma warning(disable: 4100 4127 4163 4201 4514; once: 4057 4075 4244)
+#endif
 
 /* Ignore Microsoft's interpretation of secure development
  * and the POSIX string handling API
@@ -209,25 +211,42 @@
 /** @} */
 /** @} */
 
-/* We don't include our conditional headers within the doxyblocks 
- * or the extern "C" namespace 
+/* We don't include our conditional headers within the doxyblocks
+ * or the extern "C" namespace
  */
 
 #if APR_HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+
 #if APR_HAVE_STDIO_H
 #include <stdio.h>
 #endif
+
 #if APR_HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+
 #if APR_HAVE_STDDEF_H
 #include <stddef.h>
 #endif
+
+#if APR_HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+
+#if APR_HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+#if APR_HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+
 #if APR_HAVE_TIME_H
 #include <time.h>
 #endif
+
 #if APR_HAVE_PROCESS_H
 #include <process.h>
 #endif
@@ -258,12 +277,12 @@ extern "C" {
 #define APR_USE_SHMEM_MMAP_ANON    0
 #define APR_USE_SHMEM_BEOS         0
 
-#define APR_USE_FLOCK_SERIALIZE           0 
+#define APR_USE_FLOCK_SERIALIZE           0
 #define APR_USE_POSIXSEM_SERIALIZE        0
 #define APR_USE_SYSVSEM_SERIALIZE         0
 #define APR_USE_FCNTL_SERIALIZE           0
-#define APR_USE_PROC_PTHREAD_SERIALIZE    0 
-#define APR_USE_PTHREAD_SERIALIZE         0 
+#define APR_USE_PROC_PTHREAD_SERIALIZE    0
+#define APR_USE_PTHREAD_SERIALIZE         0
 
 #define APR_HAS_FLOCK_SERIALIZE           0
 #define APR_HAS_SYSVSEM_SERIALIZE         0
@@ -280,6 +299,7 @@ extern "C" {
 #define APR_HAVE_INET_ADDR      1
 #define APR_HAVE_INET_NETWORK   0
 #define APR_HAVE_IPV6           @apr_have_ipv6_10@
+#define APR_HAVE_SOCKADDR_UN    0
 #define APR_HAVE_MEMMOVE        1
 #define APR_HAVE_SETRLIMIT      0
 #define APR_HAVE_SIGACTION      0
@@ -351,7 +371,7 @@ extern "C" {
 
 /* Is the O_NONBLOCK flag inherited from listening sockets?
  */
-#define APR_O_NONBLOCK_INHERITED  1
+#define APR_O_NONBLOCK_INHERITED 1
 
 /* Typedefs that APR needs. */
 
@@ -623,17 +643,19 @@ typedef  int         gid_t;
      && (*(const apr_uint32_t *)(const void *)(&(a)->s6_addr[8]) == ntohl(0x0000ffff)))
 #endif
 
-#endif /* APR_HAS_IPV6 */
+#endif /* APR_HAVE_IPV6 */
 
 #ifdef __cplusplus
 }
 #endif
 
-/* Done with badly written headers
+/* Done with badly written headers, leave 'deprecated CRT' undeprecated
  */
 #if defined(_MSC_VER) && _MSC_VER >= 1200
 #pragma warning(pop)
+#if _MSC_VER >= 1400
 #pragma warning(disable: 4996)
+#endif
 #endif
 
 #endif /* WIN32 */

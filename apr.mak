@@ -4,7 +4,7 @@ CFG=apr - Win32 Release
 !MESSAGE No configuration specified. Defaulting to apr - Win32 Release.
 !ENDIF 
 
-!IF "$(CFG)" != "apr - Win32 Release" && "$(CFG)" != "apr - Win32 Debug" && "$(CFG)" != "apr - Win32 Release9x" && "$(CFG)" != "apr - Win32 Debug9x" && "$(CFG)" != "apr - x64 Release" && "$(CFG)" != "apr - x64 Debug"
+!IF "$(CFG)" != "apr - Win32 Release" && "$(CFG)" != "apr - Win32 Debug" && "$(CFG)" != "apr - x64 Release" && "$(CFG)" != "apr - x64 Debug"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
@@ -15,8 +15,6 @@ CFG=apr - Win32 Release
 !MESSAGE 
 !MESSAGE "apr - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - Win32 Debug" (based on "Win32 (x86) Static Library")
-!MESSAGE "apr - Win32 Release9x" (based on "Win32 (x86) Static Library")
-!MESSAGE "apr - Win32 Debug9x" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - x64 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - x64 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE 
@@ -45,6 +43,7 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_cstr.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -115,6 +114,7 @@ CLEAN :
 	-@erase "$(INTDIR)\userinfo.obj"
 	-@erase "$(INTDIR)\utf8.obj"
 	-@erase "$(INTDIR)\version.obj"
+	-@erase "$(INTDIR)\wakeup.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
 	-@erase ".\include\apr_gen_test_char.h"
@@ -215,12 +215,14 @@ LIB32_OBJS= \
 	"$(INTDIR)\poll.obj" \
 	"$(INTDIR)\pollcb.obj" \
 	"$(INTDIR)\pollset.obj" \
+	"$(INTDIR)\wakeup.obj" \
 	"$(INTDIR)\select.obj" \
 	"$(INTDIR)\apr_random.obj" \
 	"$(INTDIR)\sha2.obj" \
 	"$(INTDIR)\sha2_glue.obj" \
 	"$(INTDIR)\shm.obj" \
 	"$(INTDIR)\apr_cpystrn.obj" \
+	"$(INTDIR)\apr_cstr.obj" \
 	"$(INTDIR)\apr_fnmatch.obj" \
 	"$(INTDIR)\apr_snprintf.obj" \
 	"$(INTDIR)\apr_strings.obj" \
@@ -259,6 +261,7 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_cstr.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -329,6 +332,7 @@ CLEAN :
 	-@erase "$(INTDIR)\userinfo.obj"
 	-@erase "$(INTDIR)\utf8.obj"
 	-@erase "$(INTDIR)\version.obj"
+	-@erase "$(INTDIR)\wakeup.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
 	-@erase ".\include\apr_gen_test_char.h"
@@ -430,439 +434,13 @@ LIB32_OBJS= \
 	"$(INTDIR)\pollcb.obj" \
 	"$(INTDIR)\pollset.obj" \
 	"$(INTDIR)\select.obj" \
+	"$(INTDIR)\wakeup.obj" \
 	"$(INTDIR)\apr_random.obj" \
 	"$(INTDIR)\sha2.obj" \
 	"$(INTDIR)\sha2_glue.obj" \
 	"$(INTDIR)\shm.obj" \
 	"$(INTDIR)\apr_cpystrn.obj" \
-	"$(INTDIR)\apr_fnmatch.obj" \
-	"$(INTDIR)\apr_snprintf.obj" \
-	"$(INTDIR)\apr_strings.obj" \
-	"$(INTDIR)\apr_strnatcmp.obj" \
-	"$(INTDIR)\apr_strtok.obj" \
-	"$(INTDIR)\apr_hash.obj" \
-	"$(INTDIR)\apr_skiplist.obj" \
-	"$(INTDIR)\apr_tables.obj" \
-	"$(INTDIR)\proc.obj" \
-	"$(INTDIR)\signals.obj" \
-	"$(INTDIR)\thread.obj" \
-	"$(INTDIR)\threadpriv.obj" \
-	"$(INTDIR)\time.obj" \
-	"$(INTDIR)\timestr.obj" \
-	"$(INTDIR)\groupinfo.obj" \
-	"$(INTDIR)\userinfo.obj"
-
-"$(OUTDIR)\apr-1.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
-
-OUTDIR=.\9x\LibR
-INTDIR=.\9x\LibR
-# Begin Custom Macros
-OutDir=.\9x\LibR
-# End Custom Macros
-
-ALL : ".\include\apr_escape_test_char.h" ".\include\apr.h" ".\9x\LibR\gen_test_char.exe" "$(OUTDIR)\apr-1.lib"
-
-
-CLEAN :
-	-@erase "$(INTDIR)\apr-1.idb"
-	-@erase "$(INTDIR)\apr-1.pdb"
-	-@erase "$(INTDIR)\apr_atomic.obj"
-	-@erase "$(INTDIR)\apr_cpystrn.obj"
-	-@erase "$(INTDIR)\apr_escape.obj"
-	-@erase "$(INTDIR)\apr_fnmatch.obj"
-	-@erase "$(INTDIR)\apr_getpass.obj"
-	-@erase "$(INTDIR)\apr_hash.obj"
-	-@erase "$(INTDIR)\apr_pools.obj"
-	-@erase "$(INTDIR)\apr_random.obj"
-	-@erase "$(INTDIR)\apr_skiplist.obj"
-	-@erase "$(INTDIR)\apr_snprintf.obj"
-	-@erase "$(INTDIR)\apr_strings.obj"
-	-@erase "$(INTDIR)\apr_strnatcmp.obj"
-	-@erase "$(INTDIR)\apr_strtok.obj"
-	-@erase "$(INTDIR)\apr_tables.obj"
-	-@erase "$(INTDIR)\buffer.obj"
-	-@erase "$(INTDIR)\charset.obj"
-	-@erase "$(INTDIR)\common.obj"
-	-@erase "$(INTDIR)\copy.obj"
-	-@erase "$(INTDIR)\dir.obj"
-	-@erase "$(INTDIR)\dso.obj"
-	-@erase "$(INTDIR)\env.obj"
-	-@erase "$(INTDIR)\errorcodes.obj"
-	-@erase "$(INTDIR)\fileacc.obj"
-	-@erase "$(INTDIR)\filedup.obj"
-	-@erase "$(INTDIR)\filepath.obj"
-	-@erase "$(INTDIR)\filepath_util.obj"
-	-@erase "$(INTDIR)\filestat.obj"
-	-@erase "$(INTDIR)\filesys.obj"
-	-@erase "$(INTDIR)\flock.obj"
-	-@erase "$(INTDIR)\fullrw.obj"
-	-@erase "$(INTDIR)\getopt.obj"
-	-@erase "$(INTDIR)\groupinfo.obj"
-	-@erase "$(INTDIR)\inet_ntop.obj"
-	-@erase "$(INTDIR)\inet_pton.obj"
-	-@erase "$(INTDIR)\internal.obj"
-	-@erase "$(INTDIR)\misc.obj"
-	-@erase "$(INTDIR)\mktemp.obj"
-	-@erase "$(INTDIR)\mmap.obj"
-	-@erase "$(INTDIR)\multicast.obj"
-	-@erase "$(INTDIR)\open.obj"
-	-@erase "$(INTDIR)\otherchild.obj"
-	-@erase "$(INTDIR)\pipe.obj"
-	-@erase "$(INTDIR)\poll.obj"
-	-@erase "$(INTDIR)\pollcb.obj"
-	-@erase "$(INTDIR)\pollset.obj"
-	-@erase "$(INTDIR)\proc.obj"
-	-@erase "$(INTDIR)\proc_mutex.obj"
-	-@erase "$(INTDIR)\rand.obj"
-	-@erase "$(INTDIR)\readwrite.obj"
-	-@erase "$(INTDIR)\seek.obj"
-	-@erase "$(INTDIR)\select.obj"
-	-@erase "$(INTDIR)\sendrecv.obj"
-	-@erase "$(INTDIR)\sha2.obj"
-	-@erase "$(INTDIR)\sha2_glue.obj"
-	-@erase "$(INTDIR)\shm.obj"
-	-@erase "$(INTDIR)\signals.obj"
-	-@erase "$(INTDIR)\sockaddr.obj"
-	-@erase "$(INTDIR)\socket_util.obj"
-	-@erase "$(INTDIR)\sockets.obj"
-	-@erase "$(INTDIR)\sockopt.obj"
-	-@erase "$(INTDIR)\start.obj"
-	-@erase "$(INTDIR)\tempdir.obj"
-	-@erase "$(INTDIR)\thread.obj"
-	-@erase "$(INTDIR)\thread_cond.obj"
-	-@erase "$(INTDIR)\thread_mutex.obj"
-	-@erase "$(INTDIR)\thread_rwlock.obj"
-	-@erase "$(INTDIR)\threadpriv.obj"
-	-@erase "$(INTDIR)\time.obj"
-	-@erase "$(INTDIR)\timestr.obj"
-	-@erase "$(INTDIR)\userinfo.obj"
-	-@erase "$(INTDIR)\utf8.obj"
-	-@erase "$(INTDIR)\version.obj"
-	-@erase "$(OUTDIR)\apr-1.lib"
-	-@erase ".\include\apr.h"
-	-@erase ".\include\apr_gen_test_char.h"
-	-@erase "$(OUTDIR)\gen_test_char.exe"
-	-@erase "$(OUTDIR)\gen_test_char.obj"
-
-"$(OUTDIR)" :
-    if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
-
-CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /c 
-
-.c{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-RSC=rc.exe
-BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
-BSC32_SBRS= \
-	
-LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
-LIB32_OBJS= \
-	"$(INTDIR)\apr_atomic.obj" \
-	"$(INTDIR)\dso.obj" \
-	"$(INTDIR)\apr_escape.obj" \
-	"$(INTDIR)\buffer.obj" \
-	"$(INTDIR)\copy.obj" \
-	"$(INTDIR)\dir.obj" \
-	"$(INTDIR)\fileacc.obj" \
-	"$(INTDIR)\filedup.obj" \
-	"$(INTDIR)\filepath.obj" \
-	"$(INTDIR)\filepath_util.obj" \
-	"$(INTDIR)\filestat.obj" \
-	"$(INTDIR)\filesys.obj" \
-	"$(INTDIR)\flock.obj" \
-	"$(INTDIR)\fullrw.obj" \
-	"$(INTDIR)\mktemp.obj" \
-	"$(INTDIR)\open.obj" \
-	"$(INTDIR)\pipe.obj" \
-	"$(INTDIR)\readwrite.obj" \
-	"$(INTDIR)\seek.obj" \
-	"$(INTDIR)\tempdir.obj" \
-	"$(INTDIR)\proc_mutex.obj" \
-	"$(INTDIR)\thread_cond.obj" \
-	"$(INTDIR)\thread_mutex.obj" \
-	"$(INTDIR)\thread_rwlock.obj" \
-	"$(INTDIR)\apr_pools.obj" \
-	"$(INTDIR)\charset.obj" \
-	"$(INTDIR)\env.obj" \
-	"$(INTDIR)\errorcodes.obj" \
-	"$(INTDIR)\getopt.obj" \
-	"$(INTDIR)\internal.obj" \
-	"$(INTDIR)\misc.obj" \
-	"$(INTDIR)\otherchild.obj" \
-	"$(INTDIR)\rand.obj" \
-	"$(INTDIR)\start.obj" \
-	"$(INTDIR)\utf8.obj" \
-	"$(INTDIR)\version.obj" \
-	"$(INTDIR)\common.obj" \
-	"$(INTDIR)\mmap.obj" \
-	"$(INTDIR)\inet_ntop.obj" \
-	"$(INTDIR)\inet_pton.obj" \
-	"$(INTDIR)\multicast.obj" \
-	"$(INTDIR)\sendrecv.obj" \
-	"$(INTDIR)\sockaddr.obj" \
-	"$(INTDIR)\sockets.obj" \
-	"$(INTDIR)\socket_util.obj" \
-	"$(INTDIR)\sockopt.obj" \
-	"$(INTDIR)\apr_getpass.obj" \
-	"$(INTDIR)\poll.obj" \
-	"$(INTDIR)\pollcb.obj" \
-	"$(INTDIR)\pollset.obj" \
-	"$(INTDIR)\select.obj" \
-	"$(INTDIR)\apr_random.obj" \
-	"$(INTDIR)\sha2.obj" \
-	"$(INTDIR)\sha2_glue.obj" \
-	"$(INTDIR)\shm.obj" \
-	"$(INTDIR)\apr_cpystrn.obj" \
-	"$(INTDIR)\apr_fnmatch.obj" \
-	"$(INTDIR)\apr_snprintf.obj" \
-	"$(INTDIR)\apr_strings.obj" \
-	"$(INTDIR)\apr_strnatcmp.obj" \
-	"$(INTDIR)\apr_strtok.obj" \
-	"$(INTDIR)\apr_hash.obj" \
-	"$(INTDIR)\apr_skiplist.obj" \
-	"$(INTDIR)\apr_tables.obj" \
-	"$(INTDIR)\proc.obj" \
-	"$(INTDIR)\signals.obj" \
-	"$(INTDIR)\thread.obj" \
-	"$(INTDIR)\threadpriv.obj" \
-	"$(INTDIR)\time.obj" \
-	"$(INTDIR)\timestr.obj" \
-	"$(INTDIR)\groupinfo.obj" \
-	"$(INTDIR)\userinfo.obj"
-
-"$(OUTDIR)\apr-1.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
-
-OUTDIR=.\9x\LibD
-INTDIR=.\9x\LibD
-# Begin Custom Macros
-OutDir=.\9x\LibD
-# End Custom Macros
-
-ALL : ".\include\apr_escape_test_char.h" ".\include\apr.h" ".\9x\LibD\gen_test_char.exe" "$(OUTDIR)\apr-1.lib"
-
-
-CLEAN :
-	-@erase "$(INTDIR)\apr-1.idb"
-	-@erase "$(INTDIR)\apr-1.pdb"
-	-@erase "$(INTDIR)\apr_atomic.obj"
-	-@erase "$(INTDIR)\apr_cpystrn.obj"
-	-@erase "$(INTDIR)\apr_escape.obj"
-	-@erase "$(INTDIR)\apr_fnmatch.obj"
-	-@erase "$(INTDIR)\apr_getpass.obj"
-	-@erase "$(INTDIR)\apr_hash.obj"
-	-@erase "$(INTDIR)\apr_pools.obj"
-	-@erase "$(INTDIR)\apr_random.obj"
-	-@erase "$(INTDIR)\apr_skiplist.obj"
-	-@erase "$(INTDIR)\apr_snprintf.obj"
-	-@erase "$(INTDIR)\apr_strings.obj"
-	-@erase "$(INTDIR)\apr_strnatcmp.obj"
-	-@erase "$(INTDIR)\apr_strtok.obj"
-	-@erase "$(INTDIR)\apr_tables.obj"
-	-@erase "$(INTDIR)\buffer.obj"
-	-@erase "$(INTDIR)\charset.obj"
-	-@erase "$(INTDIR)\common.obj"
-	-@erase "$(INTDIR)\copy.obj"
-	-@erase "$(INTDIR)\dir.obj"
-	-@erase "$(INTDIR)\dso.obj"
-	-@erase "$(INTDIR)\env.obj"
-	-@erase "$(INTDIR)\errorcodes.obj"
-	-@erase "$(INTDIR)\fileacc.obj"
-	-@erase "$(INTDIR)\filedup.obj"
-	-@erase "$(INTDIR)\filepath.obj"
-	-@erase "$(INTDIR)\filepath_util.obj"
-	-@erase "$(INTDIR)\filestat.obj"
-	-@erase "$(INTDIR)\filesys.obj"
-	-@erase "$(INTDIR)\flock.obj"
-	-@erase "$(INTDIR)\fullrw.obj"
-	-@erase "$(INTDIR)\getopt.obj"
-	-@erase "$(INTDIR)\groupinfo.obj"
-	-@erase "$(INTDIR)\inet_ntop.obj"
-	-@erase "$(INTDIR)\inet_pton.obj"
-	-@erase "$(INTDIR)\internal.obj"
-	-@erase "$(INTDIR)\misc.obj"
-	-@erase "$(INTDIR)\mktemp.obj"
-	-@erase "$(INTDIR)\mmap.obj"
-	-@erase "$(INTDIR)\multicast.obj"
-	-@erase "$(INTDIR)\open.obj"
-	-@erase "$(INTDIR)\otherchild.obj"
-	-@erase "$(INTDIR)\pipe.obj"
-	-@erase "$(INTDIR)\poll.obj"
-	-@erase "$(INTDIR)\pollcb.obj"
-	-@erase "$(INTDIR)\pollset.obj"
-	-@erase "$(INTDIR)\proc.obj"
-	-@erase "$(INTDIR)\proc_mutex.obj"
-	-@erase "$(INTDIR)\rand.obj"
-	-@erase "$(INTDIR)\readwrite.obj"
-	-@erase "$(INTDIR)\seek.obj"
-	-@erase "$(INTDIR)\select.obj"
-	-@erase "$(INTDIR)\sendrecv.obj"
-	-@erase "$(INTDIR)\sha2.obj"
-	-@erase "$(INTDIR)\sha2_glue.obj"
-	-@erase "$(INTDIR)\shm.obj"
-	-@erase "$(INTDIR)\signals.obj"
-	-@erase "$(INTDIR)\sockaddr.obj"
-	-@erase "$(INTDIR)\socket_util.obj"
-	-@erase "$(INTDIR)\sockets.obj"
-	-@erase "$(INTDIR)\sockopt.obj"
-	-@erase "$(INTDIR)\start.obj"
-	-@erase "$(INTDIR)\tempdir.obj"
-	-@erase "$(INTDIR)\thread.obj"
-	-@erase "$(INTDIR)\thread_cond.obj"
-	-@erase "$(INTDIR)\thread_mutex.obj"
-	-@erase "$(INTDIR)\thread_rwlock.obj"
-	-@erase "$(INTDIR)\threadpriv.obj"
-	-@erase "$(INTDIR)\time.obj"
-	-@erase "$(INTDIR)\timestr.obj"
-	-@erase "$(INTDIR)\userinfo.obj"
-	-@erase "$(INTDIR)\utf8.obj"
-	-@erase "$(INTDIR)\version.obj"
-	-@erase "$(OUTDIR)\apr-1.lib"
-	-@erase ".\include\apr.h"
-	-@erase ".\include\apr_gen_test_char.h"
-	-@erase "$(OUTDIR)\gen_test_char.exe"
-	-@erase "$(OUTDIR)\gen_test_char.obj"
-
-"$(OUTDIR)" :
-    if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
-
-CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c 
-
-.c{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-RSC=rc.exe
-BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
-BSC32_SBRS= \
-	
-LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
-LIB32_OBJS= \
-	"$(INTDIR)\apr_atomic.obj" \
-	"$(INTDIR)\dso.obj" \
-	"$(INTDIR)\apr_escape.obj" \
-	"$(INTDIR)\buffer.obj" \
-	"$(INTDIR)\copy.obj" \
-	"$(INTDIR)\dir.obj" \
-	"$(INTDIR)\fileacc.obj" \
-	"$(INTDIR)\filedup.obj" \
-	"$(INTDIR)\filepath.obj" \
-	"$(INTDIR)\filepath_util.obj" \
-	"$(INTDIR)\filestat.obj" \
-	"$(INTDIR)\filesys.obj" \
-	"$(INTDIR)\flock.obj" \
-	"$(INTDIR)\fullrw.obj" \
-	"$(INTDIR)\mktemp.obj" \
-	"$(INTDIR)\open.obj" \
-	"$(INTDIR)\pipe.obj" \
-	"$(INTDIR)\readwrite.obj" \
-	"$(INTDIR)\seek.obj" \
-	"$(INTDIR)\tempdir.obj" \
-	"$(INTDIR)\proc_mutex.obj" \
-	"$(INTDIR)\thread_cond.obj" \
-	"$(INTDIR)\thread_mutex.obj" \
-	"$(INTDIR)\thread_rwlock.obj" \
-	"$(INTDIR)\apr_pools.obj" \
-	"$(INTDIR)\charset.obj" \
-	"$(INTDIR)\env.obj" \
-	"$(INTDIR)\errorcodes.obj" \
-	"$(INTDIR)\getopt.obj" \
-	"$(INTDIR)\internal.obj" \
-	"$(INTDIR)\misc.obj" \
-	"$(INTDIR)\otherchild.obj" \
-	"$(INTDIR)\rand.obj" \
-	"$(INTDIR)\start.obj" \
-	"$(INTDIR)\utf8.obj" \
-	"$(INTDIR)\version.obj" \
-	"$(INTDIR)\common.obj" \
-	"$(INTDIR)\mmap.obj" \
-	"$(INTDIR)\inet_ntop.obj" \
-	"$(INTDIR)\inet_pton.obj" \
-	"$(INTDIR)\multicast.obj" \
-	"$(INTDIR)\sendrecv.obj" \
-	"$(INTDIR)\sockaddr.obj" \
-	"$(INTDIR)\sockets.obj" \
-	"$(INTDIR)\socket_util.obj" \
-	"$(INTDIR)\sockopt.obj" \
-	"$(INTDIR)\apr_getpass.obj" \
-	"$(INTDIR)\poll.obj" \
-	"$(INTDIR)\pollcb.obj" \
-	"$(INTDIR)\pollset.obj" \
-	"$(INTDIR)\select.obj" \
-	"$(INTDIR)\apr_random.obj" \
-	"$(INTDIR)\sha2.obj" \
-	"$(INTDIR)\sha2_glue.obj" \
-	"$(INTDIR)\shm.obj" \
-	"$(INTDIR)\apr_cpystrn.obj" \
+	"$(INTDIR)\apr_cstr.obj" \
 	"$(INTDIR)\apr_fnmatch.obj" \
 	"$(INTDIR)\apr_snprintf.obj" \
 	"$(INTDIR)\apr_strings.obj" \
@@ -901,6 +479,7 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_cstr.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -971,6 +550,7 @@ CLEAN :
 	-@erase "$(INTDIR)\userinfo.obj"
 	-@erase "$(INTDIR)\utf8.obj"
 	-@erase "$(INTDIR)\version.obj"
+	-@erase "$(INTDIR)\wakeup.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
 	-@erase ".\include\apr_gen_test_char.h"
@@ -1072,11 +652,13 @@ LIB32_OBJS= \
 	"$(INTDIR)\pollcb.obj" \
 	"$(INTDIR)\pollset.obj" \
 	"$(INTDIR)\select.obj" \
+	"$(INTDIR)\wakeup.obj" \
 	"$(INTDIR)\apr_random.obj" \
 	"$(INTDIR)\sha2.obj" \
 	"$(INTDIR)\sha2_glue.obj" \
 	"$(INTDIR)\shm.obj" \
 	"$(INTDIR)\apr_cpystrn.obj" \
+	"$(INTDIR)\apr_cstr.obj" \
 	"$(INTDIR)\apr_fnmatch.obj" \
 	"$(INTDIR)\apr_snprintf.obj" \
 	"$(INTDIR)\apr_strings.obj" \
@@ -1115,6 +697,7 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_cstr.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -1185,6 +768,7 @@ CLEAN :
 	-@erase "$(INTDIR)\userinfo.obj"
 	-@erase "$(INTDIR)\utf8.obj"
 	-@erase "$(INTDIR)\version.obj"
+	-@erase "$(INTDIR)\wakeup.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
 	-@erase ".\include\apr_gen_test_char.h"
@@ -1286,11 +870,13 @@ LIB32_OBJS= \
 	"$(INTDIR)\pollcb.obj" \
 	"$(INTDIR)\pollset.obj" \
 	"$(INTDIR)\select.obj" \
+	"$(INTDIR)\wakeup.obj" \
 	"$(INTDIR)\apr_random.obj" \
 	"$(INTDIR)\sha2.obj" \
 	"$(INTDIR)\sha2_glue.obj" \
 	"$(INTDIR)\shm.obj" \
 	"$(INTDIR)\apr_cpystrn.obj" \
+	"$(INTDIR)\apr_cstr.obj" \
 	"$(INTDIR)\apr_fnmatch.obj" \
 	"$(INTDIR)\apr_snprintf.obj" \
 	"$(INTDIR)\apr_strings.obj" \
@@ -1325,7 +911,7 @@ LIB32_OBJS= \
 !ENDIF 
 
 
-!IF "$(CFG)" == "apr - Win32 Release" || "$(CFG)" == "apr - Win32 Debug" || "$(CFG)" == "apr - Win32 Release9x" || "$(CFG)" == "apr - Win32 Debug9x" || "$(CFG)" == "apr - x64 Release" || "$(CFG)" == "apr - x64 Debug"
+!IF "$(CFG)" == "apr - Win32 Release" || "$(CFG)" == "apr - Win32 Debug" || "$(CFG)" == "apr - x64 Release" || "$(CFG)" == "apr - x64 Debug"
 SOURCE=.\atomic\win32\apr_atomic.c
 
 "$(INTDIR)\apr_atomic.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
@@ -1633,6 +1219,11 @@ SOURCE=.\poll\unix\select.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=.\poll\unix\wakeup.c
+
+"$(INTDIR)\wakeup.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
 SOURCE=.\random\unix\apr_random.c
 
 "$(INTDIR)\apr_random.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
@@ -1660,6 +1251,11 @@ SOURCE=.\shmem\win32\shm.c
 SOURCE=.\strings\apr_cpystrn.c
 
 "$(INTDIR)\apr_cpystrn.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=.\strings\apr_cstr.c
+
+"$(INTDIR)\apr_cstr.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr_cstr.h"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1783,28 +1379,6 @@ InputPath=.\include\apr.hw
 << 
 	
 
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
-
-InputPath=.\include\apr.hw
-
-".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
-
-InputPath=.\include\apr.hw
-
-".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
 !ELSEIF  "$(CFG)" == "apr - x64 Release"
 
 InputPath=.\include\apr.hw
@@ -1855,30 +1429,6 @@ InputPath=.\include\apr_escape.h
 << 
 	
 
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
-
-InputPath=.\include\apr_escape.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\LibR\gen_test_char /Fe.\9x\LibR\gen_test_char.exe .\tools\gen_test_char.c 
-	.\9x\LibR\gen_test_char.exe > .\include\apr_escape_test_char.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
-
-InputPath=.\include\apr_escape.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\LibD\gen_test_char /Fe.\9x\LibD\gen_test_char.exe .\tools\gen_test_char.c 
-	.\9x\LibD\gen_test_char.exe > .\include\apr_escape_test_char.h
-<< 
-	
-
 !ELSEIF  "$(CFG)" == "apr - x64 Release"
 
 InputPath=.\include\apr_escape.h
@@ -1919,28 +1469,6 @@ InputPath=.\include\apr_want.h
 	
 
 !ELSEIF  "$(CFG)" == "apr - Win32 Debug"
-
-InputPath=.\include\apr_want.h
-
-"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
-
-InputPath=.\include\apr_want.h
-
-"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
 
 InputPath=.\include\apr_want.h
 

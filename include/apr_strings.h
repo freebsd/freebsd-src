@@ -101,10 +101,10 @@ APR_DECLARE(char *) apr_pstrdup(apr_pool_t *p, const char *s);
  * @param s The block of characters to duplicate
  * @param n The number of characters to duplicate
  * @return The new string or NULL if s == NULL
- * @remark This is a faster alternative to apr_pstrndup, for use
+ * @remark This is a faster alternative to apr_pstrndup(), for use
  *         when you know that the string being duplicated really
  *         has 'n' or more characters.  If the string might contain
- *         fewer characters, use apr_pstrndup.
+ *         fewer characters, use apr_pstrndup().
  */
 APR_DECLARE(char *) apr_pstrmemdup(apr_pool_t *p, const char *s, apr_size_t n)
 #if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
