@@ -108,10 +108,8 @@ static apr_status_t file_bucket_read(apr_bucket *e, const char **str,
     }
 #endif
 
-    *len = (filelength > APR_BUCKET_BUFF_SIZE)
-               ? APR_BUCKET_BUFF_SIZE
-               : filelength;
     *str = NULL;  /* in case we die prematurely */
+    *len = (filelength > a->read_size) ? a->read_size : filelength;
     buf = apr_bucket_alloc(*len, e->list);
 
     /* Handle offset ... */
@@ -165,6 +163,7 @@ APU_DECLARE(apr_bucket *) apr_bucket_file_make(apr_bucket *b, apr_file_t *fd,
 #if APR_HAS_MMAP
     f->can_mmap = 1;
 #endif
+    f->read_size = APR_BUCKET_BUFF_SIZE;
 
     b = apr_bucket_shared_make(b, f, offset, len);
     b->type = &apr_bucket_type_file;
@@ -197,6 +196,21 @@ APU_DECLARE(apr_status_t) apr_bucket_file_enable_mmap(apr_bucket *e,
 #endif /* APR_HAS_MMAP */
 }
 
+APU_DECLARE(apr_status_t) apr_bucket_file_set_buf_size(apr_bucket *e,
+                                                       apr_size_t size)
+{
+    apr_bucket_file *a = e->data;
+
+    if (size <= APR_BUCKET_BUFF_SIZE) {
+        a->read_size = APR_BUCKET_BUFF_SIZE;
+    }
+    else {
+        apr_size_t floor = apr_bucket_alloc_aligned_floor(e->list, size);
+        a->read_size = (size < floor) ? size : floor;
+    }
+
+    return APR_SUCCESS;
+}
 
 static apr_status_t file_bucket_setaside(apr_bucket *data, apr_pool_t *reqpool)
 {

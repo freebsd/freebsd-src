@@ -40,6 +40,9 @@ extern "C" {
 #if APU_HAVE_CRYPTO
 
 #ifndef APU_CRYPTO_RECOMMENDED_DRIVER
+#if APU_HAVE_COMMONCRYPTO
+#define APU_CRYPTO_RECOMMENDED_DRIVER "commoncrypto"
+#else
 #if APU_HAVE_OPENSSL
 #define APU_CRYPTO_RECOMMENDED_DRIVER "openssl"
 #else
@@ -52,6 +55,7 @@ extern "C" {
 #if APU_HAVE_MSCAPI
 #define APU_CRYPTO_RECOMMENDED_DRIVER "mscapi"
 #else
+#endif
 #endif
 #endif
 #endif
@@ -84,16 +88,16 @@ extern "C" {
  * the chosen cipher. Padded data is data that is not aligned by block
  * size and must be padded by the crypto library.
  *
- *                  OpenSSL      NSS      Interop
- *                 Align Pad  Align Pad  Align Pad
- * 3DES_192/CBC    X     X    X     X    X     X
- * 3DES_192/ECB    X     X
- * AES_256/CBC     X     X    X     X    X     X
- * AES_256/ECB     X     X    X          X
- * AES_192/CBC     X     X    X     X
- * AES_192/ECB     X     X    X
- * AES_128/CBC     X     X    X     X
- * AES_128/ECB     X     X    X
+ *                  OpenSSL    CommonCrypto   NSS       Interop
+ *                 Align  Pad  Align  Pad  Align  Pad  Align  Pad
+ * 3DES_192/CBC    X      X    X      X    X      X    X      X
+ * 3DES_192/ECB    X      X    X      X
+ * AES_256/CBC     X      X    X      X    X      X    X      X
+ * AES_256/ECB     X      X    X      X    X           X
+ * AES_192/CBC     X      X    X      X    X      X
+ * AES_192/ECB     X      X    X      X    X
+ * AES_128/CBC     X      X    X      X    X      X
+ * AES_128/ECB     X      X    X      X    X
  *
  * Conclusion: for padded data, use 3DES_192/CBC or AES_256/CBC. For
  * aligned data, use 3DES_192/CBC, AES_256/CBC or AES_256/ECB.
@@ -123,6 +127,48 @@ typedef struct apr_crypto_config_t apr_crypto_config_t;
 typedef struct apr_crypto_key_t apr_crypto_key_t;
 typedef struct apr_crypto_block_t apr_crypto_block_t;
 
+typedef struct apr_crypto_block_key_type_t {
+    apr_crypto_block_key_type_e type;
+    int keysize;
+    int blocksize;
+    int ivsize;
+} apr_crypto_block_key_type_t;
+
+typedef struct apr_crypto_block_key_mode_t {
+    apr_crypto_block_key_mode_e mode;
+} apr_crypto_block_key_mode_t;
+
+typedef struct apr_crypto_passphrase_t {
+    const char *pass;
+    apr_size_t passLen;
+    const unsigned char * salt;
+    apr_size_t saltLen;
+    int iterations;
+} apr_crypto_passphrase_t;
+
+typedef struct apr_crypto_secret_t {
+    const unsigned char *secret;
+    apr_size_t secretLen;
+} apr_crypto_secret_t;
+
+typedef enum {
+    /** Key is derived from a passphrase */
+    APR_CRYPTO_KTYPE_PASSPHRASE     = 1,
+    /** Key is derived from a raw key */
+    APR_CRYPTO_KTYPE_SECRET     = 2,
+} apr_crypto_key_type;
+
+typedef struct apr_crypto_key_rec_t {
+    apr_crypto_key_type ktype;
+    apr_crypto_block_key_type_e type;
+    apr_crypto_block_key_mode_e mode;
+    int pad;
+    union {
+        apr_crypto_passphrase_t passphrase;
+        apr_crypto_secret_t secret;
+    } k;
+} apr_crypto_key_rec_t;
+
 /**
  * @brief Perform once-only initialisation. Call once only.
  *
@@ -132,8 +178,7 @@ typedef struct apr_crypto_block_t apr_crypto_block_t;
 APU_DECLARE(apr_status_t) apr_crypto_init(apr_pool_t *pool);
 
 /**
- * @brief Register a cleanup to zero out the buffer provided
- * when the pool is cleaned up.
+ * @brief Zero out the buffer provided when the pool is cleaned up.
  *
  * @param pool - pool to register the cleanup
  * @param buffer - buffer to zero out
@@ -141,6 +186,27 @@ APU_DECLARE(apr_status_t) apr_crypto_init(apr_pool_t *pool);
  */
 APU_DECLARE(apr_status_t) apr_crypto_clear(apr_pool_t *pool, void *buffer,
         apr_size_t size);
+
+/**
+ * @brief Always zero out the buffer provided, without being optimized out by
+ * the compiler.
+ *
+ * @param buffer - buffer to zero out
+ * @param size - size of the buffer to zero out
+ */
+APU_DECLARE(apr_status_t) apr_crypto_memzero(void *buffer, apr_size_t size);
+
+/**
+ * @brief Timing attacks safe buffers comparison, where the executing time does
+ * not depend on the bytes compared but solely on the number of bytes.
+ *
+ * @param buf1 - first buffer to compare
+ * @param buf2 - second buffer to compare
+ * @param size - size of the buffers to compare
+ * @return 1 if the buffers are equals, 0 otherwise.
+ */
+APU_DECLARE(int) apr_crypto_equals(const void *buf1, const void *buf2,
+                                   apr_size_t size);
 
 /**
  * @brief Get the driver struct for a name
@@ -205,7 +271,8 @@ APU_DECLARE(apr_status_t) apr_crypto_make(apr_crypto_t **f,
 
 /**
  * @brief Get a hash table of key types, keyed by the name of the type against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_type_t, which in turn begins with an
+ * integer.
  *
  * @param types - hashtable of key types keyed to constants.
  * @param f - encryption context
@@ -216,7 +283,8 @@ APU_DECLARE(apr_status_t) apr_crypto_get_block_key_types(apr_hash_t **types,
 
 /**
  * @brief Get a hash table of key modes, keyed by the name of the mode against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_mode_t, which in turn begins with an
+ * integer.
  *
  * @param modes - hashtable of key modes keyed to constants.
  * @param f - encryption context
@@ -224,6 +292,25 @@ APU_DECLARE(apr_status_t) apr_crypto_get_block_key_types(apr_hash_t **types,
  */
 APU_DECLARE(apr_status_t) apr_crypto_get_block_key_modes(apr_hash_t **modes,
         const apr_crypto_t *f);
+
+/**
+ * @brief Create a key from the provided secret or passphrase. The key is cleaned
+ *        up when the context is cleaned, and may be reused with multiple encryption
+ *        or decryption operations.
+ * @note If *key is NULL, a apr_crypto_key_t will be created from a pool. If
+ *       *key is not NULL, *key must point at a previously created structure.
+ * @param key The key returned, see note.
+ * @param rec The key record, from which the key will be derived.
+ * @param f The context to use.
+ * @param p The pool to use.
+ * @return Returns APR_ENOKEY if the pass phrase is missing or empty, or if a backend
+ *         error occurred while generating the key. APR_ENOCIPHER if the type or mode
+ *         is not supported by the particular backend. APR_EKEYTYPE if the key type is
+ *         not known. APR_EPADDING if padding was requested but is not supported.
+ *         APR_ENOTIMPL if not implemented.
+ */
+APU_DECLARE(apr_status_t) apr_crypto_key(apr_crypto_key_t **key,
+        const apr_crypto_key_rec_t *rec, const apr_crypto_t *f, apr_pool_t *p);
 
 /**
  * @brief Create a key from the given passphrase. By default, the PBKDF2
@@ -252,6 +339,7 @@ APU_DECLARE(apr_status_t) apr_crypto_get_block_key_modes(apr_hash_t **modes,
  *         is not supported by the particular backend. APR_EKEYTYPE if the key type is
  *         not known. APR_EPADDING if padding was requested but is not supported.
  *         APR_ENOTIMPL if not implemented.
+ * @deprecated Replaced by apr_crypto_key().
  */
 APU_DECLARE(apr_status_t) apr_crypto_passphrase(apr_crypto_key_t **key,
         apr_size_t *ivSize, const char *pass, apr_size_t passLen,

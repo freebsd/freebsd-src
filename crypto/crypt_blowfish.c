@@ -675,9 +675,9 @@ static char *BF_crypt(const char *key, const char *setting,
 	    setting[2] < 'a' || setting[2] > 'z' ||
 	    !flags_by_subtype[(unsigned int)(unsigned char)setting[2] - 'a'] ||
 	    setting[3] != '$' ||
-	    setting[4] < '0' || setting[4] > '3' ||
+	    setting[4] < '0' || setting[4] > '1' ||
 	    setting[5] < '0' || setting[5] > '9' ||
-	    (setting[4] == '3' && setting[5] > '1') ||
+	    (setting[4] == '1' && setting[5] > '7') ||
 	    setting[6] != '$') {
 		__set_errno(EINVAL);
 		return NULL;
@@ -877,7 +877,7 @@ char *_crypt_gensalt_blowfish_rn(const char *prefix, unsigned long count,
 	const char *input, int size, char *output, int output_size)
 {
 	if (size < 16 || output_size < 7 + 22 + 1 ||
-	    (count && (count < 4 || count > 31)) ||
+	    (count && (count < 4 || count > 17)) ||
 	    prefix[0] != '$' || prefix[1] != '2' ||
 	    (prefix[2] != 'a' && prefix[2] != 'y')) {
 		if (output_size > 0) output[0] = '\0';

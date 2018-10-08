@@ -15,21 +15,19 @@
  */
 
 /* 
- * Note: This is a NetWare specific version of apu.h. It is renamed to
- * apu.h at the start of a NetWare build.
+ * apu.h is duplicated from apu.hwc at build time -- do not edit apu.h
  */
 /* @file apu.h
  * @brief APR-Utility main file
  */
-
-#ifdef NETWARE
-#ifndef APU_H
-#define APU_H
 /**
  * @defgroup APR_Util APR Utility Functions
  * @{
  */
 
+
+#ifndef APU_H
+#define APU_H
 
 /**
  * APU_DECLARE_EXPORT is defined when building the APR-UTIL dynamic library,
@@ -44,6 +42,13 @@
  * conventions at compile time.
  */
 
+/* Make sure we have our platform identifier macro defined we ask for later.
+ */
+#if defined(_WIN32) && !defined(WIN32)
+#define WIN32 1
+#endif
+
+#if defined(DOXYGEN) || !defined(WIN32)
 /**
  * The public APR-UTIL functions are declared with APU_DECLARE(), so they may
  * use the most appropriate calling convention.  Public APR functions with 
@@ -64,11 +69,25 @@
  * This assures the appropriate indirection is invoked at compile time.
  *
  * @fn APU_DECLARE_DATA type apr_variable;
- * @note APU_DECLARE_DATA extern type apr_variable; syntax is required for
+ * @note extern APU_DECLARE_DATA type apr_variable; syntax is required for
  * declarations within headers to properly import the variable.
  */
 #define APU_DECLARE_DATA
+#elif defined(APU_DECLARE_STATIC)
+#define APU_DECLARE(type)            type __stdcall
+#define APU_DECLARE_NONSTD(type)     type __cdecl
+#define APU_DECLARE_DATA
+#elif defined(APU_DECLARE_EXPORT)
+#define APU_DECLARE(type)            __declspec(dllexport) type __stdcall
+#define APU_DECLARE_NONSTD(type)     __declspec(dllexport) type __cdecl
+#define APU_DECLARE_DATA             __declspec(dllexport)
+#else
+#define APU_DECLARE(type)            __declspec(dllimport) type __stdcall
+#define APU_DECLARE_NONSTD(type)     __declspec(dllimport) type __cdecl
+#define APU_DECLARE_DATA             __declspec(dllimport)
+#endif
 
+#if !defined(WIN32) || defined(APU_MODULE_DECLARE_STATIC)
 /**
  * Declare a dso module's exported module structure as APU_MODULE_DECLARE_DATA.
  *
@@ -79,6 +98,9 @@
  * @endcode
  */
 #define APU_MODULE_DECLARE_DATA
+#else
+#define APU_MODULE_DECLARE_DATA           __declspec(dllexport)
+#endif
 
 /*
  * we always have SDBM (it's in our codebase)
@@ -97,6 +119,7 @@
 
 /* 
  * we always enable dynamic driver loads within apr_dbd
+ * Win32 always has odbc (it's always installed)
  */
 #ifndef APU_DSO_MODULE_BUILD
 #define APU_HAVE_PGSQL          0
@@ -104,21 +127,19 @@
 #define APU_HAVE_SQLITE3        0
 #define APU_HAVE_SQLITE2        0
 #define APU_HAVE_ORACLE         0
-#define APU_HAVE_ODBC           0
+#define APU_HAVE_ODBC           1
 #endif
 
-#define APU_HAVE_CRYPTO         0
+#define APU_HAVE_CRYPTO         @apu_have_crypto_10@
 
 #ifndef APU_DSO_MODULE_BUILD
 #define APU_HAVE_OPENSSL        0
 #define APU_HAVE_NSS            0
-#define APU_HAVE_COMMONCRYPTO   0
 #endif
 
-#define APU_HAVE_APR_ICONV      0
-#define APU_HAVE_ICONV          1
+#define APU_HAVE_APR_ICONV      @apu_have_apr_iconv_10@
+#define APU_HAVE_ICONV          0
 #define APR_HAS_XLATE           (APU_HAVE_APR_ICONV || APU_HAVE_ICONV)
 
 #endif /* APU_H */
-#endif /* NETWARE */
-
+/** @} */

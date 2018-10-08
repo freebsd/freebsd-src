@@ -51,6 +51,13 @@
 #
 #     CRYPTO_LIST="nss openssl"
 #
+# Provide the XML_PARSER argument after configuring LIB and INCLUDE with
+# the expat path of the corresponding xml parser, e.g. libexpatMT to choose
+# static, or libexpat (default) to choose the dynamic library for aprutil-1.dll
+# (Static libaprutil-1.lib always presumes libexpatMT with XML_STATIC flag.)
+#
+#     XML_PARSER="libexpat"
+#
 # For example;
 #
 #   nmake -f Makefile.win PREFIX=C:\APR buildall checkall installall clean
@@ -72,6 +79,20 @@ USEDSW=1
 !ENDIF
 
 PREFIX=..\apr-dist
+
+!IF EXIST("..\openssl")
+!IF EXIST("..\openssl\libcrypto.lib")
+SSLOPT=_HAVE_OSSL110=1
+!ENDIF
+!ENDIF
+
+# Legacy default (and unwise alternative) for libapr-1.dll is libexpatMT
+XML_PARSER="libexpat"
+!IF "$(XML_PARSER)" == "libexpat"
+XMLOPT=XML_PARSER=$(XML_PARSER)
+!ELSE
+XMLOPT=XML_PARSER=$(XML_PARSER) XML_OPTIONS="/D XML_STATIC"
+!ENDIF
 
 !IF [$(COMSPEC) /c cl /nologo /? \
 	| $(SystemRoot)\System32\find.exe "x64" >NUL ] == 0
@@ -197,11 +218,9 @@ buildall:
 		BUILD_MODE="$(ARCH)" BIND_MODE=shared
 	 cd ..
 !ENDIF
-	cd $(APU_PATH)\xml\expat\lib
-	 $(MAKE) $(MAKEOPT) -f xml.mak         CFG="xml - $(ARCH)" RECURSE=0 $(CTARGET)
-	cd ..\..\..
-	 $(MAKE) $(MAKEOPT) -f aprutil.mak     CFG="aprutil - $(ARCH)" RECURSE=0 $(CTARGET)
-	 $(MAKE) $(MAKEOPT) -f libaprutil.mak  CFG="libaprutil - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd $(APU_PATH)
+	 $(MAKE) $(MAKEOPT) $(SSLOPT) $(XMLOPT) -f aprutil.mak CFG="aprutil - $(ARCH)" RECURSE=0 $(CTARGET)
+	 $(MAKE) $(MAKEOPT) $(SSLOPT) $(XMLOPT) -f libaprutil.mak CFG="libaprutil - $(ARCH)" RECURSE=0 $(CTARGET)
 	cd ldap
 	 $(MAKE) $(MAKEOPT) -f apr_ldap.mak    CFG="apr_ldap - $(ARCH)" RECURSE=0 $(CTARGET)
 	cd ..
@@ -215,7 +234,7 @@ buildall:
 	cd ..
 	cd crypto
 	  for %d in ($(CRYPTO_LIST) x) do if not %d == x \
-	    $(MAKE) $(MAKEOPT) -f apr_crypto_%d.mak CFG="apr_crypto_%d - $(ARCH)" RECURSE=0 $(CTARGET)
+	    $(MAKE) $(MAKEOPT) $(SSLOPT) -f apr_crypto_%d.mak CFG="apr_crypto_%d - $(ARCH)" RECURSE=0 $(CTARGET)
 	cd ..
 
 !ELSEIF $(USESLN) == 1
@@ -306,7 +325,7 @@ checkapr:
 checkapu:
 	cd $(APU_PATH)
 	cd test
-	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=static \
+		 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=static \
 		OUTDIR=$(LIBSPATH) APROUTDIR=$(LIBSOSPATH) \
 		APR_PATH=..\$(APR_PATH) API_PATH=..\$(API_PATH) check
 	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=dynamic \

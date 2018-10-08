@@ -40,7 +40,7 @@
  */
 static int getdbit (apr_sdbm_t *, long);
 static apr_status_t setdbit(apr_sdbm_t *, long);
-static apr_status_t getpage(apr_sdbm_t *db, long);
+static apr_status_t getpage(apr_sdbm_t *db, long, int, int);
 static apr_status_t getnext(apr_sdbm_datum_t *key, apr_sdbm_t *db);
 static apr_status_t makroom(apr_sdbm_t *, long, int);
 
@@ -93,6 +93,7 @@ static apr_status_t prep(apr_sdbm_t **pdb, const char *dirname, const char *pagn
 
     db = malloc(sizeof(*db));
     memset(db, 0, sizeof(*db));
+    db->pagbno = -1L;
 
     db->pool = p;
 
@@ -193,7 +194,7 @@ APU_DECLARE(apr_status_t) apr_sdbm_fetch(apr_sdbm_t *db, apr_sdbm_datum_t *val,
     if ((status = apr_sdbm_lock(db, APR_FLOCK_SHARED)) != APR_SUCCESS)
         return status;
 
-    if ((status = getpage(db, exhash(key))) == APR_SUCCESS) {
+    if ((status = getpage(db, exhash(key), 0, 1)) == APR_SUCCESS) {
         *val = getpair(db->pagbuf, key);
         /* ### do we want a not-found result? */
     }
@@ -227,7 +228,7 @@ APU_DECLARE(apr_status_t) apr_sdbm_delete(apr_sdbm_t *db,
     if ((status = apr_sdbm_lock(db, APR_FLOCK_EXCLUSIVE)) != APR_SUCCESS)
         return status;
 
-    if ((status = getpage(db, exhash(key))) == APR_SUCCESS) {
+    if ((status = getpage(db, exhash(key), 0, 1)) == APR_SUCCESS) {
         if (!delpair(db->pagbuf, key))
             /* ### should we define some APRUTIL codes? */
             status = APR_EGENERAL;
@@ -261,7 +262,7 @@ APU_DECLARE(apr_status_t) apr_sdbm_store(apr_sdbm_t *db, apr_sdbm_datum_t key,
     if ((status = apr_sdbm_lock(db, APR_FLOCK_EXCLUSIVE)) != APR_SUCCESS)
         return status;
 
-    if ((status = getpage(db, (hash = exhash(key)))) == APR_SUCCESS) {
+    if ((status = getpage(db, (hash = exhash(key)), 0, 1)) == APR_SUCCESS) {
 
         /*
          * if we need to replace, delete the key/data pair
@@ -376,17 +377,19 @@ static apr_status_t makroom(apr_sdbm_t *db, long hash, int need)
 
 /* Reads 'len' bytes from file 'f' at offset 'off' into buf.
  * 'off' is given relative to the start of the file.
- * If EOF is returned while reading, this is taken as success.
+ * If 'create' is asked and EOF is returned while reading, this is taken
+ * as success (i.e. a cleared buffer is returned).
  */
 static apr_status_t read_from(apr_file_t *f, void *buf, 
-             apr_off_t off, apr_size_t len)
+                              apr_off_t off, apr_size_t len,
+                              int create)
 {
     apr_status_t status;
 
     if ((status = apr_file_seek(f, APR_SET, &off)) != APR_SUCCESS ||
         ((status = apr_file_read_full(f, buf, len, NULL)) != APR_SUCCESS)) {
         /* if EOF is reached, pretend we read all zero's */
-        if (status == APR_EOF) {
+        if (status == APR_EOF && create) {
             memset(buf, 0, len);
             status = APR_SUCCESS;
         }
@@ -410,9 +413,7 @@ APU_DECLARE(apr_status_t) apr_sdbm_firstkey(apr_sdbm_t *db,
     /*
      * start at page 0
      */
-    if ((status = read_from(db->pagf, db->pagbuf, OFF_PAG(0), PBLKSIZ))
-                == APR_SUCCESS) {
-        db->pagbno = 0;
+    if ((status = getpage(db, 0, 1, 1)) == APR_SUCCESS) {
         db->blkptr = 0;
         db->keyptr = 0;
         status = getnext(key, db);
@@ -441,24 +442,28 @@ APU_DECLARE(apr_status_t) apr_sdbm_nextkey(apr_sdbm_t *db,
 /*
  * all important binary tree traversal
  */
-static apr_status_t getpage(apr_sdbm_t *db, long hash)
+static apr_status_t getpage(apr_sdbm_t *db, long hash, int by_num, int create)
 {
-    register int hbit;
-    register long dbit;
-    register long pagb;
     apr_status_t status;
+    register long pagb;
 
-    dbit = 0;
-    hbit = 0;
-    while (dbit < db->maxbno && getdbit(db, dbit))
-    dbit = 2 * dbit + ((hash & (1 << hbit++)) ? 2 : 1);
+    if (by_num) {
+        pagb = hash;
+    }
+    else {
+        register int hbit = 0;
+        register long dbit = 0;
 
-    debug(("dbit: %d...", dbit));
+        while (dbit < db->maxbno && getdbit(db, dbit))
+            dbit = 2 * dbit + ((hash & (1 << hbit++)) ? 2 : 1);
+        debug(("dbit: %d...", dbit));
 
-    db->curbit = dbit;
-    db->hmask = masks[hbit];
+        db->curbit = dbit;
+        db->hmask = masks[hbit];
 
-    pagb = hash & db->hmask;
+        pagb = hash & db->hmask;
+    }
+
     /*
      * see if the block we need is already in memory.
      * note: this lookaside cache has about 10% hit rate.
@@ -470,12 +475,14 @@ static apr_status_t getpage(apr_sdbm_t *db, long hash)
          * ### joe: this assumption was surely never correct? but
          * ### we make it so in read_from anyway.
          */
-        if ((status = read_from(db->pagf, db->pagbuf, OFF_PAG(pagb), PBLKSIZ)) 
-                    != APR_SUCCESS)
+        if ((status = read_from(db->pagf, db->pagbuf,
+                                OFF_PAG(pagb), PBLKSIZ,
+                                create)) != APR_SUCCESS)
             return status;
 
         if (!chkpage(db->pagbuf))
             return APR_ENOSPC; /* ### better error? */
+
         db->pagbno = pagb;
 
         debug(("pag read: %d\n", pagb));
@@ -492,8 +499,9 @@ static int getdbit(apr_sdbm_t *db, long dbit)
     dirb = c / DBLKSIZ;
 
     if (dirb != db->dirbno) {
-        if (read_from(db->dirf, db->dirbuf, OFF_DIR(dirb), DBLKSIZ)
-                    != APR_SUCCESS)
+        if (read_from(db->dirf, db->dirbuf,
+                      OFF_DIR(dirb), DBLKSIZ,
+                      1) != APR_SUCCESS)
             return 0;
 
         db->dirbno = dirb;
@@ -515,8 +523,9 @@ static apr_status_t setdbit(apr_sdbm_t *db, long dbit)
     dirb = c / DBLKSIZ;
 
     if (dirb != db->dirbno) {
-        if ((status = read_from(db->dirf, db->dirbuf, OFF_DIR(dirb), DBLKSIZ))
-                    != APR_SUCCESS)
+        if ((status = read_from(db->dirf, db->dirbuf,
+                                OFF_DIR(dirb), DBLKSIZ,
+                                1)) != APR_SUCCESS)
             return status;
 
         db->dirbno = dirb;
@@ -553,21 +562,12 @@ static apr_status_t getnext(apr_sdbm_datum_t *key, apr_sdbm_t *db)
          * try the next one... If we lost our position on the
          * file, we will have to seek.
          */
+        db->blkptr++;
         db->keyptr = 0;
-        if (db->pagbno != db->blkptr++) {
-            apr_off_t off = OFF_PAG(db->blkptr);
-            if ((status = apr_file_seek(db->pagf, APR_SET, &off))
-                        != APR_SUCCESS)
-                return status;
-        }
 
-        db->pagbno = db->blkptr;
         /* ### EOF acceptable here too? */
-        if ((status = apr_file_read_full(db->pagf, db->pagbuf, PBLKSIZ, NULL))
-                    != APR_SUCCESS)
+        if ((status = getpage(db, db->blkptr, 1, 0)) != APR_SUCCESS)
             return status;
-        if (!chkpage(db->pagbuf))
-            return APR_EGENERAL;     /* ### need better error */
     }
 
     /* NOTREACHED */

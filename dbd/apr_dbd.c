@@ -136,9 +136,6 @@ APU_DECLARE(apr_status_t) apr_dbd_init(apr_pool_t *pool)
 #if APU_HAVE_ORACLE
     DRIVER_LOAD("oracle", apr_dbd_oracle_driver, pool);
 #endif
-#if APU_HAVE_FREETDS
-    DRIVER_LOAD("freetds", apr_dbd_freetds_driver, pool);
-#endif
 #if APU_HAVE_ODBC
     DRIVER_LOAD("odbc", apr_dbd_odbc_driver, pool);
 #endif

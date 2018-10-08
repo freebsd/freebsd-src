@@ -50,7 +50,6 @@ struct apr_crypto_t {
     apr_pool_t *pool;
     const apr_crypto_driver_t *provider;
     apu_err_t *result;
-    apr_array_header_t *keys;
     apr_crypto_config_t *config;
     apr_hash_t *types;
     apr_hash_t *modes;
@@ -68,6 +67,7 @@ struct apr_crypto_key_t {
     SECOidTag cipherOid;
     PK11SymKey *symKey;
     int ivSize;
+    int keyLength;
 };
 
 struct apr_crypto_block_t {
@@ -76,16 +76,24 @@ struct apr_crypto_block_t {
     const apr_crypto_t *f;
     PK11Context *ctx;
     apr_crypto_key_t *key;
+    SECItem *secParam;
     int blockSize;
 };
 
-static int key_3des_192 = APR_KEY_3DES_192;
-static int key_aes_128 = APR_KEY_AES_128;
-static int key_aes_192 = APR_KEY_AES_192;
-static int key_aes_256 = APR_KEY_AES_256;
+static struct apr_crypto_block_key_type_t key_types[] =
+{
+{ APR_KEY_3DES_192, 24, 8, 8 },
+{ APR_KEY_AES_128, 16, 16, 16 },
+{ APR_KEY_AES_192, 24, 16, 16 },
+{ APR_KEY_AES_256, 32, 16, 16 } };
 
-static int mode_ecb = APR_MODE_ECB;
-static int mode_cbc = APR_MODE_CBC;
+static struct apr_crypto_block_key_mode_t key_modes[] =
+{
+{ APR_MODE_ECB },
+{ APR_MODE_CBC } };
+
+/* sufficient space to wrap a key */
+#define BUFFER_SIZE 128
 
 /**
  * Fetch the most recent error from this driver.
@@ -107,6 +115,8 @@ static apr_status_t crypto_shutdown(void)
     if (NSS_IsInitialized()) {
         SECStatus s = NSS_Shutdown();
         if (s != SECSuccess) {
+            fprintf(stderr, "NSS failed to shutdown, possible leak: %d: %s",
+                PR_GetError(), PR_ErrorToName(s));
             return APR_EINIT;
         }
     }
@@ -197,9 +207,6 @@ static apr_status_t crypto_init(apr_pool_t *pool, const char *params,
         return APR_EREINIT;
     }
 
-    apr_pool_cleanup_register(pool, pool, crypto_shutdown_helper,
-            apr_pool_cleanup_null);
-
     if (keyPrefix || certPrefix || secmod) {
         s = NSS_Initialize(dir, certPrefix, keyPrefix, secmod, flags);
     }
@@ -211,14 +218,19 @@ static apr_status_t crypto_init(apr_pool_t *pool, const char *params,
     }
     if (s != SECSuccess) {
         if (result) {
+            /* Note: all memory must be owned by the caller, in case we're unloaded */
             apu_err_t *err = apr_pcalloc(pool, sizeof(apu_err_t));
             err->rc = PR_GetError();
-            err->msg = PR_ErrorToName(s);
-            err->reason = "Error during 'nss' initialisation";
+            err->msg = apr_pstrdup(pool, PR_ErrorToName(s));
+            err->reason = apr_pstrdup(pool, "Error during 'nss' initialisation");
             *result = err;
         }
+
         return APR_ECRYPT;
     }
+
+    apr_pool_cleanup_register(pool, pool, crypto_shutdown_helper,
+            apr_pool_cleanup_null);
 
     return APR_SUCCESS;
 
@@ -232,6 +244,11 @@ static apr_status_t crypto_init(apr_pool_t *pool, const char *params,
  */
 static apr_status_t crypto_block_cleanup(apr_crypto_block_t *block)
 {
+
+    if (block->secParam) {
+        SECITEM_FreeItem(block->secParam, PR_TRUE);
+        block->secParam = NULL;
+    }
 
     if (block->ctx) {
         PK11_DestroyContext(block->ctx, PR_TRUE);
@@ -248,6 +265,15 @@ static apr_status_t crypto_block_cleanup_helper(void *data)
     return crypto_block_cleanup(block);
 }
 
+static apr_status_t crypto_key_cleanup(void *data)
+{
+    apr_crypto_key_t *key = data;
+    if (key->symKey) {
+        PK11_FreeSymKey(key->symKey);
+        key->symKey = NULL;
+    }
+    return APR_SUCCESS;
+}
 /**
  * @brief Clean encryption / decryption context.
  * @note After cleanup, a context is free to be reused if necessary.
@@ -256,15 +282,6 @@ static apr_status_t crypto_block_cleanup_helper(void *data)
  */
 static apr_status_t crypto_cleanup(apr_crypto_t *f)
 {
-    apr_crypto_key_t *key;
-    if (f->keys) {
-        while ((key = apr_array_pop(f->keys))) {
-            if (key->symKey) {
-                PK11_FreeSymKey(key->symKey);
-                key->symKey = NULL;
-            }
-        }
-    }
     return APR_SUCCESS;
 }
 
@@ -308,23 +325,22 @@ static apr_status_t crypto_make(apr_crypto_t **ff,
     if (!f->result) {
         return APR_ENOMEM;
     }
-    f->keys = apr_array_make(pool, 10, sizeof(apr_crypto_key_t));
 
     f->types = apr_hash_make(pool);
     if (!f->types) {
         return APR_ENOMEM;
     }
-    apr_hash_set(f->types, "3des192", APR_HASH_KEY_STRING, &(key_3des_192));
-    apr_hash_set(f->types, "aes128", APR_HASH_KEY_STRING, &(key_aes_128));
-    apr_hash_set(f->types, "aes192", APR_HASH_KEY_STRING, &(key_aes_192));
-    apr_hash_set(f->types, "aes256", APR_HASH_KEY_STRING, &(key_aes_256));
+    apr_hash_set(f->types, "3des192", APR_HASH_KEY_STRING, &(key_types[0]));
+    apr_hash_set(f->types, "aes128", APR_HASH_KEY_STRING, &(key_types[1]));
+    apr_hash_set(f->types, "aes192", APR_HASH_KEY_STRING, &(key_types[2]));
+    apr_hash_set(f->types, "aes256", APR_HASH_KEY_STRING, &(key_types[3]));
 
     f->modes = apr_hash_make(pool);
     if (!f->modes) {
         return APR_ENOMEM;
     }
-    apr_hash_set(f->modes, "ecb", APR_HASH_KEY_STRING, &(mode_ecb));
-    apr_hash_set(f->modes, "cbc", APR_HASH_KEY_STRING, &(mode_cbc));
+    apr_hash_set(f->modes, "ecb", APR_HASH_KEY_STRING, &(key_modes[0]));
+    apr_hash_set(f->modes, "cbc", APR_HASH_KEY_STRING, &(key_modes[1]));
 
     apr_pool_cleanup_register(pool, f, crypto_cleanup_helper,
             apr_pool_cleanup_null);
@@ -335,7 +351,7 @@ static apr_status_t crypto_make(apr_crypto_t **ff,
 
 /**
  * @brief Get a hash table of key types, keyed by the name of the type against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_type_t.
  *
  * @param types - hashtable of key types keyed to constants.
  * @param f - encryption context
@@ -350,7 +366,7 @@ static apr_status_t crypto_get_block_key_types(apr_hash_t **types,
 
 /**
  * @brief Get a hash table of key modes, keyed by the name of the mode against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_mode_t.
  *
  * @param modes - hashtable of key modes keyed to constants.
  * @param f - encryption context
@@ -361,6 +377,267 @@ static apr_status_t crypto_get_block_key_modes(apr_hash_t **modes,
 {
     *modes = f->modes;
     return APR_SUCCESS;
+}
+
+/*
+ * Work out which mechanism to use.
+ */
+static apr_status_t crypto_cipher_mechanism(apr_crypto_key_t *key,
+        const apr_crypto_block_key_type_e type,
+        const apr_crypto_block_key_mode_e mode, const int doPad)
+{
+
+    /* decide on what cipher mechanism we will be using */
+    switch (type) {
+
+    case (APR_KEY_3DES_192):
+        if (APR_MODE_CBC == mode) {
+            key->cipherOid = SEC_OID_DES_EDE3_CBC;
+        }
+        else if (APR_MODE_ECB == mode) {
+            return APR_ENOCIPHER;
+            /* No OID for CKM_DES3_ECB; */
+        }
+        key->keyLength = 24;
+        break;
+    case (APR_KEY_AES_128):
+        if (APR_MODE_CBC == mode) {
+            key->cipherOid = SEC_OID_AES_128_CBC;
+        }
+        else {
+            key->cipherOid = SEC_OID_AES_128_ECB;
+        }
+        key->keyLength = 16;
+        break;
+    case (APR_KEY_AES_192):
+        if (APR_MODE_CBC == mode) {
+            key->cipherOid = SEC_OID_AES_192_CBC;
+        }
+        else {
+            key->cipherOid = SEC_OID_AES_192_ECB;
+        }
+        key->keyLength = 24;
+        break;
+    case (APR_KEY_AES_256):
+        if (APR_MODE_CBC == mode) {
+            key->cipherOid = SEC_OID_AES_256_CBC;
+        }
+        else {
+            key->cipherOid = SEC_OID_AES_256_ECB;
+        }
+        key->keyLength = 32;
+        break;
+    default:
+        /* unknown key type, give up */
+        return APR_EKEYTYPE;
+    }
+
+    /* AES_128_CBC --> CKM_AES_CBC --> CKM_AES_CBC_PAD */
+    key->cipherMech = PK11_AlgtagToMechanism(key->cipherOid);
+    if (key->cipherMech == CKM_INVALID_MECHANISM) {
+        return APR_ENOCIPHER;
+    }
+    if (doPad) {
+        CK_MECHANISM_TYPE paddedMech;
+        paddedMech = PK11_GetPadMechanism(key->cipherMech);
+        if (CKM_INVALID_MECHANISM == paddedMech
+                || key->cipherMech == paddedMech) {
+            return APR_EPADDING;
+        }
+        key->cipherMech = paddedMech;
+    }
+
+    key->ivSize = PK11_GetIVLength(key->cipherMech);
+
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Create a key from the provided secret or passphrase. The key is cleaned
+ *        up when the context is cleaned, and may be reused with multiple encryption
+ *        or decryption operations.
+ * @note If *key is NULL, a apr_crypto_key_t will be created from a pool. If
+ *       *key is not NULL, *key must point at a previously created structure.
+ * @param key The key returned, see note.
+ * @param rec The key record, from which the key will be derived.
+ * @param f The context to use.
+ * @param p The pool to use.
+ * @return Returns APR_ENOKEY if the pass phrase is missing or empty, or if a backend
+ *         error occurred while generating the key. APR_ENOCIPHER if the type or mode
+ *         is not supported by the particular backend. APR_EKEYTYPE if the key type is
+ *         not known. APR_EPADDING if padding was requested but is not supported.
+ *         APR_ENOTIMPL if not implemented.
+ */
+static apr_status_t crypto_key(apr_crypto_key_t **k,
+        const apr_crypto_key_rec_t *rec, const apr_crypto_t *f, apr_pool_t *p)
+{
+    apr_status_t rv = APR_SUCCESS;
+    PK11SlotInfo *slot, *tslot;
+    PK11SymKey *tkey;
+    SECItem secretItem;
+    SECItem wrappedItem;
+    SECItem *secParam;
+    PK11Context *ctx;
+    SECStatus s;
+    SECItem passItem;
+    SECItem saltItem;
+    SECAlgorithmID *algid;
+    void *wincx = NULL; /* what is wincx? */
+    apr_crypto_key_t *key;
+    int blockSize;
+    int remainder;
+
+    key = *k;
+    if (!key) {
+        *k = key = apr_pcalloc(p, sizeof *key);
+        if (!key) {
+            return APR_ENOMEM;
+        }
+        apr_pool_cleanup_register(p, key, crypto_key_cleanup,
+                                  apr_pool_cleanup_null);
+    }
+
+    key->f = f;
+    key->provider = f->provider;
+
+    /* decide on what cipher mechanism we will be using */
+    rv = crypto_cipher_mechanism(key, rec->type, rec->mode, rec->pad);
+    if (APR_SUCCESS != rv) {
+        return rv;
+    }
+
+    switch (rec->ktype) {
+
+    case APR_CRYPTO_KTYPE_PASSPHRASE: {
+
+        /* Turn the raw passphrase and salt into SECItems */
+        passItem.data = (unsigned char*) rec->k.passphrase.pass;
+        passItem.len = rec->k.passphrase.passLen;
+        saltItem.data = (unsigned char*) rec->k.passphrase.salt;
+        saltItem.len = rec->k.passphrase.saltLen;
+
+        /* generate the key */
+        /* pbeAlg and cipherAlg are the same. */
+        algid = PK11_CreatePBEV2AlgorithmID(key->cipherOid, key->cipherOid,
+                SEC_OID_HMAC_SHA1, key->keyLength,
+                rec->k.passphrase.iterations, &saltItem);
+        if (algid) {
+            slot = PK11_GetBestSlot(key->cipherMech, wincx);
+            if (slot) {
+                key->symKey = PK11_PBEKeyGen(slot, algid, &passItem, PR_FALSE,
+                        wincx);
+                PK11_FreeSlot(slot);
+            }
+            SECOID_DestroyAlgorithmID(algid, PR_TRUE);
+        }
+
+        break;
+    }
+
+    case APR_CRYPTO_KTYPE_SECRET: {
+
+        /*
+         * NSS is by default in FIPS mode, which disallows the use of unencrypted
+         * symmetrical keys. As per http://permalink.gmane.org/gmane.comp.mozilla.crypto/7947
+         * we do the following:
+         *
+         * 1. Generate a (temporary) symmetric key in NSS.
+         * 2. Use that symmetric key to encrypt your symmetric key as data.
+         * 3. Unwrap your wrapped symmetric key, using the symmetric key
+         * you generated in Step 1 as the unwrapping key.
+         *
+         * http://permalink.gmane.org/gmane.comp.mozilla.crypto/7947
+         */
+
+        /* generate the key */
+        slot = PK11_GetBestSlot(key->cipherMech, NULL);
+        if (slot) {
+            unsigned char data[BUFFER_SIZE];
+
+            /* sanity check - key correct size? */
+            if (rec->k.secret.secretLen != key->keyLength) {
+                PK11_FreeSlot(slot);
+                return APR_EKEYLENGTH;
+            }
+
+            tslot = PK11_GetBestSlot(CKM_AES_ECB, NULL);
+            if (tslot) {
+
+                /* generate a temporary wrapping key */
+                tkey = PK11_KeyGen(tslot, CKM_AES_ECB, 0, PK11_GetBestKeyLength(tslot, CKM_AES_ECB), 0);
+
+                /* prepare the key to wrap */
+                secretItem.data = (unsigned char *) rec->k.secret.secret;
+                secretItem.len = rec->k.secret.secretLen;
+
+                /* ensure our key matches the blocksize */
+                secParam = PK11_GenerateNewParam(CKM_AES_ECB, tkey);
+                blockSize = PK11_GetBlockSize(CKM_AES_ECB, secParam);
+                remainder = rec->k.secret.secretLen % blockSize;
+                if (remainder) {
+                    secretItem.data =
+                            apr_pcalloc(p, rec->k.secret.secretLen + remainder);
+                    apr_crypto_clear(p, secretItem.data,
+                            rec->k.secret.secretLen);
+                    memcpy(secretItem.data, rec->k.secret.secret,
+                            rec->k.secret.secretLen);
+                    secretItem.len += remainder;
+                }
+
+                /* prepare a space for the wrapped key */
+                wrappedItem.data = data;
+
+                /* wrap the key */
+                ctx = PK11_CreateContextBySymKey(CKM_AES_ECB, CKA_ENCRYPT, tkey,
+                        secParam);
+                if (ctx) {
+                    s = PK11_CipherOp(ctx, wrappedItem.data,
+                            (int *) (&wrappedItem.len), BUFFER_SIZE,
+                            secretItem.data, secretItem.len);
+                    if (s == SECSuccess) {
+
+                        /* unwrap the key again */
+                        key->symKey = PK11_UnwrapSymKeyWithFlags(tkey,
+                                CKM_AES_ECB, NULL, &wrappedItem,
+                                key->cipherMech, CKA_ENCRYPT,
+                                rec->k.secret.secretLen, 0);
+
+                    }
+
+                    PK11_DestroyContext(ctx, PR_TRUE);
+                }
+
+                /* clean up */
+                SECITEM_FreeItem(secParam, PR_TRUE);
+                PK11_FreeSymKey(tkey);
+                PK11_FreeSlot(tslot);
+
+            }
+
+            PK11_FreeSlot(slot);
+        }
+
+        break;
+    }
+
+    default: {
+
+        return APR_ENOKEY;
+
+    }
+    }
+
+    /* sanity check? */
+    if (!key->symKey) {
+        PRErrorCode perr = PORT_GetError();
+        if (perr) {
+            f->result->rc = perr;
+            f->result->msg = PR_ErrorToName(perr);
+            rv = APR_ENOKEY;
+        }
+    }
+
+    return rv;
 }
 
 /**
@@ -406,69 +683,21 @@ static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
     apr_crypto_key_t *key = *k;
 
     if (!key) {
-        *k = key = apr_array_push(f->keys);
-    }
-    if (!key) {
-        return APR_ENOMEM;
+        *k = key = apr_pcalloc(p, sizeof *key);
+        if (!key) {
+            return APR_ENOMEM;
+        }
+        apr_pool_cleanup_register(p, key, crypto_key_cleanup,
+                                  apr_pool_cleanup_null);
     }
 
     key->f = f;
     key->provider = f->provider;
 
     /* decide on what cipher mechanism we will be using */
-    switch (type) {
-
-    case (APR_KEY_3DES_192):
-        if (APR_MODE_CBC == mode) {
-            key->cipherOid = SEC_OID_DES_EDE3_CBC;
-        }
-        else if (APR_MODE_ECB == mode) {
-            return APR_ENOCIPHER;
-            /* No OID for CKM_DES3_ECB; */
-        }
-        break;
-    case (APR_KEY_AES_128):
-        if (APR_MODE_CBC == mode) {
-            key->cipherOid = SEC_OID_AES_128_CBC;
-        }
-        else {
-            key->cipherOid = SEC_OID_AES_128_ECB;
-        }
-        break;
-    case (APR_KEY_AES_192):
-        if (APR_MODE_CBC == mode) {
-            key->cipherOid = SEC_OID_AES_192_CBC;
-        }
-        else {
-            key->cipherOid = SEC_OID_AES_192_ECB;
-        }
-        break;
-    case (APR_KEY_AES_256):
-        if (APR_MODE_CBC == mode) {
-            key->cipherOid = SEC_OID_AES_256_CBC;
-        }
-        else {
-            key->cipherOid = SEC_OID_AES_256_ECB;
-        }
-        break;
-    default:
-        /* unknown key type, give up */
-        return APR_EKEYTYPE;
-    }
-
-    /* AES_128_CBC --> CKM_AES_CBC --> CKM_AES_CBC_PAD */
-    key->cipherMech = PK11_AlgtagToMechanism(key->cipherOid);
-    if (key->cipherMech == CKM_INVALID_MECHANISM) {
-        return APR_ENOCIPHER;
-    }
-    if (doPad) {
-        CK_MECHANISM_TYPE paddedMech;
-        paddedMech = PK11_GetPadMechanism(key->cipherMech);
-        if (CKM_INVALID_MECHANISM == paddedMech || key->cipherMech
-                == paddedMech) {
-            return APR_EPADDING;
-        }
-        key->cipherMech = paddedMech;
+    rv = crypto_cipher_mechanism(key, type, mode, doPad);
+    if (APR_SUCCESS != rv) {
+        return rv;
     }
 
     /* Turn the raw passphrase and salt into SECItems */
@@ -478,9 +707,9 @@ static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
     saltItem.len = saltLen;
 
     /* generate the key */
-    /* pbeAlg and cipherAlg are the same. NSS decides the keylength. */
+    /* pbeAlg and cipherAlg are the same. */
     algid = PK11_CreatePBEV2AlgorithmID(key->cipherOid, key->cipherOid,
-            SEC_OID_HMAC_SHA1, 0, iterations, &saltItem);
+            SEC_OID_HMAC_SHA1, key->keyLength, iterations, &saltItem);
     if (algid) {
         slot = PK11_GetBestSlot(key->cipherMech, wincx);
         if (slot) {
@@ -501,7 +730,6 @@ static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
         }
     }
 
-    key->ivSize = PK11_GetIVLength(key->cipherMech);
     if (ivSize) {
         *ivSize = key->ivSize;
     }
@@ -530,7 +758,6 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
         apr_size_t *blockSize, apr_pool_t *p)
 {
     PRErrorCode perr;
-    SECItem * secParam;
     SECItem ivItem;
     unsigned char * usedIv;
     apr_crypto_block_t *block = *ctx;
@@ -569,14 +796,14 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
         }
         ivItem.data = usedIv;
         ivItem.len = key->ivSize;
-        secParam = PK11_ParamFromIV(key->cipherMech, &ivItem);
+        block->secParam = PK11_ParamFromIV(key->cipherMech, &ivItem);
     }
     else {
-        secParam = PK11_GenerateNewParam(key->cipherMech, key->symKey);
+        block->secParam = PK11_GenerateNewParam(key->cipherMech, key->symKey);
     }
-    block->blockSize = PK11_GetBlockSize(key->cipherMech, secParam);
+    block->blockSize = PK11_GetBlockSize(key->cipherMech, block->secParam);
     block->ctx = PK11_CreateContextBySymKey(key->cipherMech, CKA_ENCRYPT,
-            key->symKey, secParam);
+            key->symKey, block->secParam);
 
     /* did an error occur? */
     perr = PORT_GetError();
@@ -587,7 +814,7 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
     }
 
     if (blockSize) {
-        *blockSize = PK11_GetBlockSize(key->cipherMech, secParam);
+        *blockSize = PK11_GetBlockSize(key->cipherMech, block->secParam);
     }
 
     return APR_SUCCESS;
@@ -711,7 +938,6 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
         const apr_crypto_key_t *key, apr_pool_t *p)
 {
     PRErrorCode perr;
-    SECItem * secParam;
     apr_crypto_block_t *block = *ctx;
     if (!block) {
         *ctx = block = apr_pcalloc(p, sizeof(apr_crypto_block_t));
@@ -733,14 +959,14 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
         }
         ivItem.data = (unsigned char*) iv;
         ivItem.len = key->ivSize;
-        secParam = PK11_ParamFromIV(key->cipherMech, &ivItem);
+        block->secParam = PK11_ParamFromIV(key->cipherMech, &ivItem);
     }
     else {
-        secParam = PK11_GenerateNewParam(key->cipherMech, key->symKey);
+        block->secParam = PK11_GenerateNewParam(key->cipherMech, key->symKey);
     }
-    block->blockSize = PK11_GetBlockSize(key->cipherMech, secParam);
+    block->blockSize = PK11_GetBlockSize(key->cipherMech, block->secParam);
     block->ctx = PK11_CreateContextBySymKey(key->cipherMech, CKA_DECRYPT,
-            key->symKey, secParam);
+            key->symKey, block->secParam);
 
     /* did an error occur? */
     perr = PORT_GetError();
@@ -751,7 +977,7 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
     }
 
     if (blockSize) {
-        *blockSize = PK11_GetBlockSize(key->cipherMech, secParam);
+        *blockSize = PK11_GetBlockSize(key->cipherMech, block->secParam);
     }
 
     return APR_SUCCESS;
@@ -864,7 +1090,8 @@ APU_MODULE_DECLARE_DATA const apr_crypto_driver_t apr_crypto_nss_driver = {
     crypto_block_encrypt_init, crypto_block_encrypt,
     crypto_block_encrypt_finish, crypto_block_decrypt_init,
     crypto_block_decrypt, crypto_block_decrypt_finish,
-    crypto_block_cleanup, crypto_cleanup, crypto_shutdown, crypto_error
+    crypto_block_cleanup, crypto_cleanup, crypto_shutdown, crypto_error,
+    crypto_key
 };
 
 #endif

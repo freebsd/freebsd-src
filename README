@@ -34,7 +34,7 @@ Apache Portable Runtime Utility Library README
      String filename-style pattern matching
      URI Parsing
      Charset translation (iconv based)
-     XML parsing (expat based)
+     XML parsing (expat)
 
    For a more complete list, please refer to the following URLs:
 
@@ -66,7 +66,7 @@ for your compiled code.  Similarly, the bindings for propritary drivers
 such as Oracle (--with-oracle option) must also be explicitly enabled.
 
 On windows, selection of supported drivers is via the environment values
-DBD_LIST (for freetds, mysql, oracle, pgsql, sqlite2 and/or sqlite3) 
+DBD_LIST (for mysql, oracle, pgsql, sqlite2 and/or sqlite3) 
 and DBM_LIST (db and/or gdbm).  DBD odbc and DBM sdbm are unconditionally
 compiled and installed, do not include these in the list.
 

@@ -3,7 +3,7 @@
 
 Summary: Apache Portable Runtime Utility library
 Name: apr-util
-Version: 1.5.4
+Version: 1.6.1
 Release: 1
 License: Apache Software License
 Group: System Environment/Libraries
@@ -70,16 +70,6 @@ Requires: apr-util = %{version}-%{release}
 This package provides the SQLite driver for the apr-util DBD
 (database abstraction) interface.
 
-%package freetds
-Group: Development/Libraries
-Summary: APR utility library FreeTDS DBD driver
-BuildRequires: freetds-devel
-Requires: apr-util = %{version}-%{release}
-
-%description freetds
-This package provides the FreeTDS driver for the apr-util DBD
-(database abstraction) interface.
-
 %package odbc
 Group: Development/Libraries
 Summary: APR utility library ODBC DBD driver
@@ -124,7 +114,7 @@ This package provides crypto support for apr-util based on Mozilla NSS.
 %configure --with-apr=%{_prefix} \
         --includedir=%{_includedir}/apr-%{apuver} \
         --with-ldap --without-gdbm \
-        --with-sqlite3 --with-pgsql --with-mysql --with-freetds --with-odbc \
+        --with-sqlite3 --with-pgsql --with-mysql --with-odbc \
         --with-berkeley-db \
         --with-crypto --with-openssl --with-nss \
         --without-sqlite2
@@ -176,10 +166,6 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %{_libdir}/apr-util-%{apuver}/apr_dbd_sqlite*
 
-%files freetds
-%defattr(-,root,root,-)
-%{_libdir}/apr-util-%{apuver}/apr_dbd_freetds*
-
 %files odbc
 %defattr(-,root,root,-)
 %{_libdir}/apr-util-%{apuver}/apr_dbd_odbc*
@@ -203,7 +189,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libaprutil-%{apuver}.so
 %{_libdir}/pkgconfig/apr-util-%{apuver}.pc
 %{_includedir}/apr-%{apuver}/*.h
-%doc --parents html
+%doc html
 
 %changelog
 * Tue Jun 22 2004 Graham Leggett <minfrin@sharp.fm> 1.0.0-1
