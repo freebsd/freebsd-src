@@ -316,7 +316,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 
 #ifdef HAVE_LOGIN_CAP
 	if (authctxt->pw != NULL &&
-	    (lc = login_getpwclass(authctxt->pw)) != NULL) {
+	    (lc = PRIVSEP(login_getpwclass(authctxt->pw))) != NULL) {
 		logit("user %s login class %s", authctxt->pw->pw_name,
 		    authctxt->pw->pw_class);
 		from_host = auth_get_canonical_hostname(ssh, options.use_dns);
@@ -331,7 +331,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 			    authctxt->pw->pw_name, from_host);
 			packet_disconnect("Logins not available right now.");
 		}
-		login_close(lc);
+		PRIVSEP(login_close(lc));
 	}
 #endif  /* HAVE_LOGIN_CAP */
 

@@ -95,8 +95,6 @@ static int opalpci_route_interrupt(device_t bus, device_t dev, int pin);
  */
 static void opalpic_pic_enable(device_t dev, u_int irq, u_int vector);
 static void opalpic_pic_eoi(device_t dev, u_int irq);
-static void opalpic_pic_mask(device_t dev, u_int irq);
-static void opalpic_pic_unmask(device_t dev, u_int irq);
 
 /*
  * Commands
@@ -143,8 +141,6 @@ static device_method_t	opalpci_methods[] = {
 	/* PIC interface for MSIs */
 	DEVMETHOD(pic_enable,		opalpic_pic_enable),
 	DEVMETHOD(pic_eoi,		opalpic_pic_eoi),
-	DEVMETHOD(pic_mask,		opalpic_pic_mask),
-	DEVMETHOD(pic_unmask,		opalpic_pic_unmask),
 
 	DEVMETHOD_END
 };
@@ -650,7 +646,10 @@ opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
 static void
 opalpic_pic_enable(device_t dev, u_int irq, u_int vector)
 {
+	struct opalpci_softc *sc = device_get_softc(dev);
+
 	PIC_ENABLE(root_pic, irq, vector);
+	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
 }
 
 static void opalpic_pic_eoi(device_t dev, u_int irq)
@@ -662,21 +661,3 @@ static void opalpic_pic_eoi(device_t dev, u_int irq)
 
 	PIC_EOI(root_pic, irq);
 }
-
-static void opalpic_pic_mask(device_t dev, u_int irq)
-{
-	PIC_MASK(root_pic, irq);
-}
-
-static void opalpic_pic_unmask(device_t dev, u_int irq)
-{
-	struct opalpci_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	PIC_UNMASK(root_pic, irq);
-
-	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
-}
-
-

@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20181006:
+	The legacy DRM modules and drivers have now been added to the loader's
+	module blacklist, in favor of loading them with kld_list in rc.conf(5).
+	The module blacklist may be overridden with the loader.conf(5)
+	'module_blacklist' variable, but loading them via rc.conf(5) is strongly
+	encouraged.
+
 20181002:
 	The cam(4) based nda(4) driver will be used over nvd(4) by default on
 	powerpc64. You may set 'options NVME_USE_NVD=1' in your kernel conf or
