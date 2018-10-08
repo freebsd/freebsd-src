@@ -347,13 +347,14 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
     fd_set readset, writeset, exceptset;
     apr_status_t rv = APR_SUCCESS;
 
+    *num = 0;
+
 #ifdef WIN32
     /* On Win32, select() must be presented with at least one socket to
      * poll on, or select() will return WSAEINVAL.  So, we'll just
      * short-circuit and bail now.
      */
     if (pollset->nelts == 0) {
-        (*num) = 0;
         if (timeout > 0) {
             apr_sleep(timeout);
             return APR_TIMEUP;
@@ -385,7 +386,6 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
         rs = select(pollset->p->maxfd + 1, &readset, &writeset, &exceptset,
                     tvptr);
 
-    (*num) = rs;
     if (rs < 0) {
         return apr_get_netos_error();
     }
@@ -401,7 +401,7 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
         else {
             if ((pollset->flags & APR_POLLSET_WAKEABLE) &&
                 pollset->p->query_set[i].desc.f == pollset->wakeup_pipe[0]) {
-                apr_pollset_drain_wakeup_pipe(pollset);
+                apr_poll_drain_wakeup_pipe(pollset->wakeup_pipe);
                 rv = APR_EINTR;
                 continue;
             }
@@ -437,7 +437,7 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
     return rv;
 }
 
-static apr_pollset_provider_t impl = {
+static const apr_pollset_provider_t impl = {
     impl_pollset_create,
     impl_pollset_add,
     impl_pollset_remove,
@@ -446,4 +446,4 @@ static apr_pollset_provider_t impl = {
     "select"
 };
 
-apr_pollset_provider_t *apr_pollset_provider_select = &impl;
+const apr_pollset_provider_t *apr_pollset_provider_select = &impl;

@@ -8,6 +8,9 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Define if apr_allocator should use guard pages */
+#undef APR_ALLOCATOR_GUARD_PAGES
+
 /* Define if apr_allocator should use mmap */
 #undef APR_ALLOCATOR_USES_MMAP
 
@@ -17,6 +20,9 @@
 
 /* Define as function used for conversion of strings to apr_off_t */
 #undef APR_OFF_T_STRFN
+
+/* Define if pool functions should abort if concurrent usage is detected */
+#undef APR_POOL_CONCURRENCY_CHECK
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
@@ -274,6 +280,9 @@
 /* Define if MAP_ANON is defined in sys/mman.h */
 #undef HAVE_MAP_ANON
 
+/* Define to 1 if you have the <memcheck.h> header file. */
+#undef HAVE_MEMCHECK_H
+
 /* Define to 1 if you have the `memchr' function. */
 #undef HAVE_MEMCHR
 
@@ -295,6 +304,9 @@
 /* Define to 1 if you have the `mmap64' function. */
 #undef HAVE_MMAP64
 
+/* Define to 1 if you have the `mprotect' function. */
+#undef HAVE_MPROTECT
+
 /* Define to 1 if you have the `munmap' function. */
 #undef HAVE_MUNMAP
 
@@ -315,6 +327,9 @@
 
 /* Define to 1 if you have the <net/errno.h> header file. */
 #undef HAVE_NET_ERRNO_H
+
+/* Define to 1 if you have the <net/if.h> header file. */
+#undef HAVE_NET_IF_H
 
 /* Define to 1 if you have the `nl_langinfo' function. */
 #undef HAVE_NL_LANGINFO
@@ -688,6 +703,12 @@
 /* Define to 1 if you have the <uuid/uuid.h> header file. */
 #undef HAVE_UUID_UUID_H
 
+/* Compile in valgrind support */
+#undef HAVE_VALGRIND
+
+/* Define to 1 if you have the <valgrind.h> header file. */
+#undef HAVE_VALGRIND_H
+
 /* Define if C compiler supports VLA */
 #undef HAVE_VLA
 
@@ -706,8 +727,7 @@
 /* Define for z/OS pthread API nuances */
 #undef HAVE_ZOS_PTHREADS
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Define if EAI_ error codes from getaddrinfo are negative */

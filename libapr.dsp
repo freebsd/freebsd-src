@@ -19,8 +19,6 @@ CFG=libapr - Win32 Release
 !MESSAGE 
 !MESSAGE "libapr - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
-!MESSAGE "libapr - Win32 Release9x" (based on "Win32 (x86) Dynamic-Link Library")
-!MESSAGE "libapr - Win32 Debug9x" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - x64 Release" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - x64 Debug" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE 
@@ -97,70 +95,6 @@ PostBuild_Desc=Embed .manifest
 PostBuild_Cmds=if exist $(TargetPath).manifest mt.exe -manifest $(TargetPath).manifest -outputresource:$(TargetPath);2
 # End Special Build Tool
 
-!ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "9x\Release"
-# PROP BASE Intermediate_Dir "9x\Release"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "9x\Release"
-# PROP Intermediate_Dir "9x\Release"
-# PROP Ignore_Export_Lib 0
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /MD /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FD /c
-# ADD CPP /nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\" /Fd"$(INTDIR)\libapr_src" /FD /c
-# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL"
-# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL"
-# ADD BASE RSC /l 0x409 /d "NDEBUG"
-# ADD RSC /l 0x409 /i "./include" /d "NDEBUG" /d "APR_VERSION_ONLY"
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /debug /opt:ref
-# ADD LINK32 kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /debug /out:"9x\Release\libapr-1.dll" /pdb:"9x\Release\libapr-1.pdb" /implib:"9x\Release\libapr-1.lib" /MACHINE:X86 /opt:ref
-# Begin Special Build Tool
-TargetPath=9x\Release\libapr.dll
-SOURCE="$(InputPath)"
-PostBuild_Desc=Embed .manifest
-PostBuild_Cmds=if exist $(TargetPath).manifest mt.exe -manifest $(TargetPath).manifest -outputresource:$(TargetPath);2
-# End Special Build Tool
-
-!ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "9x\Debug"
-# PROP BASE Intermediate_Dir "9x\Debug"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 1
-# PROP Output_Dir "9x\Debug"
-# PROP Intermediate_Dir "9x\Debug"
-# PROP Ignore_Export_Lib 0
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /MDd /W3 /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /FD /EHsc /c
-# ADD CPP /nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c
-# ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL"
-# ADD MTL /nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL"
-# ADD BASE RSC /l 0x409 /d "_DEBUG"
-# ADD RSC /l 0x409 /i "./include" /d "_DEBUG" /d "APR_VERSION_ONLY"
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /debug
-# ADD LINK32 kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /debug /out:"9x\Debug\libapr-1.dll" /pdb:"9x\Debug\libapr-1.pdb" /implib:"9x\Debug\libapr-1.lib" /MACHINE:X86
-# Begin Special Build Tool
-TargetPath=9x\Debug\libapr-1.dll
-SOURCE="$(InputPath)"
-PostBuild_Desc=Embed .manifest
-PostBuild_Cmds=if exist $(TargetPath).manifest mt.exe -manifest $(TargetPath).manifest -outputresource:$(TargetPath);2
-# End Special Build Tool
-
 !ELSEIF  "$(CFG)" == "libapr - x64 Release"
 
 # PROP BASE Use_MFC 0
@@ -231,8 +165,6 @@ PostBuild_Cmds=if exist $(TargetPath).manifest mt.exe -manifest $(TargetPath).ma
 
 # Name "libapr - Win32 Release"
 # Name "libapr - Win32 Debug"
-# Name "libapr - Win32 Release9x"
-# Name "libapr - Win32 Debug9x"
 # Name "libapr - x64 Release"
 # Name "libapr - x64 Debug"
 # Begin Group "Source Files"
@@ -490,6 +422,10 @@ SOURCE=.\poll\unix\pollset.c
 
 SOURCE=.\poll\unix\select.c
 # End Source File
+# Begin Source File
+
+SOURCE=.\poll\unix\wakeup.c
+# End Source File
 # End Group
 # Begin Group "random"
 
@@ -521,6 +457,10 @@ SOURCE=.\shmem\win32\shm.c
 # Begin Source File
 
 SOURCE=.\strings\apr_cpystrn.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\strings\apr_cstr.c
 # End Source File
 # Begin Source File
 
@@ -693,26 +633,6 @@ InputPath=.\include\apr.hw
 
 # End Custom Build
 
-!ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
-
-# Begin Custom Build - Creating apr.h from apr.hw
-InputPath=.\include\apr.hw
-
-".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
-
-# Begin Custom Build - Creating apr.h from apr.hw
-InputPath=.\include\apr.hw
-
-".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
 !ELSEIF  "$(CFG)" == "libapr - x64 Release"
 
 # Begin Custom Build - Creating apr.h from apr.hw
@@ -779,28 +699,6 @@ InputPath=.\include\apr_escape.h
 ".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
 	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\Debug\gen_test_char /Fe.\Debug\gen_test_char.exe .\tools\gen_test_char.c  
 	.\Debug\gen_test_char.exe > .\include\apr_escape_test_char.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
-
-# Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
-InputPath=.\include\apr_escape.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\Release\gen_test_char /Fe.\9x\Release\gen_test_char.exe .\tools\gen_test_char.c 
-	.\9x\Release\gen_test_char.exe > .\include\apr_escape_test_char.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
-
-# Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
-InputPath=.\include\apr_escape.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\Debug\gen_test_char /Fe.\9x\Debug\gen_test_char.exe .\tools\gen_test_char.c  
-	.\9x\Debug\gen_test_char.exe > .\include\apr_escape_test_char.h
 
 # End Custom Build
 

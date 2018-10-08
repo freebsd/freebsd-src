@@ -1103,6 +1103,10 @@ APR_DECLARE(void) apr_table_compress(apr_table_t *t, unsigned flags)
     int i;
     int dups_found;
 
+    if (flags == APR_OVERLAP_TABLES_ADD) {
+        return;
+    }
+
     if (t->a.nelts <= 1) {
         return;
     }

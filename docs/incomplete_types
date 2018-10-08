@@ -38,7 +38,7 @@ typedef struct ap_file_t {
 #endif
 } ap_file_t;
 
-This captures the essense of what is currently being defined for ap_file_t
+This captures the essence of what is currently being defined for ap_file_t
 using incomplete types.  However, using this structure leads developers to
 believe that they are safe accessing any of the fields in this structure.
 This is not true.  On some platforms, such as Windows, about half of the
@@ -53,7 +53,7 @@ macros, for example:
 #define filetype int
 #endif
 
-And then in the defintion for ap_file_t, we could say:
+And then in the definition for ap_file_t, we could say:
     filetype filedes;
 
 This gets rid of some of the complexity, by moving it off to the side, but
@@ -73,7 +73,7 @@ Having said all of that, sometimes incomplete types just don't make sense.
 For example, the first implementation of time functions used incomplete types,
 which added a layer of complexity that turned out to be unnecessary.  If
 a platform cannot provide a simple number that represents the number of seconds
-elapsed since a specifed date and time, then APR doesn't really want to 
+elapsed since a specified date and time, then APR doesn't really want to
 provide support for that platform.
 
 APR is trying hard to provide a balance of incomplete and complete types, 

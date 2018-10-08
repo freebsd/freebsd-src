@@ -19,6 +19,7 @@
 #include "apr_arch_proc_mutex.h"
 #include "apr_arch_file_io.h" /* for apr_mkstemp() */
 #include "apr_hash.h"
+#include "apr_atomic.h"
 
 APR_DECLARE(apr_status_t) apr_proc_mutex_destroy(apr_proc_mutex_t *mutex)
 {
@@ -26,7 +27,7 @@ APR_DECLARE(apr_status_t) apr_proc_mutex_destroy(apr_proc_mutex_t *mutex)
 }
 
 #if APR_HAS_POSIXSEM_SERIALIZE || APR_HAS_FCNTL_SERIALIZE || \
-    APR_HAS_PROC_PTHREAD_SERIALIZE || APR_HAS_SYSVSEM_SERIALIZE
+    APR_HAS_SYSVSEM_SERIALIZE
 static apr_status_t proc_mutex_no_child_init(apr_proc_mutex_t **mutex,
                                              apr_pool_t *cont,
                                              const char *fname)
@@ -34,6 +35,17 @@ static apr_status_t proc_mutex_no_child_init(apr_proc_mutex_t **mutex,
     return APR_SUCCESS;
 }
 #endif    
+
+#if APR_HAS_POSIXSEM_SERIALIZE || APR_HAS_PROC_PTHREAD_SERIALIZE
+static apr_status_t proc_mutex_no_perms_set(apr_proc_mutex_t *mutex,
+                                            apr_fileperms_t perms,
+                                            apr_uid_t uid,
+                                            apr_gid_t gid)
+{
+    return APR_ENOTIMPL;
+}
+#endif    
+
 
 #if APR_HAS_POSIXSEM_SERIALIZE
 
@@ -45,7 +57,7 @@ static apr_status_t proc_mutex_posix_cleanup(void *mutex_)
 {
     apr_proc_mutex_t *mutex = mutex_;
     
-    if (sem_close(mutex->psem_interproc) < 0) {
+    if (sem_close(mutex->os.psem_interproc) < 0) {
         return errno;
     }
 
@@ -74,8 +86,6 @@ static apr_status_t proc_mutex_posix_create(apr_proc_mutex_t *new_mutex,
     sem_t *psem;
     char semname[32];
     
-    new_mutex->interproc = apr_palloc(new_mutex->pool,
-                                      sizeof(*new_mutex->interproc));
     /*
      * This bogusness is to follow what appears to be the
      * lowest common denominator in Posix semaphore naming:
@@ -134,7 +144,7 @@ static apr_status_t proc_mutex_posix_create(apr_proc_mutex_t *new_mutex,
     }
     /* Ahhh. The joys of Posix sems. Predelete it... */
     sem_unlink(semname);
-    new_mutex->psem_interproc = psem;
+    new_mutex->os.psem_interproc = psem;
     new_mutex->fname = apr_pstrdup(new_mutex->pool, semname);
     apr_pool_cleanup_register(new_mutex->pool, (void *)new_mutex,
                               apr_proc_mutex_cleanup, 
@@ -147,7 +157,7 @@ static apr_status_t proc_mutex_posix_acquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = sem_wait(mutex->psem_interproc);
+        rc = sem_wait(mutex->os.psem_interproc);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         return errno;
@@ -161,7 +171,7 @@ static apr_status_t proc_mutex_posix_tryacquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = sem_trywait(mutex->psem_interproc);
+        rc = sem_trywait(mutex->os.psem_interproc);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         if (errno == EAGAIN) {
@@ -176,7 +186,7 @@ static apr_status_t proc_mutex_posix_tryacquire(apr_proc_mutex_t *mutex)
 static apr_status_t proc_mutex_posix_release(apr_proc_mutex_t *mutex)
 {
     mutex->curr_locked = 0;
-    if (sem_post(mutex->psem_interproc) < 0) {
+    if (sem_post(mutex->os.psem_interproc) < 0) {
         /* any failure is probably fatal, so no big deal to leave
          * ->curr_locked at 0. */
         return errno;
@@ -197,6 +207,8 @@ static const apr_proc_mutex_unix_lock_methods_t mutex_posixsem_methods =
     proc_mutex_posix_release,
     proc_mutex_posix_cleanup,
     proc_mutex_no_child_init,
+    proc_mutex_no_perms_set,
+    APR_LOCK_POSIXSEM,
     "posixsem"
 };
 
@@ -226,9 +238,9 @@ static apr_status_t proc_mutex_sysv_cleanup(void *mutex_)
     apr_proc_mutex_t *mutex=mutex_;
     union semun ick;
     
-    if (mutex->interproc->filedes != -1) {
+    if (mutex->os.crossproc != -1) {
         ick.val = 0;
-        semctl(mutex->interproc->filedes, 0, IPC_RMID, ick);
+        semctl(mutex->os.crossproc, 0, IPC_RMID, ick);
     }
     return APR_SUCCESS;
 }    
@@ -239,18 +251,17 @@ static apr_status_t proc_mutex_sysv_create(apr_proc_mutex_t *new_mutex,
     union semun ick;
     apr_status_t rv;
     
-    new_mutex->interproc = apr_palloc(new_mutex->pool, sizeof(*new_mutex->interproc));
-    new_mutex->interproc->filedes = semget(IPC_PRIVATE, 1, IPC_CREAT | 0600);
-
-    if (new_mutex->interproc->filedes < 0) {
+    new_mutex->os.crossproc = semget(IPC_PRIVATE, 1, IPC_CREAT | 0600);
+    if (new_mutex->os.crossproc == -1) {
         rv = errno;
         proc_mutex_sysv_cleanup(new_mutex);
         return rv;
     }
     ick.val = 1;
-    if (semctl(new_mutex->interproc->filedes, 0, SETVAL, ick) < 0) {
+    if (semctl(new_mutex->os.crossproc, 0, SETVAL, ick) < 0) {
         rv = errno;
         proc_mutex_sysv_cleanup(new_mutex);
+        new_mutex->os.crossproc = -1;
         return rv;
     }
     new_mutex->curr_locked = 0;
@@ -265,7 +276,7 @@ static apr_status_t proc_mutex_sysv_acquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = semop(mutex->interproc->filedes, &proc_mutex_op_on, 1);
+        rc = semop(mutex->os.crossproc, &proc_mutex_op_on, 1);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         return errno;
@@ -279,7 +290,7 @@ static apr_status_t proc_mutex_sysv_tryacquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = semop(mutex->interproc->filedes, &proc_mutex_op_try, 1);
+        rc = semop(mutex->os.crossproc, &proc_mutex_op_try, 1);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         if (errno == EAGAIN) {
@@ -297,9 +308,27 @@ static apr_status_t proc_mutex_sysv_release(apr_proc_mutex_t *mutex)
 
     mutex->curr_locked = 0;
     do {
-        rc = semop(mutex->interproc->filedes, &proc_mutex_op_off, 1);
+        rc = semop(mutex->os.crossproc, &proc_mutex_op_off, 1);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
+        return errno;
+    }
+    return APR_SUCCESS;
+}
+
+static apr_status_t proc_mutex_sysv_perms_set(apr_proc_mutex_t *mutex,
+                                              apr_fileperms_t perms,
+                                              apr_uid_t uid,
+                                              apr_gid_t gid)
+{
+
+    union semun ick;
+    struct semid_ds buf;
+    buf.sem_perm.uid = uid;
+    buf.sem_perm.gid = gid;
+    buf.sem_perm.mode = apr_unix_perms2mode(perms);
+    ick.buf = &buf;
+    if (semctl(mutex->os.crossproc, 0, IPC_SET, ick) < 0) {
         return errno;
     }
     return APR_SUCCESS;
@@ -318,6 +347,8 @@ static const apr_proc_mutex_unix_lock_methods_t mutex_sysv_methods =
     proc_mutex_sysv_release,
     proc_mutex_sysv_cleanup,
     proc_mutex_no_child_init,
+    proc_mutex_sysv_perms_set,
+    APR_LOCK_SYSVSEM,
     "sysvsem"
 };
 
@@ -325,36 +356,83 @@ static const apr_proc_mutex_unix_lock_methods_t mutex_sysv_methods =
 
 #if APR_HAS_PROC_PTHREAD_SERIALIZE
 
-static apr_status_t proc_mutex_proc_pthread_cleanup(void *mutex_)
+/* The mmap()ed pthread_interproc is the native pthread_mutex_t followed
+ * by a refcounter to track children using it.  We want to avoid calling
+ * pthread_mutex_destroy() on the shared mutex area while it is in use by
+ * another process, because this may mark the shared pthread_mutex_t as
+ * invalid for everyone, including forked children (unlike "sysvsem" for
+ * example), causing unexpected errors or deadlocks (PR 49504).  So the
+ * last process (parent or child) referencing the mutex will effectively
+ * destroy it.
+ */
+typedef struct {
+    pthread_mutex_t mutex;
+    apr_uint32_t refcount;
+} proc_pthread_mutex_t;
+
+#define proc_pthread_mutex_refcount(m) \
+    (((proc_pthread_mutex_t *)(m)->os.pthread_interproc)->refcount)
+
+static APR_INLINE int proc_pthread_mutex_inc(apr_proc_mutex_t *mutex)
+{
+    if (mutex->pthread_refcounting) {
+        apr_atomic_inc32(&proc_pthread_mutex_refcount(mutex));
+        return 1;
+    }
+    return 0;
+}
+
+static APR_INLINE int proc_pthread_mutex_dec(apr_proc_mutex_t *mutex)
+{
+    if (mutex->pthread_refcounting) {
+        return apr_atomic_dec32(&proc_pthread_mutex_refcount(mutex));
+    }
+    return 0;
+}
+
+static apr_status_t proc_pthread_mutex_unref(void *mutex_)
 {
     apr_proc_mutex_t *mutex=mutex_;
     apr_status_t rv;
 
     if (mutex->curr_locked == 1) {
-        if ((rv = pthread_mutex_unlock(mutex->pthread_interproc))) {
+        if ((rv = pthread_mutex_unlock(mutex->os.pthread_interproc))) {
 #ifdef HAVE_ZOS_PTHREADS
             rv = errno;
 #endif
             return rv;
         }
     }
+    if (!proc_pthread_mutex_dec(mutex)) {
+        if ((rv = pthread_mutex_destroy(mutex->os.pthread_interproc))) {
+#ifdef HAVE_ZOS_PTHREADS
+            rv = errno;
+#endif
+            return rv;
+        }
+    }
+    return APR_SUCCESS;
+}
+
+static apr_status_t proc_mutex_pthread_cleanup(void *mutex_)
+{
+    apr_proc_mutex_t *mutex=mutex_;
+    apr_status_t rv;
+
     /* curr_locked is set to -1 until the mutex has been created */
     if (mutex->curr_locked != -1) {
-        if ((rv = pthread_mutex_destroy(mutex->pthread_interproc))) {
-#ifdef HAVE_ZOS_PTHREADS
-            rv = errno;
-#endif
+        if ((rv = proc_pthread_mutex_unref(mutex))) {
             return rv;
         }
     }
-    if (munmap((caddr_t)mutex->pthread_interproc, sizeof(pthread_mutex_t))) {
+    if (munmap(mutex->os.pthread_interproc, sizeof(proc_pthread_mutex_t))) {
         return errno;
     }
     return APR_SUCCESS;
 }
 
-static apr_status_t proc_mutex_proc_pthread_create(apr_proc_mutex_t *new_mutex,
-                                                   const char *fname)
+static apr_status_t proc_mutex_pthread_create(apr_proc_mutex_t *new_mutex,
+                                              const char *fname)
 {
     apr_status_t rv;
     int fd;
@@ -365,31 +443,32 @@ static apr_status_t proc_mutex_proc_pthread_create(apr_proc_mutex_t *new_mutex,
         return errno;
     }
 
-    new_mutex->pthread_interproc = (pthread_mutex_t *)mmap(
-                                       (caddr_t) 0, 
-                                       sizeof(pthread_mutex_t), 
-                                       PROT_READ | PROT_WRITE, MAP_SHARED,
-                                       fd, 0); 
-    if (new_mutex->pthread_interproc == (pthread_mutex_t *) (caddr_t) -1) {
+    new_mutex->os.pthread_interproc = mmap(NULL, sizeof(proc_pthread_mutex_t),
+                                           PROT_READ | PROT_WRITE, MAP_SHARED,
+                                           fd, 0); 
+    if (new_mutex->os.pthread_interproc == MAP_FAILED) {
+        new_mutex->os.pthread_interproc = NULL;
+        rv = errno;
         close(fd);
-        return errno;
+        return rv;
     }
     close(fd);
 
+    new_mutex->pthread_refcounting = 1;
     new_mutex->curr_locked = -1; /* until the mutex has been created */
 
     if ((rv = pthread_mutexattr_init(&mattr))) {
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
-        proc_mutex_proc_pthread_cleanup(new_mutex);
+        proc_mutex_pthread_cleanup(new_mutex);
         return rv;
     }
     if ((rv = pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED))) {
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
-        proc_mutex_proc_pthread_cleanup(new_mutex);
+        proc_mutex_pthread_cleanup(new_mutex);
         pthread_mutexattr_destroy(&mattr);
         return rv;
     }
@@ -400,7 +479,7 @@ static apr_status_t proc_mutex_proc_pthread_create(apr_proc_mutex_t *new_mutex,
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
-        proc_mutex_proc_pthread_cleanup(new_mutex);
+        proc_mutex_pthread_cleanup(new_mutex);
         pthread_mutexattr_destroy(&mattr);
         return rv;
     }
@@ -408,28 +487,29 @@ static apr_status_t proc_mutex_proc_pthread_create(apr_proc_mutex_t *new_mutex,
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
-        proc_mutex_proc_pthread_cleanup(new_mutex);
+        proc_mutex_pthread_cleanup(new_mutex);
         pthread_mutexattr_destroy(&mattr);
         return rv;
     }
 #endif /* HAVE_PTHREAD_MUTEX_ROBUST */
 
-    if ((rv = pthread_mutex_init(new_mutex->pthread_interproc, &mattr))) {
+    if ((rv = pthread_mutex_init(new_mutex->os.pthread_interproc, &mattr))) {
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
-        proc_mutex_proc_pthread_cleanup(new_mutex);
+        proc_mutex_pthread_cleanup(new_mutex);
         pthread_mutexattr_destroy(&mattr);
         return rv;
     }
 
+    proc_pthread_mutex_refcount(new_mutex) = 1; /* first/parent reference */
     new_mutex->curr_locked = 0; /* mutex created now */
 
     if ((rv = pthread_mutexattr_destroy(&mattr))) {
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
-        proc_mutex_proc_pthread_cleanup(new_mutex);
+        proc_mutex_pthread_cleanup(new_mutex);
         return rv;
     }
 
@@ -440,34 +520,45 @@ static apr_status_t proc_mutex_proc_pthread_create(apr_proc_mutex_t *new_mutex,
     return APR_SUCCESS;
 }
 
-static apr_status_t proc_mutex_proc_pthread_acquire(apr_proc_mutex_t *mutex)
+static apr_status_t proc_mutex_pthread_child_init(apr_proc_mutex_t **mutex,
+                                                  apr_pool_t *pool, 
+                                                  const char *fname)
+{
+    (*mutex)->curr_locked = 0;
+    if (proc_pthread_mutex_inc(*mutex)) {
+        apr_pool_cleanup_register(pool, *mutex, proc_pthread_mutex_unref, 
+                                  apr_pool_cleanup_null);
+    }
+    return APR_SUCCESS;
+}
+
+static apr_status_t proc_mutex_pthread_acquire(apr_proc_mutex_t *mutex)
 {
     apr_status_t rv;
 
-    if ((rv = pthread_mutex_lock(mutex->pthread_interproc))) {
+    if ((rv = pthread_mutex_lock(mutex->os.pthread_interproc))) {
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
 #ifdef HAVE_PTHREAD_MUTEX_ROBUST
         /* Okay, our owner died.  Let's try to make it consistent again. */
         if (rv == EOWNERDEAD) {
-            pthread_mutex_consistent_np(mutex->pthread_interproc);
+            proc_pthread_mutex_dec(mutex);
+            pthread_mutex_consistent_np(mutex->os.pthread_interproc);
         }
         else
-            return rv;
-#else
-        return rv;
 #endif
+        return rv;
     }
     mutex->curr_locked = 1;
     return APR_SUCCESS;
 }
 
-static apr_status_t proc_mutex_proc_pthread_tryacquire(apr_proc_mutex_t *mutex)
+static apr_status_t proc_mutex_pthread_tryacquire(apr_proc_mutex_t *mutex)
 {
     apr_status_t rv;
  
-    if ((rv = pthread_mutex_trylock(mutex->pthread_interproc))) {
+    if ((rv = pthread_mutex_trylock(mutex->os.pthread_interproc))) {
 #ifdef HAVE_ZOS_PTHREADS 
         rv = errno;
 #endif
@@ -477,25 +568,23 @@ static apr_status_t proc_mutex_proc_pthread_tryacquire(apr_proc_mutex_t *mutex)
 #ifdef HAVE_PTHREAD_MUTEX_ROBUST
         /* Okay, our owner died.  Let's try to make it consistent again. */
         if (rv == EOWNERDEAD) {
-            pthread_mutex_consistent_np(mutex->pthread_interproc);
-            rv = APR_SUCCESS;
+            proc_pthread_mutex_dec(mutex);
+            pthread_mutex_consistent_np(mutex->os.pthread_interproc);
         }
         else
-            return rv;
-#else
-        return rv;
 #endif
+        return rv;
     }
     mutex->curr_locked = 1;
-    return rv;
+    return APR_SUCCESS;
 }
 
-static apr_status_t proc_mutex_proc_pthread_release(apr_proc_mutex_t *mutex)
+static apr_status_t proc_mutex_pthread_release(apr_proc_mutex_t *mutex)
 {
     apr_status_t rv;
 
     mutex->curr_locked = 0;
-    if ((rv = pthread_mutex_unlock(mutex->pthread_interproc))) {
+    if ((rv = pthread_mutex_unlock(mutex->os.pthread_interproc))) {
 #ifdef HAVE_ZOS_PTHREADS
         rv = errno;
 #endif
@@ -507,12 +596,14 @@ static apr_status_t proc_mutex_proc_pthread_release(apr_proc_mutex_t *mutex)
 static const apr_proc_mutex_unix_lock_methods_t mutex_proc_pthread_methods =
 {
     APR_PROCESS_LOCK_MECH_IS_GLOBAL,
-    proc_mutex_proc_pthread_create,
-    proc_mutex_proc_pthread_acquire,
-    proc_mutex_proc_pthread_tryacquire,
-    proc_mutex_proc_pthread_release,
-    proc_mutex_proc_pthread_cleanup,
-    proc_mutex_no_child_init,
+    proc_mutex_pthread_create,
+    proc_mutex_pthread_acquire,
+    proc_mutex_pthread_tryacquire,
+    proc_mutex_pthread_release,
+    proc_mutex_pthread_cleanup,
+    proc_mutex_pthread_child_init,
+    proc_mutex_no_perms_set,
+    APR_LOCK_PROC_PTHREAD,
     "pthread"
 };
 
@@ -541,7 +632,7 @@ static void proc_mutex_fcntl_setup(void)
 
 static apr_status_t proc_mutex_fcntl_cleanup(void *mutex_)
 {
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     apr_proc_mutex_t *mutex=mutex_;
 
     if (mutex->curr_locked == 1) {
@@ -550,7 +641,16 @@ static apr_status_t proc_mutex_fcntl_cleanup(void *mutex_)
             return status;
     }
         
-    return apr_file_close(mutex->interproc);
+    if (mutex->interproc) {
+        status = apr_file_close(mutex->interproc);
+    }
+    if (!mutex->interproc_closing
+            && mutex->os.crossproc != -1
+            && close(mutex->os.crossproc) == -1
+            && status == APR_SUCCESS) {
+        status = errno;
+    }
+    return status;
 }    
 
 static apr_status_t proc_mutex_fcntl_create(apr_proc_mutex_t *new_mutex,
@@ -576,6 +676,8 @@ static apr_status_t proc_mutex_fcntl_create(apr_proc_mutex_t *new_mutex,
         return rv;
     }
 
+    new_mutex->os.crossproc = new_mutex->interproc->filedes;
+    new_mutex->interproc_closing = 1;
     new_mutex->curr_locked = 0;
     unlink(new_mutex->fname);
     apr_pool_cleanup_register(new_mutex->pool,
@@ -590,7 +692,7 @@ static apr_status_t proc_mutex_fcntl_acquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = fcntl(mutex->interproc->filedes, F_SETLKW, &proc_mutex_lock_it);
+        rc = fcntl(mutex->os.crossproc, F_SETLKW, &proc_mutex_lock_it);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         return errno;
@@ -604,7 +706,7 @@ static apr_status_t proc_mutex_fcntl_tryacquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = fcntl(mutex->interproc->filedes, F_SETLK, &proc_mutex_lock_it);
+        rc = fcntl(mutex->os.crossproc, F_SETLK, &proc_mutex_lock_it);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
 #if FCNTL_TRYACQUIRE_EACCES
@@ -626,10 +728,26 @@ static apr_status_t proc_mutex_fcntl_release(apr_proc_mutex_t *mutex)
 
     mutex->curr_locked=0;
     do {
-        rc = fcntl(mutex->interproc->filedes, F_SETLKW, &proc_mutex_unlock_it);
+        rc = fcntl(mutex->os.crossproc, F_SETLKW, &proc_mutex_unlock_it);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         return errno;
+    }
+    return APR_SUCCESS;
+}
+
+static apr_status_t proc_mutex_fcntl_perms_set(apr_proc_mutex_t *mutex,
+                                               apr_fileperms_t perms,
+                                               apr_uid_t uid,
+                                               apr_gid_t gid)
+{
+
+    if (mutex->fname) {
+        if (!(perms & APR_FPROT_GSETID))
+            gid = -1;
+        if (fchown(mutex->os.crossproc, uid, gid) < 0) {
+            return errno;
+        }
     }
     return APR_SUCCESS;
 }
@@ -647,6 +765,8 @@ static const apr_proc_mutex_unix_lock_methods_t mutex_fcntl_methods =
     proc_mutex_fcntl_release,
     proc_mutex_fcntl_cleanup,
     proc_mutex_no_child_init,
+    proc_mutex_fcntl_perms_set,
+    APR_LOCK_FCNTL,
     "fcntl"
 };
 
@@ -658,7 +778,7 @@ static apr_status_t proc_mutex_flock_release(apr_proc_mutex_t *);
 
 static apr_status_t proc_mutex_flock_cleanup(void *mutex_)
 {
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     apr_proc_mutex_t *mutex=mutex_;
 
     if (mutex->curr_locked == 1) {
@@ -667,10 +787,18 @@ static apr_status_t proc_mutex_flock_cleanup(void *mutex_)
             return status;
     }
     if (mutex->interproc) { /* if it was opened properly */
-        apr_file_close(mutex->interproc);
+        status = apr_file_close(mutex->interproc);
     }
-    unlink(mutex->fname);
-    return APR_SUCCESS;
+    if (!mutex->interproc_closing
+            && mutex->os.crossproc != -1
+            && close(mutex->os.crossproc) == -1
+            && status == APR_SUCCESS) {
+        status = errno;
+    }
+    if (mutex->fname) {
+        unlink(mutex->fname);
+    }
+    return status;
 }    
 
 static apr_status_t proc_mutex_flock_create(apr_proc_mutex_t *new_mutex,
@@ -694,8 +822,11 @@ static apr_status_t proc_mutex_flock_create(apr_proc_mutex_t *new_mutex,
  
     if (rv != APR_SUCCESS) {
         proc_mutex_flock_cleanup(new_mutex);
-        return errno;
+        return rv;
     }
+
+    new_mutex->os.crossproc = new_mutex->interproc->filedes;
+    new_mutex->interproc_closing = 1;
     new_mutex->curr_locked = 0;
     apr_pool_cleanup_register(new_mutex->pool, (void *)new_mutex,
                               apr_proc_mutex_cleanup,
@@ -708,7 +839,7 @@ static apr_status_t proc_mutex_flock_acquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = flock(mutex->interproc->filedes, LOCK_EX);
+        rc = flock(mutex->os.crossproc, LOCK_EX);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         return errno;
@@ -722,7 +853,7 @@ static apr_status_t proc_mutex_flock_tryacquire(apr_proc_mutex_t *mutex)
     int rc;
 
     do {
-        rc = flock(mutex->interproc->filedes, LOCK_EX | LOCK_NB);
+        rc = flock(mutex->os.crossproc, LOCK_EX | LOCK_NB);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
@@ -740,7 +871,7 @@ static apr_status_t proc_mutex_flock_release(apr_proc_mutex_t *mutex)
 
     mutex->curr_locked = 0;
     do {
-        rc = flock(mutex->interproc->filedes, LOCK_UN);
+        rc = flock(mutex->os.crossproc, LOCK_UN);
     } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
         return errno;
@@ -755,20 +886,42 @@ static apr_status_t proc_mutex_flock_child_init(apr_proc_mutex_t **mutex,
     apr_proc_mutex_t *new_mutex;
     int rv;
 
-    new_mutex = (apr_proc_mutex_t *)apr_palloc(pool, sizeof(apr_proc_mutex_t));
-
-    memcpy(new_mutex, *mutex, sizeof *new_mutex);
-    new_mutex->pool = pool;
     if (!fname) {
         fname = (*mutex)->fname;
+        if (!fname) {
+            return APR_SUCCESS;
+        }
     }
+
+    new_mutex = (apr_proc_mutex_t *)apr_pmemdup(pool, *mutex,
+                                                sizeof(apr_proc_mutex_t));
+    new_mutex->pool = pool;
     new_mutex->fname = apr_pstrdup(pool, fname);
     rv = apr_file_open(&new_mutex->interproc, new_mutex->fname,
                        APR_FOPEN_WRITE, 0, new_mutex->pool);
     if (rv != APR_SUCCESS) {
         return rv;
     }
+    new_mutex->os.crossproc = new_mutex->interproc->filedes;
+    new_mutex->interproc_closing = 1;
+
     *mutex = new_mutex;
+    return APR_SUCCESS;
+}
+
+static apr_status_t proc_mutex_flock_perms_set(apr_proc_mutex_t *mutex,
+                                               apr_fileperms_t perms,
+                                               apr_uid_t uid,
+                                               apr_gid_t gid)
+{
+
+    if (mutex->fname) {
+        if (!(perms & APR_FPROT_GSETID))
+            gid = -1;
+        if (fchown(mutex->os.crossproc, uid, gid) < 0) {
+            return errno;
+        }
+    }
     return APR_SUCCESS;
 }
 
@@ -785,6 +938,8 @@ static const apr_proc_mutex_unix_lock_methods_t mutex_flock_methods =
     proc_mutex_flock_release,
     proc_mutex_flock_cleanup,
     proc_mutex_flock_child_init,
+    proc_mutex_flock_perms_set,
+    APR_LOCK_FLOCK,
     "flock"
 };
 
@@ -801,55 +956,132 @@ void apr_proc_mutex_unix_setup_lock(void)
 #endif
 }
 
-static apr_status_t proc_mutex_choose_method(apr_proc_mutex_t *new_mutex, apr_lockmech_e mech)
+static apr_status_t proc_mutex_choose_method(apr_proc_mutex_t *new_mutex,
+                                             apr_lockmech_e mech,
+                                             apr_os_proc_mutex_t *ospmutex)
 {
+#if APR_HAS_PROC_PTHREAD_SERIALIZE
+    new_mutex->os.pthread_interproc = NULL;
+#endif
+#if APR_HAS_POSIXSEM_SERIALIZE
+    new_mutex->os.psem_interproc = NULL;
+#endif
+#if APR_HAS_SYSVSEM_SERIALIZE || APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE
+    new_mutex->os.crossproc = -1;
+
+#if APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE
+    new_mutex->interproc = NULL;
+    new_mutex->interproc_closing = 0;
+#endif
+#endif
+
     switch (mech) {
     case APR_LOCK_FCNTL:
 #if APR_HAS_FCNTL_SERIALIZE
-        new_mutex->inter_meth = &mutex_fcntl_methods;
+        new_mutex->meth = &mutex_fcntl_methods;
+        if (ospmutex) {
+            if (ospmutex->crossproc == -1) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.crossproc = ospmutex->crossproc;
+        }
 #else
         return APR_ENOTIMPL;
 #endif
         break;
     case APR_LOCK_FLOCK:
 #if APR_HAS_FLOCK_SERIALIZE
-        new_mutex->inter_meth = &mutex_flock_methods;
+        new_mutex->meth = &mutex_flock_methods;
+        if (ospmutex) {
+            if (ospmutex->crossproc == -1) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.crossproc = ospmutex->crossproc;
+        }
 #else
         return APR_ENOTIMPL;
 #endif
         break;
     case APR_LOCK_SYSVSEM:
 #if APR_HAS_SYSVSEM_SERIALIZE
-        new_mutex->inter_meth = &mutex_sysv_methods;
+        new_mutex->meth = &mutex_sysv_methods;
+        if (ospmutex) {
+            if (ospmutex->crossproc == -1) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.crossproc = ospmutex->crossproc;
+        }
 #else
         return APR_ENOTIMPL;
 #endif
         break;
     case APR_LOCK_POSIXSEM:
 #if APR_HAS_POSIXSEM_SERIALIZE
-        new_mutex->inter_meth = &mutex_posixsem_methods;
+        new_mutex->meth = &mutex_posixsem_methods;
+        if (ospmutex) {
+            if (ospmutex->psem_interproc == NULL) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.psem_interproc = ospmutex->psem_interproc;
+        }
 #else
         return APR_ENOTIMPL;
 #endif
         break;
     case APR_LOCK_PROC_PTHREAD:
 #if APR_HAS_PROC_PTHREAD_SERIALIZE
-        new_mutex->inter_meth = &mutex_proc_pthread_methods;
+        new_mutex->meth = &mutex_proc_pthread_methods;
+        if (ospmutex) {
+            if (ospmutex->pthread_interproc == NULL) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.pthread_interproc = ospmutex->pthread_interproc;
+        }
 #else
         return APR_ENOTIMPL;
 #endif
         break;
     case APR_LOCK_DEFAULT:
 #if APR_USE_FLOCK_SERIALIZE
-        new_mutex->inter_meth = &mutex_flock_methods;
+        new_mutex->meth = &mutex_flock_methods;
+        if (ospmutex) {
+            if (ospmutex->crossproc == -1) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.crossproc = ospmutex->crossproc;
+        }
 #elif APR_USE_SYSVSEM_SERIALIZE
-        new_mutex->inter_meth = &mutex_sysv_methods;
+        new_mutex->meth = &mutex_sysv_methods;
+        if (ospmutex) {
+            if (ospmutex->crossproc == -1) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.crossproc = ospmutex->crossproc;
+        }
 #elif APR_USE_FCNTL_SERIALIZE
-        new_mutex->inter_meth = &mutex_fcntl_methods;
+        new_mutex->meth = &mutex_fcntl_methods;
+        if (ospmutex) {
+            if (ospmutex->crossproc == -1) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.crossproc = ospmutex->crossproc;
+        }
 #elif APR_USE_PROC_PTHREAD_SERIALIZE
-        new_mutex->inter_meth = &mutex_proc_pthread_methods;
+        new_mutex->meth = &mutex_proc_pthread_methods;
+        if (ospmutex) {
+            if (ospmutex->pthread_interproc == NULL) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.pthread_interproc = ospmutex->pthread_interproc;
+        }
 #elif APR_USE_POSIXSEM_SERIALIZE
-        new_mutex->inter_meth = &mutex_posixsem_methods;
+        new_mutex->meth = &mutex_posixsem_methods;
+        if (ospmutex) {
+            if (ospmutex->psem_interproc == NULL) {
+                return APR_EINVAL;
+            }
+            new_mutex->os.psem_interproc = ospmutex->psem_interproc;
+        }
 #else
         return APR_ENOTIMPL;
 #endif
@@ -865,10 +1097,10 @@ APR_DECLARE(const char *) apr_proc_mutex_defname(void)
     apr_status_t rv;
     apr_proc_mutex_t mutex;
 
-    if ((rv = proc_mutex_choose_method(&mutex, APR_LOCK_DEFAULT)) != APR_SUCCESS) {
+    if ((rv = proc_mutex_choose_method(&mutex, APR_LOCK_DEFAULT,
+                                       NULL)) != APR_SUCCESS) {
         return "unknown";
     }
-    mutex.meth = mutex.inter_meth;
 
     return apr_proc_mutex_name(&mutex);
 }
@@ -877,11 +1109,10 @@ static apr_status_t proc_mutex_create(apr_proc_mutex_t *new_mutex, apr_lockmech_
 {
     apr_status_t rv;
 
-    if ((rv = proc_mutex_choose_method(new_mutex, mech)) != APR_SUCCESS) {
+    if ((rv = proc_mutex_choose_method(new_mutex, mech,
+                                       NULL)) != APR_SUCCESS) {
         return rv;
     }
-
-    new_mutex->meth = new_mutex->inter_meth;
 
     if ((rv = new_mutex->meth->create(new_mutex, fname)) != APR_SUCCESS) {
         return rv;
@@ -935,6 +1166,11 @@ APR_DECLARE(apr_status_t) apr_proc_mutex_cleanup(void *mutex)
     return ((apr_proc_mutex_t *)mutex)->meth->cleanup(mutex);
 }
 
+APR_DECLARE(apr_lockmech_e) apr_proc_mutex_mech(apr_proc_mutex_t *mutex)
+{
+    return mutex->meth->mech;
+}
+
 APR_DECLARE(const char *) apr_proc_mutex_name(apr_proc_mutex_t *mutex)
 {
     return mutex->meth->name;
@@ -957,45 +1193,69 @@ APR_DECLARE(const char *) apr_proc_mutex_lockfile(apr_proc_mutex_t *mutex)
     return NULL;
 }
 
+APR_PERMS_SET_IMPLEMENT(proc_mutex)
+{
+    apr_proc_mutex_t *mutex = (apr_proc_mutex_t *)theproc_mutex;
+    return mutex->meth->perms_set(mutex, perms, uid, gid);
+}
+
 APR_POOL_IMPLEMENT_ACCESSOR(proc_mutex)
 
 /* Implement OS-specific accessors defined in apr_portable.h */
 
+APR_DECLARE(apr_status_t) apr_os_proc_mutex_get_ex(apr_os_proc_mutex_t *ospmutex, 
+                                                   apr_proc_mutex_t *pmutex,
+                                                   apr_lockmech_e *mech)
+{
+    *ospmutex = pmutex->os;
+    if (mech) {
+        *mech = pmutex->meth->mech;
+    }
+    return APR_SUCCESS;
+}
+
 APR_DECLARE(apr_status_t) apr_os_proc_mutex_get(apr_os_proc_mutex_t *ospmutex,
                                                 apr_proc_mutex_t *pmutex)
 {
-#if APR_HAS_SYSVSEM_SERIALIZE || APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE || APR_HAS_POSIXSEM_SERIALIZE
-    if (pmutex->interproc) {
-        ospmutex->crossproc = pmutex->interproc->filedes;
+    return apr_os_proc_mutex_get_ex(ospmutex, pmutex, NULL);
+}
+
+APR_DECLARE(apr_status_t) apr_os_proc_mutex_put_ex(apr_proc_mutex_t **pmutex,
+                                                apr_os_proc_mutex_t *ospmutex,
+                                                apr_lockmech_e mech,
+                                                int register_cleanup,
+                                                apr_pool_t *pool)
+{
+    apr_status_t rv;
+    if (pool == NULL) {
+        return APR_ENOPOOL;
     }
-    else {
-        ospmutex->crossproc = -1;
+
+    if ((*pmutex) == NULL) {
+        (*pmutex) = (apr_proc_mutex_t *)apr_pcalloc(pool,
+                                                    sizeof(apr_proc_mutex_t));
+        (*pmutex)->pool = pool;
+    }
+    rv = proc_mutex_choose_method(*pmutex, mech, ospmutex);
+#if APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE
+    if (rv == APR_SUCCESS) {
+        rv = apr_os_file_put(&(*pmutex)->interproc, &(*pmutex)->os.crossproc,
+                             0, pool);
     }
 #endif
-#if APR_HAS_PROC_PTHREAD_SERIALIZE
-    ospmutex->pthread_interproc = pmutex->pthread_interproc;
-#endif
-    return APR_SUCCESS;
+
+    if (rv == APR_SUCCESS && register_cleanup) {
+        apr_pool_cleanup_register(pool, *pmutex, apr_proc_mutex_cleanup, 
+                                  apr_pool_cleanup_null);
+    }
+    return rv;
 }
 
 APR_DECLARE(apr_status_t) apr_os_proc_mutex_put(apr_proc_mutex_t **pmutex,
                                                 apr_os_proc_mutex_t *ospmutex,
                                                 apr_pool_t *pool)
 {
-    if (pool == NULL) {
-        return APR_ENOPOOL;
-    }
-    if ((*pmutex) == NULL) {
-        (*pmutex) = (apr_proc_mutex_t *)apr_pcalloc(pool,
-                                                    sizeof(apr_proc_mutex_t));
-        (*pmutex)->pool = pool;
-    }
-#if APR_HAS_SYSVSEM_SERIALIZE || APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE || APR_HAS_POSIXSEM_SERIALIZE
-    apr_os_file_put(&(*pmutex)->interproc, &ospmutex->crossproc, 0, pool);
-#endif
-#if APR_HAS_PROC_PTHREAD_SERIALIZE
-    (*pmutex)->pthread_interproc = ospmutex->pthread_interproc;
-#endif
-    return APR_SUCCESS;
+    return apr_os_proc_mutex_put_ex(pmutex, ospmutex, APR_LOCK_DEFAULT,
+                                    0, pool);
 }
 

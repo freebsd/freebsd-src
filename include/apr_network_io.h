@@ -26,9 +26,13 @@
 #include "apr_file_io.h"
 #include "apr_errno.h"
 #include "apr_inherit.h" 
+#include "apr_perms_set.h"
 
 #if APR_HAVE_NETINET_IN_H
 #include <netinet/in.h>
+#endif
+#if APR_HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 
 #ifdef __cplusplus
@@ -101,6 +105,9 @@ extern "C" {
                                     */
 #define APR_SO_BROADCAST     65536 /**< Allow broadcast
                                     */
+#define APR_SO_FREEBIND     131072 /**< Allow binding to addresses not owned
+                                    * by any interface
+                                    */
 
 /** @} */
 
@@ -154,6 +161,25 @@ struct in_addr {
 */
 
 #define APR_INET6    AF_INET6
+#endif
+
+#if APR_HAVE_SOCKADDR_UN
+#if defined (AF_UNIX)
+#define APR_UNIX    AF_UNIX
+#elif defined(AF_LOCAL)
+#define APR_UNIX    AF_LOCAL
+#else
+#error "Neither AF_UNIX nor AF_LOCAL is defined"
+#endif
+#else /* !APR_HAVE_SOCKADDR_UN */
+#if defined (AF_UNIX)
+#define APR_UNIX    AF_UNIX
+#elif defined(AF_LOCAL)
+#define APR_UNIX    AF_LOCAL
+#else
+/* TODO: Use a smarter way to detect unique APR_UNIX value */
+#define APR_UNIX    1234
+#endif
 #endif
 
 /**
@@ -246,6 +272,10 @@ struct apr_sockaddr_t {
         /** Placeholder to ensure that the size of this union is not
          * dependent on whether APR_HAVE_IPV6 is defined. */
         struct sockaddr_storage sas;
+#endif
+#if APR_HAVE_SOCKADDR_UN
+        /** Unix domain socket sockaddr structure */
+        struct sockaddr_un unx;
 #endif
     } sa;
 };
@@ -375,6 +405,7 @@ APR_DECLARE(apr_status_t) apr_socket_atreadeof(apr_socket_t *sock,
  * @param sa The new apr_sockaddr_t.
  * @param hostname The hostname or numeric address string to resolve/parse, or
  *               NULL to build an address that corresponds to 0.0.0.0 or ::
+ *               or in case of APR_UNIX family it is absolute socket filename.
  * @param family The address family to use, or APR_UNSPEC if the system should 
  *               decide.
  * @param port The port number.
@@ -399,6 +430,16 @@ APR_DECLARE(apr_status_t) apr_sockaddr_info_get(apr_sockaddr_t **sa,
                                           apr_port_t port,
                                           apr_int32_t flags,
                                           apr_pool_t *p);
+
+/**
+ * Copy apr_sockaddr_t src to dst on pool p.
+ * @param dst The destination apr_sockaddr_t.
+ * @param src The source apr_sockaddr_t.
+ * @param p The pool for the apr_sockaddr_t and associated storage.
+ */
+APR_DECLARE(apr_status_t) apr_sockaddr_info_copy(apr_sockaddr_t **dst,
+                                                 const apr_sockaddr_t *src,
+                                                 apr_pool_t *p);
 
 /**
  * Look up the host name from an apr_sockaddr_t.
@@ -620,6 +661,7 @@ APR_DECLARE(apr_status_t) apr_socket_recv(apr_socket_t *sock,
  *                                  of local addresses.
  *            APR_SO_SNDBUF     --  Set the SendBufferSize
  *            APR_SO_RCVBUF     --  Set the ReceiveBufferSize
+ *            APR_SO_FREEBIND   --  Allow binding to non-local IP address.
  * </PRE>
  * @param on Value for the option.
  */
@@ -805,6 +847,11 @@ APR_DECLARE_INHERIT_SET(socket);
  * Unset a socket from being inherited by child processes.
  */
 APR_DECLARE_INHERIT_UNSET(socket);
+
+/**
+ * Set socket permissions.
+ */
+APR_PERMS_SET_IMPLEMENT(socket);
 
 /**
  * @defgroup apr_mcast IP Multicast

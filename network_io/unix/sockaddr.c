@@ -167,6 +167,14 @@ void apr_sockaddr_vars_set(apr_sockaddr_t *addr, int family, apr_port_t port)
         addr->ipaddr_len = sizeof(struct in6_addr);
     }
 #endif
+#if APR_HAVE_SOCKADDR_UN
+    else if (family == APR_UNIX) {
+        addr->salen = sizeof(struct sockaddr_un);
+        addr->addr_str_len = sizeof(addr->sa.unx.sun_path);;
+        addr->ipaddr_ptr = &(addr->sa.unx.sun_path);
+        addr->ipaddr_len = addr->addr_str_len;
+    }
+#endif
 }
 
 APR_DECLARE(apr_status_t) apr_socket_addr_get(apr_sockaddr_t **sa,
@@ -269,19 +277,13 @@ APR_DECLARE(apr_status_t) apr_parse_addr_port(char **addr,
                 return APR_EINVAL;
             }
             addrlen = scope_delim - str - 1;
-            *scope_id = apr_palloc(p, end_bracket - scope_delim);
-            memcpy(*scope_id, scope_delim + 1, end_bracket - scope_delim - 1);
-            (*scope_id)[end_bracket - scope_delim - 1] = '\0';
+            *scope_id = apr_pstrmemdup(p, scope_delim + 1, end_bracket - scope_delim - 1);
         }
         else {
             addrlen = addrlen - 2; /* minus 2 for '[' and ']' */
         }
 
-        *addr = apr_palloc(p, addrlen + 1);
-        memcpy(*addr,
-               str + 1,
-               addrlen);
-        (*addr)[addrlen] = '\0';
+        *addr = apr_pstrmemdup(p, str + 1, addrlen);
         if (apr_inet_pton(AF_INET6, *addr, &ipaddr) != 1) {
             *addr = NULL;
             *scope_id = NULL;
@@ -295,9 +297,7 @@ APR_DECLARE(apr_status_t) apr_parse_addr_port(char **addr,
         /* XXX If '%' is not a valid char in a DNS name, we *could* check 
          *     for bogus scope ids first.
          */
-        *addr = apr_palloc(p, addrlen + 1);
-        memcpy(*addr, str, addrlen);
-        (*addr)[addrlen] = '\0';
+        *addr = apr_pstrmemdup(p, str, addrlen);
     }
     return APR_SUCCESS;
 }
@@ -622,6 +622,33 @@ APR_DECLARE(apr_status_t) apr_sockaddr_info_get(apr_sockaddr_t **sa,
         }
 #endif
     }
+    if (family == APR_UNSPEC && hostname && *hostname == '/') {
+        family = APR_UNIX;
+    }
+    if (family == APR_UNIX) {
+#if APR_HAVE_SOCKADDR_UN
+        if (hostname && *hostname == '/') {
+            *sa = apr_pcalloc(p, sizeof(apr_sockaddr_t));
+            (*sa)->pool = p;
+            apr_cpystrn((*sa)->sa.unx.sun_path, hostname,
+                        sizeof((*sa)->sa.unx.sun_path));
+            (*sa)->hostname = apr_pstrdup(p, hostname);
+            (*sa)->family = APR_UNIX;
+            (*sa)->sa.unx.sun_family = APR_UNIX;
+            (*sa)->salen = sizeof(struct sockaddr_un);
+            (*sa)->addr_str_len = sizeof((*sa)->sa.unx.sun_path);
+            (*sa)->ipaddr_ptr = &((*sa)->sa.unx.sun_path);
+            (*sa)->ipaddr_len = (*sa)->addr_str_len;
+
+            return APR_SUCCESS;
+        }
+        else
+#endif
+        {
+            *sa = NULL;
+            return APR_ENOTIMPL;
+        }
+    }
 #if !APR_HAVE_IPV6
     /* What may happen is that APR is not IPv6-enabled, but we're still
      * going to call getaddrinfo(), so we have to tell the OS we only
@@ -634,6 +661,42 @@ APR_DECLARE(apr_status_t) apr_sockaddr_info_get(apr_sockaddr_t **sa,
 #endif
 
     return find_addresses(sa, hostname, family, port, flags, p);
+}
+
+APR_DECLARE(apr_status_t) apr_sockaddr_info_copy(apr_sockaddr_t **dst,
+                                                 const apr_sockaddr_t *src,
+                                                 apr_pool_t *p)
+{
+    apr_sockaddr_t *d;
+    const apr_sockaddr_t *s;
+
+    for (*dst = d = NULL, s = src; s; s = s->next) {
+        if (!d) {
+            *dst = d = apr_pmemdup(p, s, sizeof *s);
+        }
+        else {
+            d = d->next = apr_pmemdup(p, s, sizeof *s);
+        }
+        if (s->hostname) {
+            if (s == src || s->hostname != src->hostname) {
+                d->hostname = apr_pstrdup(p, s->hostname);
+            }
+            else {
+                d->hostname = (*dst)->hostname;
+            }
+        }
+        if (s->servname) {
+            if (s == src || s->servname != src->servname) {
+                d->servname = apr_pstrdup(p, s->servname);
+            }
+            else {
+                d->servname = (*dst)->servname;
+            }
+        }
+        d->pool = p;
+        apr_sockaddr_vars_set(d, s->family, s->port);
+    }
+    return APR_SUCCESS;
 }
 
 APR_DECLARE(apr_status_t) apr_getnameinfo(char **hostname,
@@ -674,6 +737,12 @@ APR_DECLARE(apr_status_t) apr_getnameinfo(char **hostname,
                          tmphostname, sizeof(tmphostname), NULL, 0,
                          flags != 0 ? flags : NI_NAMEREQD);
     }
+#if APR_HAVE_SOCKADDR_UN
+    else if (sockaddr->family == APR_UNIX) {
+        *hostname = sockaddr->hostname;
+        return APR_SUCCESS;
+    }
+#endif
     else
 #endif
     rc = getnameinfo((const struct sockaddr *)&sockaddr->sa, sockaddr->salen,
@@ -985,6 +1054,10 @@ static apr_status_t parse_ip(apr_ipsubnet_t *ipsub, const char *ipstr, int netwo
 
 static int looks_like_ip(const char *ipstr)
 {
+    if (strlen(ipstr) == 0) {
+        return 0;
+    }
+    
     if (strchr(ipstr, ':')) {
         /* definitely not a hostname; assume it is intended to be an IPv6 address */
         return 1;

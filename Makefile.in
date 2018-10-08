@@ -63,6 +63,7 @@ exec_prefix=@exec_prefix@
 bindir=@bindir@
 libdir=@libdir@
 includedir=@includedir@
+datadir=@datadir@
 installbuilddir=@installbuilddir@
 
 # Create apr-config script suitable for the install tree
@@ -91,6 +92,8 @@ install: $(TARGETS)
 	    $(INSTALL_DATA) $(top_srcdir)/build/$${f} $(DESTDIR)$(installbuilddir); \
 	done
 	$(INSTALL_DATA) build/apr_rules.out $(DESTDIR)$(installbuilddir)/apr_rules.mk
+	$(INSTALL_DATA) $(top_srcdir)/build/apr_common.m4 $(DESTDIR)$(installbuilddir)
+	$(INSTALL_DATA) $(top_srcdir)/build/find_apr.m4 $(DESTDIR)$(installbuilddir)
 	$(INSTALL) -m 755 apr-config.out $(DESTDIR)$(bindir)/$(APR_CONFIG)
 	@if [ $(INSTALL_SUBDIRS) != "none" ]; then \
             for i in $(INSTALL_SUBDIRS); do \

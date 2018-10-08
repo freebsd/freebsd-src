@@ -142,6 +142,9 @@ APR_DECLARE(apr_status_t) apr_time_exp_get(apr_time_t *t, apr_time_exp_t *xt)
     static const int dayoffset[12] =
     {306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275};
 
+    if (xt->tm_mon < 0 || xt->tm_mon >= 12)
+        return APR_EBADDATE;
+
     /* shift new year to 1st March in order to make leap year calc easy */
 
     if (xt->tm_mon < 2)

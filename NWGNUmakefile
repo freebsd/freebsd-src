@@ -362,6 +362,7 @@ FILES_lib_objs = \
 	$(OBJDIR)/userinfo.o \
 	$(OBJDIR)/version.o \
 	$(OBJDIR)/waitio.o \
+	$(OBJDIR)/wakeup.o \
 	$(EOLIST)
 
 

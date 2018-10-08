@@ -111,6 +111,9 @@ struct apr_socket_t {
 #ifndef HAVE_POLL
     int connected;
 #endif
+#if APR_HAVE_SOCKADDR_UN
+    int bound;
+#endif
     int local_port_unknown;
     int local_interface_unknown;
     int remote_addr_unknown;

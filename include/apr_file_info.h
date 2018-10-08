@@ -50,7 +50,7 @@ extern "C" {
 
 /** apr_filetype_e values for the filetype member of the 
  * apr_file_info_t structure
- * @warning: Not all of the filetypes below can be determined.
+ * @warning Not all of the filetypes below can be determined.
  * For example, a given platform might not correctly report 
  * a socket descriptor as APR_SOCK if that type isn't 
  * well-identified on that platform.  In such cases where
@@ -413,7 +413,7 @@ APR_DECLARE(apr_status_t) apr_filepath_set(const char *path, apr_pool_t *p);
  * Determine the encoding used internally by the FilePath functions
  * @param style points to a variable which receives the encoding style flag
  * @param p the pool to allocate any working storage
- * @remark Use @c apr_os_locale_encoding and/or @c apr_os_default_encoding
+ * @remark Use apr_os_locale_encoding() and/or apr_os_default_encoding()
  * to get the name of the path encoding if it's not UTF-8.
  */
 APR_DECLARE(apr_status_t) apr_filepath_encoding(int *style, apr_pool_t *p);

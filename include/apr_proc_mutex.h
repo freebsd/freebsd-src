@@ -25,6 +25,7 @@
 #include "apr.h"
 #include "apr_pools.h"
 #include "apr_errno.h"
+#include "apr_perms_set.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -140,9 +141,16 @@ APR_DECLARE(apr_status_t) apr_proc_mutex_cleanup(void *mutex);
 APR_DECLARE(const char *) apr_proc_mutex_lockfile(apr_proc_mutex_t *mutex);
 
 /**
- * Display the name of the mutex, as it relates to the actual method used.
- * This matches the valid options for Apache's AcceptMutex directive
- * @param mutex the name of the mutex
+ * Get the mechanism of the mutex, as it relates to the actual method
+ * used for the underlying apr_proc_mutex_t.
+ * @param mutex the mutex to get the mechanism from.
+ */
+APR_DECLARE(apr_lockmech_e) apr_proc_mutex_mech(apr_proc_mutex_t *mutex);
+
+/**
+ * Get the mechanism's name of the mutex, as it relates to the actual method
+ * used for the underlying apr_proc_mutex_t.
+ * @param mutex the mutex to get the mechanism's name from.
  */
 APR_DECLARE(const char *) apr_proc_mutex_name(apr_proc_mutex_t *mutex);
 
@@ -150,6 +158,11 @@ APR_DECLARE(const char *) apr_proc_mutex_name(apr_proc_mutex_t *mutex);
  * Display the name of the default mutex: APR_LOCK_DEFAULT
  */
 APR_DECLARE(const char *) apr_proc_mutex_defname(void);
+
+/**
+ * Set mutex permissions.
+ */
+APR_PERMS_SET_IMPLEMENT(proc_mutex);
 
 /**
  * Get the pool used by this proc_mutex.

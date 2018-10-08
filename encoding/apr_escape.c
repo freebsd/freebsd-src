@@ -1181,3 +1181,74 @@ APR_DECLARE(const void *) apr_punescape_hex(apr_pool_t *p, const char *str,
 
     return NULL;
 }
+
+APR_DECLARE(apr_status_t) apr_escape_ldap(char *escaped, const void *str,
+        apr_ssize_t slen, int flags, apr_size_t *len)
+{
+    apr_size_t size = 1;
+    int found = 0;
+    const unsigned char *s = (const unsigned char *) str;
+    unsigned char *d = (unsigned char *) escaped;
+    unsigned c;
+
+    if (s) {
+        if (d) {
+            while (((c = *s) && slen) || (slen > 0)) {
+                if (((flags & APR_ESCAPE_LDAP_DN) && TEST_CHAR(c, T_ESCAPE_LDAP_DN))
+                     || ((flags & APR_ESCAPE_LDAP_FILTER) && TEST_CHAR(c, T_ESCAPE_LDAP_FILTER))) {
+                    d = c2x(c, '\\', d);
+                    size += 2;
+                    found = 1;
+                }
+                else {
+                    *d++ = c;
+                }
+                ++s;
+                size++;
+                slen--;
+            }
+            *d = '\0';
+        }
+        else {
+            while (((c = *s) && slen) || (slen > 0)) {
+                if (((flags & APR_ESCAPE_LDAP_DN) && TEST_CHAR(c, T_ESCAPE_LDAP_DN)) 
+                     || ((flags & APR_ESCAPE_LDAP_FILTER) && TEST_CHAR(c, T_ESCAPE_LDAP_FILTER))) {
+                    size += 2;
+                    found = 1;
+                }
+                ++s;
+                size++;
+                slen--;
+            }
+        }
+    }
+
+    if (len) {
+        *len = size;
+    }
+    if (!found) {
+        return APR_NOTFOUND;
+    }
+
+    return APR_SUCCESS;
+}
+
+APR_DECLARE(const char *) apr_pescape_ldap(apr_pool_t *p, const void *src,
+        apr_ssize_t srclen, int flags)
+{
+    apr_size_t len;
+
+    switch (apr_escape_ldap(NULL, src, srclen, flags, &len)) {
+    case APR_SUCCESS: {
+        char *encoded = apr_palloc(p, len);
+        apr_escape_ldap(encoded, src, srclen, flags, NULL);
+        return encoded;
+    }
+    case APR_NOTFOUND: {
+        break;
+    }
+    }
+
+    return src;
+}
+

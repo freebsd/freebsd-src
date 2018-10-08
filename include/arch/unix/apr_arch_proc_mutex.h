@@ -62,9 +62,6 @@
 #if APR_HAVE_PTHREAD_H
 #include <pthread.h>
 #endif
-#if APR_HAVE_SEMAPHORE_H
-#include <semaphore.h>
-#endif
 /* End System Headers */
 
 struct apr_proc_mutex_unix_lock_methods_t {
@@ -75,6 +72,8 @@ struct apr_proc_mutex_unix_lock_methods_t {
     apr_status_t (*release)(apr_proc_mutex_t *);
     apr_status_t (*cleanup)(void *);
     apr_status_t (*child_init)(apr_proc_mutex_t **, apr_pool_t *, const char *);
+    apr_status_t (*perms_set)(apr_proc_mutex_t *, apr_fileperms_t, apr_uid_t, apr_gid_t);
+    apr_lockmech_e mech;
     const char *name;
 };
 typedef struct apr_proc_mutex_unix_lock_methods_t apr_proc_mutex_unix_lock_methods_t;
@@ -93,17 +92,24 @@ union semun {
 struct apr_proc_mutex_t {
     apr_pool_t *pool;
     const apr_proc_mutex_unix_lock_methods_t *meth;
-    const apr_proc_mutex_unix_lock_methods_t *inter_meth;
     int curr_locked;
     char *fname;
-#if APR_HAS_SYSVSEM_SERIALIZE || APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE
-    apr_file_t *interproc;
-#endif
-#if APR_HAS_POSIXSEM_SERIALIZE
-    sem_t *psem_interproc;
+
+    apr_os_proc_mutex_t os;     /* Native mutex holder. */
+
+#if APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE
+    apr_file_t *interproc;      /* For apr_file_ calls on native fd. */
+    int interproc_closing;      /* whether the native fd is opened/closed with
+                                 * 'interproc' or apr_os_file_put()ed (hence
+                                 * needing an an explicit close for consistency
+                                 * with other methods).
+                                 */
 #endif
 #if APR_HAS_PROC_PTHREAD_SERIALIZE
-    pthread_mutex_t *pthread_interproc;
+    int pthread_refcounting;    /* Whether the native mutex is refcounted or
+                                 * apr_os_proc_mutex_put()ed, which makes
+                                 * refcounting impossible/undesirable.
+                                 */
 #endif
 };
 

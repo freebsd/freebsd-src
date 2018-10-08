@@ -19,8 +19,6 @@ CFG=apr - Win32 Release
 !MESSAGE 
 !MESSAGE "apr - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - Win32 Debug" (based on "Win32 (x86) Static Library")
-!MESSAGE "apr - Win32 Release9x" (based on "Win32 (x86) Static Library")
-!MESSAGE "apr - Win32 Debug9x" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - x64 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - x64 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE 
@@ -79,53 +77,6 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"LibD\apr-1.lib"
 
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "9x\LibR"
-# PROP BASE Intermediate_Dir "9x\LibR"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "9x\LibR"
-# PROP Intermediate_Dir "9x\LibR"
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /MD /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FD /c
-# ADD CPP /nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\" /Fd"$(OUTDIR)\apr-1" /FD /c
-# ADD BASE RSC /l 0x409 /d "NDEBUG"
-# ADD RSC /l 0x409 /d "NDEBUG"
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"9x\LibR\apr-1.lib"
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "9x\LibD"
-# PROP BASE Intermediate_Dir "9x\LibD"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 1
-# PROP Output_Dir "9x\LibD"
-# PROP Intermediate_Dir "9x\LibD"
-# PROP Ignore_Export_Lib 0
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /MDd /W3 /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /FD /EHsc /c
-# ADD CPP /nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c
-# ADD BASE RSC /l 0x409 /d "_DEBUG"
-# ADD RSC /l 0x409 /d "_DEBUG"
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"9x\LibD\apr-1.lib"
-
 !ELSEIF  "$(CFG)" == "apr - x64 Release"
 
 # PROP BASE Use_MFC 0
@@ -179,8 +130,6 @@ LIB32=link.exe -lib
 
 # Name "apr - Win32 Release"
 # Name "apr - Win32 Debug"
-# Name "apr - Win32 Release9x"
-# Name "apr - Win32 Debug9x"
 # Name "apr - x64 Release"
 # Name "apr - x64 Debug"
 # Begin Group "Source Files"
@@ -439,6 +388,10 @@ SOURCE=.\poll\unix\pollset.c
 
 SOURCE=.\poll\unix\select.c
 # End Source File
+# Begin Source File
+
+SOURCE=.\poll\unix\wakeup.c
+# End Source File
 # End Group
 # Begin Group "random"
 
@@ -642,26 +595,6 @@ InputPath=.\include\apr.hw
 
 # End Custom Build
 
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
-
-# Begin Custom Build - Creating apr.h from apr.hw
-InputPath=.\include\apr.hw
-
-".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
-
-# Begin Custom Build - Creating apr.h from apr.hw
-InputPath=.\include\apr.hw
-
-".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
 !ELSEIF  "$(CFG)" == "apr - x64 Release"
 
 # Begin Custom Build - Creating apr.h from apr.hw
@@ -708,76 +641,48 @@ SOURCE=.\include\apr_errno.h
 # Begin Source File
 
 SOURCE=.\include\apr_escape.h
-# End Source File
-# Begin Source File
 
-SOURCE=.\include\apr_escape.h
-
-!IF  "$(CFG)" == "apr - Win32 Release"
+!IF  "$(CFG)" == "libapr - Win32 Release"
 
 # Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
 InputPath=.\include\apr_escape.h
 
 ".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\LibR\gen_test_char /Fe.\LibR\gen_test_char.exe .\tools\gen_test_char.c 
-	.\LibR\gen_test_char.exe > .\include\apr_escape_test_char.h
+	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\Release\gen_test_char /Fe.\Release\gen_test_char.exe .\tools\gen_test_char.c 
+	.\Release\gen_test_char.exe > .\include\apr_escape_test_char.h
 
 # End Custom Build
 
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug"
+!ELSEIF  "$(CFG)" == "libapr - Win32 Debug"
 
 # Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
 InputPath=.\include\apr_escape.h
 
 ".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\LibD\gen_test_char /Fe.\LibD\gen_test_char.exe .\tools\gen_test_char.c  
-	.\LibD\gen_test_char.exe > .\include\apr_escape_test_char.h
+	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\Debug\gen_test_char /Fe.\Debug\gen_test_char.exe .\tools\gen_test_char.c  
+	.\Debug\gen_test_char.exe > .\include\apr_escape_test_char.h
 
 # End Custom Build
 
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
+!ELSEIF  "$(CFG)" == "libapr - x64 Release"
 
 # Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
 InputPath=.\include\apr_escape.h
 
 ".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\LibR\gen_test_char /Fe.\9x\LibR\gen_test_char.exe .\tools\gen_test_char.c 
-	.\9x\LibR\gen_test_char.exe > .\include\apr_escape_test_char.h
+	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\x64\Release\gen_test_char /Fe.\x64\Release\gen_test_char.exe .\tools\gen_test_char.c 
+	.\x64\Release\gen_test_char.exe > .\include\apr_escape_test_char.h
 
 # End Custom Build
 
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
-
-# Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
-InputPath=.\include\apr_escape.h
-
-InputPath=.\include\apr_escape.h
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\LibD\gen_test_char /Fe.\9x\LibD\gen_test_char.exe .\tools\gen_test_char.c  
-	.\9x\LibD\gen_test_char.exe > .\include\apr_escape_test_char.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - x64 Release"
-
-# Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
-InputPath=.\include\apr_escape.h
-
-InputPath=.\include\apr_escape.h
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\x64\LibR\gen_test_char /Fe.\x64\LibR\gen_test_char.exe .\tools\gen_test_char.c 
-	.\x64\LibR\gen_test_char.exe > .\include\apr_escape_test_char.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - x64 Debug"
+!ELSEIF  "$(CFG)" == "libapr - x64 Debug"
 
 # Begin Custom Build - Creating gen_test_char.exe and apr_escape_test_char.h
 InputPath=.\include\apr_escape.h
 
 ".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\x64\LibD\gen_test_char /Fe.\x64\LibD\gen_test_char.exe .\tools\gen_test_char.c 
-	.\x64\LibD\gen_test_char.exe > .\include\apr_escape_test_char.h
+	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\x64\Debug\gen_test_char /Fe.\x64\Debug\gen_test_char.exe .\tools\gen_test_char.c 
+	.\x64\Debug\gen_test_char.exe > .\include\apr_escape_test_char.h
 
 # End Custom Build
 

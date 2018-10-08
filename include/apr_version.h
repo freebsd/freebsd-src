@@ -38,7 +38,7 @@
  */
 
 
-#define APR_COPYRIGHT "Copyright (c) 2000-2015 The Apache Software " \
+#define APR_COPYRIGHT "Copyright (c) 2000-2018 The Apache Software " \
                       "Foundation or its licensors, as applicable."
 
 /* The numeric compile-time version constants. These constants are the
@@ -56,20 +56,20 @@
  * Minor API changes that do not cause binary compatibility problems.
  * Reset to 0 when upgrading APR_MAJOR_VERSION
  */
-#define APR_MINOR_VERSION       5
+#define APR_MINOR_VERSION       6
 
 /** patch level 
  * The Patch Level never includes API changes, simply bug fixes.
  * Reset to 0 when upgrading APR_MINOR_VERSION
  */
-#define APR_PATCH_VERSION       2
+#define APR_PATCH_VERSION       5
 
 /** 
  * The symbol APR_IS_DEV_VERSION is only defined for internal,
  * "development" copies of APR.  It is undefined for released versions
  * of APR.
  */
-/* #define APR_IS_DEV_VERSION */
+/* #undef APR_IS_DEV_VERSION */
 
 /**
  * Check at compile time if the APR version is at least a certain

@@ -26,13 +26,26 @@
 #define close closesocket
 #endif /* BEOS_R5 */
 
-static char generic_inaddr_any[16] = {0}; /* big enough for IPv4 or IPv6 */
+#if APR_HAVE_SOCKADDR_UN
+#define GENERIC_INADDR_ANY_LEN  sizeof(struct sockaddr_un)
+#else
+#define GENERIC_INADDR_ANY_LEN  16
+#endif
+
+/* big enough for IPv4, IPv6 and optionaly sun_path */
+static char generic_inaddr_any[GENERIC_INADDR_ANY_LEN] = {0};
 
 static apr_status_t socket_cleanup(void *sock)
 {
     apr_socket_t *thesocket = sock;
     int sd = thesocket->socketdes;
 
+#if APR_HAVE_SOCKADDR_UN
+    if (thesocket->bound && thesocket->local_addr->family == APR_UNIX) {
+        /* XXX: Check for return values ? */
+        unlink(thesocket->local_addr->hostname);
+    }
+#endif        
     /* Set socket descriptor to -1 before close(), so that there is no
      * chance of returning an already closed FD from apr_os_sock_get().
      */
@@ -45,6 +58,18 @@ static apr_status_t socket_cleanup(void *sock)
         /* Restore, close() was not successful. */
         thesocket->socketdes = sd;
 
+        return errno;
+    }
+}
+
+static apr_status_t socket_child_cleanup(void *sock)
+{
+    apr_socket_t *thesocket = sock;
+    if (close(thesocket->socketdes) == 0) {
+        thesocket->socketdes = -1;
+        return APR_SUCCESS;
+    }
+    else {
         return errno;
     }
 }
@@ -92,6 +117,7 @@ apr_status_t apr_socket_create(apr_socket_t **new, int ofamily, int type,
                                int protocol, apr_pool_t *cont)
 {
     int family = ofamily, flags = 0;
+    int oprotocol = protocol;
 
 #ifdef HAVE_SOCK_CLOEXEC
     flags |= SOCK_CLOEXEC;
@@ -104,7 +130,11 @@ apr_status_t apr_socket_create(apr_socket_t **new, int ofamily, int type,
         family = APR_INET;
 #endif
     }
-
+#if APR_HAVE_SOCKADDR_UN
+    if (family == APR_UNIX) {
+        protocol = 0;
+    }
+#endif
     alloc_socket(new, cont);
 
 #ifndef BEOS_R5
@@ -140,7 +170,7 @@ apr_status_t apr_socket_create(apr_socket_t **new, int ofamily, int type,
     if ((*new)->socketdes < 0) {
         return errno;
     }
-    set_socket_vars(*new, family, type, protocol);
+    set_socket_vars(*new, family, type, oprotocol);
 
 #ifndef HAVE_SOCK_CLOEXEC
     {
@@ -167,7 +197,7 @@ apr_status_t apr_socket_create(apr_socket_t **new, int ofamily, int type,
     (*new)->timeout = -1;
     (*new)->inherit = 0;
     apr_pool_cleanup_register((*new)->pool, (void *)(*new), socket_cleanup,
-                              socket_cleanup);
+                              socket_child_cleanup);
 
     return APR_SUCCESS;
 } 
@@ -192,6 +222,13 @@ apr_status_t apr_socket_bind(apr_socket_t *sock, apr_sockaddr_t *sa)
     else {
         sock->local_addr = sa;
         /* XXX IPv6 - this assumes sin_port and sin6_port at same offset */
+#if APR_HAVE_SOCKADDR_UN
+        if (sock->local_addr->family == APR_UNIX) {
+            sock->bound = 1;
+            sock->local_port_unknown = 1;
+        }
+        else
+#endif
         if (sock->local_addr->sa.sin.sin_port == 0) { /* no need for ntohs() when comparing w/ 0 */
             sock->local_port_unknown = 1; /* kernel got us an ephemeral port */
         }
@@ -281,6 +318,14 @@ apr_status_t apr_socket_accept(apr_socket_t **new, apr_socket_t *sock,
     else if (sock->local_addr->sa.sin.sin_family == AF_INET6) {
         (*new)->local_addr->ipaddr_ptr = &(*new)->local_addr->sa.sin6.sin6_addr;
     }
+#endif
+#if APR_HAVE_SOCKADDR_UN
+    else if (sock->local_addr->sa.sin.sin_family == AF_UNIX) {
+        *(*new)->remote_addr = *sock->local_addr;
+        (*new)->local_addr->ipaddr_ptr = &((*new)->local_addr->sa.unx.sun_path);
+        (*new)->remote_addr->ipaddr_ptr = &((*new)->remote_addr->sa.unx.sun_path);
+    }
+    if (sock->local_addr->sa.sin.sin_family != AF_UNIX)
 #endif
     (*new)->remote_addr->port = ntohs((*new)->remote_addr->sa.sin.sin_port);
     if (sock->local_port_unknown) {
@@ -375,7 +420,6 @@ apr_status_t apr_socket_connect(apr_socket_t *sock, apr_sockaddr_t *sa)
 #endif /* SO_ERROR */
     }
 
-
     if (memcmp(sa->ipaddr_ptr, generic_inaddr_any, sa->ipaddr_len)) {
         /* A real remote address was passed in.  If the unspecified
          * address was used, the actual remote addr will have to be
@@ -393,6 +437,13 @@ apr_status_t apr_socket_connect(apr_socket_t *sock, apr_sockaddr_t *sa)
         /* connect() got us an ephemeral port */
         sock->local_port_unknown = 1;
     }
+#if APR_HAVE_SOCKADDR_UN
+    if (sock->local_addr->sa.sin.sin_family == AF_UNIX) {
+        /* Assign connect address as local. */
+        sock->local_addr = sa;
+    }
+    else
+#endif
     if (!memcmp(sock->local_addr->ipaddr_ptr,
                 generic_inaddr_any,
                 sock->local_addr->ipaddr_len)) {

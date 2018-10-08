@@ -315,6 +315,10 @@ APR_DECLARE(apr_status_t) apr_file_copy(const char *from_path,
  *     file's permissions are copied.
  * @param pool The pool to use.
  * @remark The new file does not need to exist, it will be created if required.
+ * @remark Note that advanced filesystem permissions such as ACLs are not
+ * duplicated by this API. The target permissions (including duplicating the
+ * source file permissions) are assigned only when the target file does not yet
+ * exist.
  */
 APR_DECLARE(apr_status_t) apr_file_append(const char *from_path, 
                                           const char *to_path,
@@ -695,7 +699,7 @@ APR_DECLARE(apr_status_t) apr_file_seek(apr_file_t *thefile,
  * @bug  Some platforms cannot toggle between blocking and nonblocking,
  * and when passing a pipe as a standard handle to an application which
  * does not expect it, a non-blocking stream will fluxor the client app.
- * @deprecated @see apr_file_pipe_create_ex()
+ * @deprecated @see apr_file_pipe_create_pools()
  */
 APR_DECLARE(apr_status_t) apr_file_pipe_create(apr_file_t **in, 
                                                apr_file_t **out,
@@ -719,11 +723,39 @@ APR_DECLARE(apr_status_t) apr_file_pipe_create(apr_file_t **in,
  * does not expect it, a non-blocking stream will fluxor the client app.
  * Use this function rather than apr_file_pipe_create() to create pipes 
  * where one or both ends require non-blocking semantics.
+ * @deprecated @see apr_file_pipe_create_pools()
  */
 APR_DECLARE(apr_status_t) apr_file_pipe_create_ex(apr_file_t **in, 
                                                   apr_file_t **out, 
                                                   apr_int32_t blocking, 
                                                   apr_pool_t *pool);
+
+/**
+ * Create an anonymous pipe which portably supports async timeout options,
+ * placing each side of the pipe in a different pool.
+ * @param in The newly created pipe's file for reading.
+ * @param out The newly created pipe's file for writing.
+ * @param blocking one of these values defined in apr_thread_proc.h;
+ *                 @li #APR_FULL_BLOCK
+ *                 @li #APR_READ_BLOCK
+ *                 @li #APR_WRITE_BLOCK
+ *                 @li #APR_FULL_NONBLOCK
+ * @param pool_in The pool for the reading pipe.
+ * @param pool_out The pool for the writing pipe.
+ * @remark By default, the returned file descriptors will be inherited
+ * by child processes created using apr_proc_create().  This can be
+ * changed using apr_file_inherit_unset().
+ * @remark Some platforms cannot toggle between blocking and nonblocking,
+ * and when passing a pipe as a standard handle to an application which
+ * does not expect it, a non-blocking stream will fluxor the client app.
+ * Use this function rather than apr_file_pipe_create() to create pipes
+ * where one or both ends require non-blocking semantics.
+ */
+APR_DECLARE(apr_status_t) apr_file_pipe_create_pools(apr_file_t **in,
+                                                     apr_file_t **out,
+                                                     apr_int32_t blocking,
+                                                     apr_pool_t *pool_in,
+                                                     apr_pool_t *pool_out);
 
 /**
  * Create a named pipe.

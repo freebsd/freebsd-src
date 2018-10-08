@@ -387,6 +387,8 @@ APR_DECLARE(apr_status_t) apr_file_datasync(apr_file_t *thefile)
 
 #ifdef HAVE_FDATASYNC
     if (fdatasync(thefile->filedes)) {
+#elif defined(F_FULLFSYNC)
+    if (fcntl(thefile->filedes, F_FULLFSYNC)) {
 #else
     if (fsync(thefile->filedes)) {
 #endif

@@ -127,12 +127,23 @@ APR_DECLARE(apr_status_t) apr_global_mutex_destroy(apr_global_mutex_t *mutex);
 APR_DECLARE(const char *) apr_global_mutex_lockfile(apr_global_mutex_t *mutex);
 
 /**
- * Display the name of the mutex, as it relates to the actual method used
- * for the underlying apr_proc_mutex_t, if any.  NULL is returned if
- * there is no underlying apr_proc_mutex_t.
- * @param mutex the name of the mutex
+ * Get the mechanism of the mutex, as it relates to the actual method
+ * used for the underlying apr_proc_mutex_t.
+ * @param mutex the mutex to get the mechanism from.
+ */
+APR_DECLARE(apr_lockmech_e) apr_global_mutex_mech(apr_global_mutex_t *mutex);
+
+/**
+ * Get the mechanism's name of the mutex, as it relates to the actual method
+ * used for the underlying apr_proc_mutex_t.
+ * @param mutex the mutex to get the mechanism's name from.
  */
 APR_DECLARE(const char *) apr_global_mutex_name(apr_global_mutex_t *mutex);
+
+/**
+ * Set mutex permissions.
+ */
+APR_PERMS_SET_IMPLEMENT(global_mutex);
 
 /**
  * Get the pool used by this global_mutex.
@@ -155,7 +166,9 @@ APR_POOL_DECLARE_ACCESSOR(global_mutex);
 #define apr_global_mutex_unlock     apr_proc_mutex_unlock
 #define apr_global_mutex_destroy    apr_proc_mutex_destroy
 #define apr_global_mutex_lockfile   apr_proc_mutex_lockfile
+#define apr_global_mutex_mech       apr_proc_mutex_mech
 #define apr_global_mutex_name       apr_proc_mutex_name
+#define apr_global_mutex_perms_set  apr_proc_mutex_perms_set
 #define apr_global_mutex_pool_get   apr_proc_mutex_pool_get
 
 #endif
