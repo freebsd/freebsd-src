@@ -93,7 +93,12 @@ smtp_init_crypto(int fd, int feature)
 	SSL_library_init();
 	SSL_load_error_strings();
 
-	meth = TLSv1_client_method();
+	// Allow any possible version
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	meth = TLS_client_method();
+#else
+	meth = SSLv23_client_method();
+#endif
 
 	ctx = SSL_CTX_new(meth);
 	if (ctx == NULL) {
