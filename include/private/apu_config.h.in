@@ -24,6 +24,10 @@
 /* Define if CODESET is defined in langinfo.h */
 #undef HAVE_CODESET
 
+/* Define to 1 if you have the <CommonCrypto/CommonKeyDerivation.h> header
+   file. */
+#undef HAVE_COMMONCRYPTO_COMMONKEYDERIVATION_H
+
 /* Define to 1 if you have the `crypt_r' function. */
 #undef HAVE_CRYPT_R
 
@@ -34,8 +38,8 @@
 /* Define if expat.h is available */
 #undef HAVE_EXPAT_H
 
-/* Define to 1 if you have the <freetds/sybdb.h> header file. */
-#undef HAVE_FREETDS_SYBDB_H
+/* Define if explicit_bzero function is supported */
+#undef HAVE_EXPLICIT_BZERO
 
 /* Define to 1 if you have the <iconv.h> header file. */
 #undef HAVE_ICONV_H
@@ -60,6 +64,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define if memset_s function is supported */
+#undef HAVE_MEMSET_S
 
 /* Define to 1 if you have the <mysql.h> header file. */
 #undef HAVE_MYSQL_H
@@ -130,9 +137,6 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the <sybdb.h> header file. */
-#undef HAVE_SYBDB_H
-
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
@@ -141,6 +145,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define if compiler handles weak symbols */
+#undef HAVE_WEAK_SYMBOLS
 
 /* Define if xmlparse/xmlparse.h is available */
 #undef HAVE_XMLPARSE_XMLPARSE_H

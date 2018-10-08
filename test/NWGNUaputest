@@ -185,6 +185,7 @@ FILES_nlm_objs = \
 	$(OBJDIR)/testqueue.o \
 	$(OBJDIR)/testreslist.o \
 	$(OBJDIR)/testrmm.o \
+	$(OBJDIR)/testsiphash.o \
 	$(OBJDIR)/teststrmatch.o \
 	$(OBJDIR)/testuri.o \
 	$(OBJDIR)/testutil.o \

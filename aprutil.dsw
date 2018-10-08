@@ -51,24 +51,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_freetds"=".\dbd\apr_dbd_freetds.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name libapr
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name libaprutil
-    End Project Dependency
-}}}
-
-###############################################################################
-
 Project: "apr_dbd_mysql"=".\dbd\apr_dbd_mysql.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -275,9 +257,6 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name apriconv
     End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name xml
-    End Project Dependency
 }}}
 
 ###############################################################################
@@ -383,9 +362,6 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name libapriconv_ces_modules
     End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name xml
-    End Project Dependency
 }}}
 
 ###############################################################################
@@ -449,18 +425,6 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name libapr
     End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "xml"=".\xml\expat\lib\xml.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
 }}}
 
 ###############################################################################

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "apr.h"
 #include "apr_lib.h"
 #include "apu.h"
 #include "apu_errno.h"
@@ -25,62 +26,46 @@
 #include "apr_strings.h"
 #include "apr_time.h"
 #include "apr_buckets.h"
+#include "apr_random.h"
 
 #include "apr_crypto_internal.h"
 
 #if APU_HAVE_CRYPTO
 
-#include <openssl/evp.h>
-#include <openssl/rand.h>
-#include <openssl/engine.h>
+#include <CommonCrypto/CommonCrypto.h>
 
-#define LOG_PREFIX "apr_crypto_openssl: "
+#define LOG_PREFIX "apr_crypto_commoncrypto: "
 
-#ifndef APR_USE_OPENSSL_PRE_1_1_API
-#if defined(LIBRESSL_VERSION_NUMBER)
-/* LibreSSL declares OPENSSL_VERSION_NUMBER == 2.0 but does not include most
- * changes from OpenSSL >= 1.1 (new functions, macros, deprecations, ...), so
- * we have to work around this...
- */
-#define APR_USE_OPENSSL_PRE_1_1_API (1)
-#else
-#define APR_USE_OPENSSL_PRE_1_1_API (OPENSSL_VERSION_NUMBER < 0x10100000L)
-#endif
-#endif
-
-struct apr_crypto_t {
+struct apr_crypto_t
+{
     apr_pool_t *pool;
     const apr_crypto_driver_t *provider;
     apu_err_t *result;
-    apr_crypto_config_t *config;
     apr_hash_t *types;
     apr_hash_t *modes;
+    apr_random_t *rng;
 };
 
-struct apr_crypto_config_t {
-    ENGINE *engine;
-};
-
-struct apr_crypto_key_t {
+struct apr_crypto_key_t
+{
     apr_pool_t *pool;
     const apr_crypto_driver_t *provider;
     const apr_crypto_t *f;
-    const EVP_CIPHER * cipher;
+    CCAlgorithm algorithm;
+    CCOptions options;
     unsigned char *key;
     int keyLen;
-    int doPad;
     int ivSize;
+    apr_size_t blockSize;
 };
 
-struct apr_crypto_block_t {
+struct apr_crypto_block_t
+{
     apr_pool_t *pool;
     const apr_crypto_driver_t *provider;
     const apr_crypto_t *f;
-    EVP_CIPHER_CTX *cipherCtx;
-    int initialised;
-    int ivSize;
-    int blockSize;
-    int doPad;
+    const apr_crypto_key_t *key;
+    CCCryptorRef ref;
 };
 
 static struct apr_crypto_block_key_type_t key_types[] =
@@ -94,9 +79,6 @@ static struct apr_crypto_block_key_mode_t key_modes[] =
 {
 { APR_MODE_ECB },
 { APR_MODE_CBC } };
-
-/* sufficient space to wrap a key */
-#define BUFFER_SIZE 128
 
 /**
  * Fetch the most recent error from this driver.
@@ -113,9 +95,6 @@ static apr_status_t crypto_error(const apu_err_t **result,
  */
 static apr_status_t crypto_shutdown(void)
 {
-    ERR_free_strings();
-    EVP_cleanup();
-    ENGINE_cleanup();
     return APR_SUCCESS;
 }
 
@@ -130,46 +109,12 @@ static apr_status_t crypto_shutdown_helper(void *data)
 static apr_status_t crypto_init(apr_pool_t *pool, const char *params,
         const apu_err_t **result)
 {
-#if APR_USE_OPENSSL_PRE_1_1_API
-    (void)CRYPTO_malloc_init();
-#else
-    OPENSSL_malloc_init();
-#endif
-    ERR_load_crypto_strings();
-    /* SSL_load_error_strings(); */
-    OpenSSL_add_all_algorithms();
-    ENGINE_load_builtin_engines();
-    ENGINE_register_all_complete();
 
     apr_pool_cleanup_register(pool, pool, crypto_shutdown_helper,
             apr_pool_cleanup_null);
 
     return APR_SUCCESS;
 }
-
-#if OPENSSL_VERSION_NUMBER < 0x0090802fL
-
-/* Code taken from OpenSSL 0.9.8b, see
- * https://github.com/openssl/openssl/commit/cf6bc84148cb15af09b292394aaf2b45f0d5af0d
- */
-
-EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void)
-{
-     EVP_CIPHER_CTX *ctx = OPENSSL_malloc(sizeof *ctx);
-     if (ctx)
-         EVP_CIPHER_CTX_init(ctx);
-     return ctx;
-}
-
-void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
-{
-    if (ctx) {
-        EVP_CIPHER_CTX_cleanup(ctx);
-        OPENSSL_free(ctx);
-    }
-}
-
-#endif
 
 /**
  * @brief Clean encryption / decryption context.
@@ -180,9 +125,9 @@ void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
 static apr_status_t crypto_block_cleanup(apr_crypto_block_t *ctx)
 {
 
-    if (ctx->initialised) {
-        EVP_CIPHER_CTX_free(ctx->cipherCtx);
-        ctx->initialised = 0;
+    if (ctx->ref) {
+        CCCryptorRelease(ctx->ref);
+        ctx->ref = NULL;
     }
 
     return APR_SUCCESS;
@@ -204,11 +149,6 @@ static apr_status_t crypto_block_cleanup_helper(void *data)
 static apr_status_t crypto_cleanup(apr_crypto_t *f)
 {
 
-    if (f->config->engine) {
-        ENGINE_finish(f->config->engine);
-        ENGINE_free(f->config->engine);
-        f->config->engine = NULL;
-    }
     return APR_SUCCESS;
 
 }
@@ -235,57 +175,8 @@ static apr_status_t crypto_make(apr_crypto_t **ff,
         const apr_crypto_driver_t *provider, const char *params,
         apr_pool_t *pool)
 {
-    apr_crypto_config_t *config = NULL;
     apr_crypto_t *f = apr_pcalloc(pool, sizeof(apr_crypto_t));
-
-    const char *engine = NULL;
-
-    struct {
-        const char *field;
-        const char *value;
-        int set;
-    } fields[] = {
-        { "engine", NULL, 0 },
-        { NULL, NULL, 0 }
-    };
-    const char *ptr;
-    size_t klen;
-    char **elts = NULL;
-    char *elt;
-    int i = 0, j;
-    apr_status_t status;
-
-    if (params) {
-        if (APR_SUCCESS != (status = apr_tokenize_to_argv(params, &elts, pool))) {
-            return status;
-        }
-        while ((elt = elts[i])) {
-            ptr = strchr(elt, '=');
-            if (ptr) {
-                for (klen = ptr - elt; klen && apr_isspace(elt[klen - 1]); --klen)
-                    ;
-                ptr++;
-            }
-            else {
-                for (klen = strlen(elt); klen && apr_isspace(elt[klen - 1]); --klen)
-                    ;
-            }
-            elt[klen] = 0;
-
-            for (j = 0; fields[j].field != NULL; ++j) {
-                if (!strcasecmp(fields[j].field, elt)) {
-                    fields[j].set = 1;
-                    if (ptr) {
-                        fields[j].value = ptr;
-                    }
-                    break;
-                }
-            }
-
-            i++;
-        }
-        engine = fields[0].value;
-    }
+    apr_status_t rv;
 
     if (!f) {
         return APR_ENOMEM;
@@ -293,10 +184,21 @@ static apr_status_t crypto_make(apr_crypto_t **ff,
     *ff = f;
     f->pool = pool;
     f->provider = provider;
-    config = f->config = apr_pcalloc(pool, sizeof(apr_crypto_config_t));
-    if (!config) {
+
+    /* seed the secure random number generator */
+    f->rng = apr_random_standard_new(pool);
+    if (!f->rng) {
         return APR_ENOMEM;
     }
+    do {
+        unsigned char seed[8];
+        rv = apr_generate_random_bytes(seed, sizeof(seed));
+        if (rv != APR_SUCCESS) {
+            return rv;
+        }
+        apr_random_add_entropy(f->rng, seed, sizeof(seed));
+        rv = apr_random_secure_ready(f->rng);
+    } while (rv == APR_ENOTENOUGHENTROPY);
 
     f->result = apr_pcalloc(pool, sizeof(apu_err_t));
     if (!f->result) {
@@ -321,18 +223,6 @@ static apr_status_t crypto_make(apr_crypto_t **ff,
 
     apr_pool_cleanup_register(pool, f, crypto_cleanup_helper,
             apr_pool_cleanup_null);
-
-    if (engine) {
-        config->engine = ENGINE_by_id(engine);
-        if (!config->engine) {
-            return APR_ENOENGINE;
-        }
-        if (!ENGINE_init(config->engine)) {
-            ENGINE_free(config->engine);
-            config->engine = NULL;
-            return APR_EINITENGINE;
-        }
-    }
 
     return APR_SUCCESS;
 
@@ -375,62 +265,92 @@ static apr_status_t crypto_cipher_mechanism(apr_crypto_key_t *key,
         const apr_crypto_block_key_type_e type,
         const apr_crypto_block_key_mode_e mode, const int doPad, apr_pool_t *p)
 {
-    /* determine the cipher to be used */
+    /* handle padding */
+    key->options = doPad ? kCCOptionPKCS7Padding : 0;
+
+    /* determine the algorithm to be used */
     switch (type) {
 
     case (APR_KEY_3DES_192):
 
         /* A 3DES key */
         if (mode == APR_MODE_CBC) {
-            key->cipher = EVP_des_ede3_cbc();
+            key->algorithm = kCCAlgorithm3DES;
+            key->keyLen = kCCKeySize3DES;
+            key->ivSize = kCCBlockSize3DES;
+            key->blockSize = kCCBlockSize3DES;
         }
         else {
-            key->cipher = EVP_des_ede3_ecb();
+            key->algorithm = kCCAlgorithm3DES;
+            key->options += kCCOptionECBMode;
+            key->keyLen = kCCKeySize3DES;
+            key->ivSize = 0;
+            key->blockSize = kCCBlockSize3DES;
         }
         break;
 
     case (APR_KEY_AES_128):
 
         if (mode == APR_MODE_CBC) {
-            key->cipher = EVP_aes_128_cbc();
+            key->algorithm = kCCAlgorithmAES128;
+            key->keyLen = kCCKeySizeAES128;
+            key->ivSize = kCCBlockSizeAES128;
+            key->blockSize = kCCBlockSizeAES128;
         }
         else {
-            key->cipher = EVP_aes_128_ecb();
+            key->algorithm = kCCAlgorithmAES128;
+            key->options += kCCOptionECBMode;
+            key->keyLen = kCCKeySizeAES128;
+            key->ivSize = 0;
+            key->blockSize = kCCBlockSizeAES128;
         }
         break;
 
     case (APR_KEY_AES_192):
 
         if (mode == APR_MODE_CBC) {
-            key->cipher = EVP_aes_192_cbc();
+            key->algorithm = kCCAlgorithmAES128;
+            key->keyLen = kCCKeySizeAES192;
+            key->ivSize = kCCBlockSizeAES128;
+            key->blockSize = kCCBlockSizeAES128;
         }
         else {
-            key->cipher = EVP_aes_192_ecb();
+            key->algorithm = kCCAlgorithmAES128;
+            key->options += kCCOptionECBMode;
+            key->keyLen = kCCKeySizeAES192;
+            key->ivSize = 0;
+            key->blockSize = kCCBlockSizeAES128;
         }
         break;
 
     case (APR_KEY_AES_256):
 
         if (mode == APR_MODE_CBC) {
-            key->cipher = EVP_aes_256_cbc();
+            key->algorithm = kCCAlgorithmAES128;
+            key->keyLen = kCCKeySizeAES256;
+            key->ivSize = kCCBlockSizeAES128;
+            key->blockSize = kCCBlockSizeAES128;
         }
         else {
-            key->cipher = EVP_aes_256_ecb();
+            key->algorithm = kCCAlgorithmAES128;
+            key->options += kCCOptionECBMode;
+            key->keyLen = kCCKeySizeAES256;
+            key->ivSize = 0;
+            key->blockSize = kCCBlockSizeAES128;
         }
         break;
 
     default:
+
+        /* TODO: Support CAST, Blowfish */
 
         /* unknown key type, give up */
         return APR_EKEYTYPE;
 
     }
 
-    /* find the length of the key we need */
-    key->keyLen = EVP_CIPHER_key_length(key->cipher);
-
     /* make space for the key */
-    key->key = apr_pcalloc(p, key->keyLen);
+    key->key = apr_palloc(p, key->keyLen);
     if (!key->key) {
         return APR_ENOMEM;
     }
@@ -458,14 +378,14 @@ static apr_status_t crypto_cipher_mechanism(apr_crypto_key_t *key,
 static apr_status_t crypto_key(apr_crypto_key_t **k,
         const apr_crypto_key_rec_t *rec, const apr_crypto_t *f, apr_pool_t *p)
 {
-    apr_crypto_key_t *key = *k;
     apr_status_t rv;
+    apr_crypto_key_t *key = *k;
 
     if (!key) {
         *k = key = apr_pcalloc(p, sizeof *key);
-        if (!key) {
-            return APR_ENOMEM;
-        }
+    }
+    if (!key) {
+        return APR_ENOMEM;
     }
 
     key->f = f;
@@ -482,11 +402,11 @@ static apr_status_t crypto_key(apr_crypto_key_t **k,
     case APR_CRYPTO_KTYPE_PASSPHRASE: {
 
         /* generate the key */
-        if (PKCS5_PBKDF2_HMAC_SHA1(rec->k.passphrase.pass,
-                rec->k.passphrase.passLen,
-                (unsigned char *) rec->k.passphrase.salt,
-                rec->k.passphrase.saltLen, rec->k.passphrase.iterations,
-                key->keyLen, key->key) == 0) {
+        if ((f->result->rc = CCKeyDerivationPBKDF(kCCPBKDF2,
+                rec->k.passphrase.pass, rec->k.passphrase.passLen,
+                rec->k.passphrase.salt, rec->k.passphrase.saltLen,
+                kCCPRFHmacAlgSHA1, rec->k.passphrase.iterations, key->key,
+                key->keyLen)) == kCCParamError) {
             return APR_ENOKEY;
         }
 
@@ -511,15 +431,6 @@ static apr_status_t crypto_key(apr_crypto_key_t **k,
         return APR_ENOKEY;
 
     }
-    }
-
-    key->doPad = rec->pad;
-
-    /* note: openssl incorrectly returns non zero IV size values for ECB
-     * algorithms, so work around this by ignoring the IV size.
-     */
-    if (APR_MODE_ECB != rec->mode) {
-        key->ivSize = EVP_CIPHER_iv_length(key->cipher);
     }
 
     return APR_SUCCESS;
@@ -559,8 +470,8 @@ static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
         const apr_crypto_block_key_mode_e mode, const int doPad,
         const int iterations, const apr_crypto_t *f, apr_pool_t *p)
 {
-    apr_crypto_key_t *key = *k;
     apr_status_t rv;
+    apr_crypto_key_t *key = *k;
 
     if (!key) {
         *k = key = apr_pcalloc(p, sizeof *key);
@@ -579,19 +490,12 @@ static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
     }
 
     /* generate the key */
-    if (PKCS5_PBKDF2_HMAC_SHA1(pass, passLen, (unsigned char *) salt, saltLen,
-            iterations, key->keyLen, key->key) == 0) {
+    if ((f->result->rc = CCKeyDerivationPBKDF(kCCPBKDF2, pass, passLen, salt,
+            saltLen, kCCPRFHmacAlgSHA1, iterations, key->key, key->keyLen))
+            == kCCParamError) {
         return APR_ENOKEY;
     }
 
-    key->doPad = doPad;
-
-    /* note: openssl incorrectly returns non zero IV size values for ECB
-     * algorithms, so work around this by ignoring the IV size.
-     */
-    if (APR_MODE_ECB != mode) {
-        key->ivSize = EVP_CIPHER_iv_length(key->cipher);
-    }
     if (ivSize) {
         *ivSize = key->ivSize;
     }
@@ -620,7 +524,6 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
         apr_size_t *blockSize, apr_pool_t *p)
 {
     unsigned char *usedIv;
-    apr_crypto_config_t *config = key->f->config;
     apr_crypto_block_t *block = *ctx;
     if (!block) {
         *ctx = block = apr_pcalloc(p, sizeof(apr_crypto_block_t));
@@ -631,15 +534,10 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
     block->f = key->f;
     block->pool = p;
     block->provider = key->provider;
+    block->key = key;
 
     apr_pool_cleanup_register(p, block, crypto_block_cleanup_helper,
             apr_pool_cleanup_null);
-
-    /* create a new context for encryption */
-    if (!block->initialised) {
-        block->cipherCtx = EVP_CIPHER_CTX_new();
-        block->initialised = 1;
-    }
 
     /* generate an IV, if necessary */
     usedIv = NULL;
@@ -648,14 +546,16 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
             return APR_ENOIV;
         }
         if (*iv == NULL) {
+            apr_status_t status;
             usedIv = apr_pcalloc(p, key->ivSize);
             if (!usedIv) {
                 return APR_ENOMEM;
             }
             apr_crypto_clear(p, usedIv, key->ivSize);
-            if (!((RAND_status() == 1)
-                    && (RAND_bytes(usedIv, key->ivSize) == 1))) {
-                return APR_ENOIV;
+            status = apr_random_secure_bytes(block->f->rng, usedIv,
+                    key->ivSize);
+            if (APR_SUCCESS != status) {
+                return status;
             }
             *iv = usedIv;
         }
@@ -664,23 +564,31 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
         }
     }
 
-    /* set up our encryption context */
-#if CRYPTO_OPENSSL_CONST_BUFFERS
-    if (!EVP_EncryptInit_ex(block->cipherCtx, key->cipher, config->engine,
-            key->key, usedIv)) {
-#else
-        if (!EVP_EncryptInit_ex(block->cipherCtx, key->cipher, config->engine, (unsigned char *) key->key, (unsigned char *) usedIv)) {
-#endif
+    /* create a new context for encryption */
+    switch ((block->f->result->rc = CCCryptorCreate(kCCEncrypt, key->algorithm,
+            key->options, key->key, key->keyLen, usedIv, &block->ref))) {
+    case kCCSuccess: {
+        break;
+    }
+    case kCCParamError: {
         return APR_EINIT;
     }
-
-    /* Clear up any read padding */
-    if (!EVP_CIPHER_CTX_set_padding(block->cipherCtx, key->doPad)) {
+    case kCCMemoryFailure: {
+        return APR_ENOMEM;
+    }
+    case kCCAlignmentError: {
         return APR_EPADDING;
+    }
+    case kCCUnimplemented: {
+        return APR_ENOTIMPL;
+    }
+    default: {
+        return APR_EINIT;
+    }
     }
 
     if (blockSize) {
-        *blockSize = EVP_CIPHER_block_size(key->cipher);
+        *blockSize = key->blockSize;
     }
 
     return APR_SUCCESS;
@@ -709,37 +617,37 @@ static apr_status_t crypto_block_encrypt(unsigned char **out,
         apr_size_t *outlen, const unsigned char *in, apr_size_t inlen,
         apr_crypto_block_t *ctx)
 {
-    int outl = *outlen;
+    apr_size_t outl = *outlen;
     unsigned char *buffer;
 
     /* are we after the maximum size of the out buffer? */
     if (!out) {
-        *outlen = inlen + EVP_MAX_BLOCK_LENGTH;
+        *outlen = CCCryptorGetOutputLength(ctx->ref, inlen, 1);
         return APR_SUCCESS;
     }
 
     /* must we allocate the output buffer from a pool? */
     if (!*out) {
-        buffer = apr_palloc(ctx->pool, inlen + EVP_MAX_BLOCK_LENGTH);
+        outl = CCCryptorGetOutputLength(ctx->ref, inlen, 1);
+        buffer = apr_palloc(ctx->pool, outl);
         if (!buffer) {
             return APR_ENOMEM;
         }
-        apr_crypto_clear(ctx->pool, buffer, inlen + EVP_MAX_BLOCK_LENGTH);
+        apr_crypto_clear(ctx->pool, buffer, outl);
         *out = buffer;
     }
 
-#if CRYPT_OPENSSL_CONST_BUFFERS
-    if (!EVP_EncryptUpdate(ctx->cipherCtx, (*out), &outl, in, inlen)) {
-#else
-    if (!EVP_EncryptUpdate(ctx->cipherCtx, (*out), &outl,
-            (unsigned char *) in, inlen)) {
-#endif
-#if APR_USE_OPENSSL_PRE_1_1_API
-        EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
-#else
-        EVP_CIPHER_CTX_reset(ctx->cipherCtx);
-#endif
+    switch ((ctx->f->result->rc = CCCryptorUpdate(ctx->ref, in, inlen, (*out),
+            outl, &outl))) {
+    case kCCSuccess: {
+        break;
+    }
+    case kCCBufferTooSmall: {
+        return APR_ENOSPACE;
+    }
+    default: {
         return APR_ECRYPT;
+    }
     }
     *outlen = outl;
 
@@ -768,22 +676,34 @@ static apr_status_t crypto_block_encrypt(unsigned char **out,
 static apr_status_t crypto_block_encrypt_finish(unsigned char *out,
         apr_size_t *outlen, apr_crypto_block_t *ctx)
 {
-    apr_status_t rc = APR_SUCCESS;
-    int len = *outlen;
+    apr_size_t len = *outlen;
 
-    if (EVP_EncryptFinal_ex(ctx->cipherCtx, out, &len) == 0) {
-        rc = APR_EPADDING;
-    }
-    else {
-        *outlen = len;
-    }
-#if APR_USE_OPENSSL_PRE_1_1_API
-    EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
-#else
-    EVP_CIPHER_CTX_reset(ctx->cipherCtx);
-#endif
+    ctx->f->result->rc = CCCryptorFinal(ctx->ref, out,
+            CCCryptorGetOutputLength(ctx->ref, 0, 1), &len);
 
-    return rc;
+    /* always clean up */
+    crypto_block_cleanup(ctx);
+
+    switch (ctx->f->result->rc) {
+    case kCCSuccess: {
+        break;
+    }
+    case kCCBufferTooSmall: {
+        return APR_ENOSPACE;
+    }
+    case kCCAlignmentError: {
+        return APR_EPADDING;
+    }
+    case kCCDecodeError: {
+        return APR_ECRYPT;
+    }
+    default: {
+        return APR_ECRYPT;
+    }
+    }
+    *outlen = len;
+
+    return APR_SUCCESS;
 
 }
 
@@ -806,7 +726,6 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
         apr_size_t *blockSize, const unsigned char *iv,
         const apr_crypto_key_t *key, apr_pool_t *p)
 {
-    apr_crypto_config_t *config = key->f->config;
     apr_crypto_block_t *block = *ctx;
     if (!block) {
         *ctx = block = apr_pcalloc(p, sizeof(apr_crypto_block_t));
@@ -821,12 +740,6 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
     apr_pool_cleanup_register(p, block, crypto_block_cleanup_helper,
             apr_pool_cleanup_null);
 
-    /* create a new context for encryption */
-    if (!block->initialised) {
-        block->cipherCtx = EVP_CIPHER_CTX_new();
-        block->initialised = 1;
-    }
-
     /* generate an IV, if necessary */
     if (key->ivSize) {
         if (iv == NULL) {
@@ -834,23 +747,31 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
         }
     }
 
-    /* set up our encryption context */
-#if CRYPTO_OPENSSL_CONST_BUFFERS
-    if (!EVP_DecryptInit_ex(block->cipherCtx, key->cipher, config->engine,
-            key->key, iv)) {
-#else
-        if (!EVP_DecryptInit_ex(block->cipherCtx, key->cipher, config->engine, (unsigned char *) key->key, (unsigned char *) iv)) {
-#endif
+    /* create a new context for decryption */
+    switch ((block->f->result->rc = CCCryptorCreate(kCCDecrypt, key->algorithm,
+            key->options, key->key, key->keyLen, iv, &block->ref))) {
+    case kCCSuccess: {
+        break;
+    }
+    case kCCParamError: {
         return APR_EINIT;
     }
-
-    /* Clear up any read padding */
-    if (!EVP_CIPHER_CTX_set_padding(block->cipherCtx, key->doPad)) {
+    case kCCMemoryFailure: {
+        return APR_ENOMEM;
+    }
+    case kCCAlignmentError: {
         return APR_EPADDING;
+    }
+    case kCCUnimplemented: {
+        return APR_ENOTIMPL;
+    }
+    default: {
+        return APR_EINIT;
+    }
     }
 
     if (blockSize) {
-        *blockSize = EVP_CIPHER_block_size(key->cipher);
+        *blockSize = key->blockSize;
     }
 
     return APR_SUCCESS;
@@ -879,37 +800,37 @@ static apr_status_t crypto_block_decrypt(unsigned char **out,
         apr_size_t *outlen, const unsigned char *in, apr_size_t inlen,
         apr_crypto_block_t *ctx)
 {
-    int outl = *outlen;
+    apr_size_t outl = *outlen;
     unsigned char *buffer;
 
     /* are we after the maximum size of the out buffer? */
     if (!out) {
-        *outlen = inlen + EVP_MAX_BLOCK_LENGTH;
+        *outlen = CCCryptorGetOutputLength(ctx->ref, inlen, 1);
         return APR_SUCCESS;
     }
 
     /* must we allocate the output buffer from a pool? */
-    if (!(*out)) {
-        buffer = apr_palloc(ctx->pool, inlen + EVP_MAX_BLOCK_LENGTH);
+    if (!*out) {
+        outl = CCCryptorGetOutputLength(ctx->ref, inlen, 1);
+        buffer = apr_palloc(ctx->pool, outl);
         if (!buffer) {
             return APR_ENOMEM;
         }
-        apr_crypto_clear(ctx->pool, buffer, inlen + EVP_MAX_BLOCK_LENGTH);
+        apr_crypto_clear(ctx->pool, buffer, outl);
         *out = buffer;
     }
 
-#if CRYPT_OPENSSL_CONST_BUFFERS
-    if (!EVP_DecryptUpdate(ctx->cipherCtx, *out, &outl, in, inlen)) {
-#else
-    if (!EVP_DecryptUpdate(ctx->cipherCtx, *out, &outl, (unsigned char *) in,
-            inlen)) {
-#endif
-#if APR_USE_OPENSSL_PRE_1_1_API
-        EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
-#else
-        EVP_CIPHER_CTX_reset(ctx->cipherCtx);
-#endif
+    switch ((ctx->f->result->rc = CCCryptorUpdate(ctx->ref, in, inlen, (*out),
+            outl, &outl))) {
+    case kCCSuccess: {
+        break;
+    }
+    case kCCBufferTooSmall: {
+        return APR_ENOSPACE;
+    }
+    default: {
         return APR_ECRYPT;
+    }
     }
     *outlen = outl;
 
@@ -938,36 +859,48 @@ static apr_status_t crypto_block_decrypt(unsigned char **out,
 static apr_status_t crypto_block_decrypt_finish(unsigned char *out,
         apr_size_t *outlen, apr_crypto_block_t *ctx)
 {
-    apr_status_t rc = APR_SUCCESS;
-    int len = *outlen;
+    apr_size_t len = *outlen;
 
-    if (EVP_DecryptFinal_ex(ctx->cipherCtx, out, &len) == 0) {
-        rc = APR_EPADDING;
-    }
-    else {
-        *outlen = len;
-    }
-#if APR_USE_OPENSSL_PRE_1_1_API
-    EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
-#else
-    EVP_CIPHER_CTX_reset(ctx->cipherCtx);
-#endif
+    ctx->f->result->rc = CCCryptorFinal(ctx->ref, out,
+            CCCryptorGetOutputLength(ctx->ref, 0, 1), &len);
 
-    return rc;
+    /* always clean up */
+    crypto_block_cleanup(ctx);
+
+    switch (ctx->f->result->rc) {
+    case kCCSuccess: {
+        break;
+    }
+    case kCCBufferTooSmall: {
+        return APR_ENOSPACE;
+    }
+    case kCCAlignmentError: {
+        return APR_EPADDING;
+    }
+    case kCCDecodeError: {
+        return APR_ECRYPT;
+    }
+    default: {
+        return APR_ECRYPT;
+    }
+    }
+    *outlen = len;
+
+    return APR_SUCCESS;
 
 }
 
 /**
- * OpenSSL module.
+ * OSX Common Crypto module.
  */
-APU_MODULE_DECLARE_DATA const apr_crypto_driver_t apr_crypto_openssl_driver = {
-    "openssl", crypto_init, crypto_make, crypto_get_block_key_types,
-    crypto_get_block_key_modes, crypto_passphrase,
-    crypto_block_encrypt_init, crypto_block_encrypt,
-    crypto_block_encrypt_finish, crypto_block_decrypt_init,
-    crypto_block_decrypt, crypto_block_decrypt_finish,
-    crypto_block_cleanup, crypto_cleanup, crypto_shutdown, crypto_error,
-    crypto_key
+APU_MODULE_DECLARE_DATA const apr_crypto_driver_t apr_crypto_commoncrypto_driver =
+{
+        "commoncrypto", crypto_init, crypto_make, crypto_get_block_key_types,
+        crypto_get_block_key_modes, crypto_passphrase,
+        crypto_block_encrypt_init, crypto_block_encrypt,
+        crypto_block_encrypt_finish, crypto_block_decrypt_init,
+        crypto_block_decrypt, crypto_block_decrypt_finish, crypto_block_cleanup,
+        crypto_cleanup, crypto_shutdown, crypto_error, crypto_key
 };
 
 #endif

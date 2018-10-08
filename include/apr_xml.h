@@ -276,6 +276,7 @@ APU_DECLARE(char *) apr_xml_parser_geterror(apr_xml_parser *parser,
  *     APR_XML_X2T_INNER               contents only 
  *     APR_XML_X2T_LANG_INNER          xml:lang + inner contents 
  *     APR_XML_X2T_FULL_NS_LANG        FULL + ns defns + xml:lang 
+ *     APR_XML_X2T_PARSED              original prefixes
  * </PRE>
  * @param namespaces The namespace of the current XML element
  * @param ns_map Namespace mapping
@@ -292,6 +293,7 @@ APU_DECLARE(void) apr_xml_to_text(apr_pool_t *p, const apr_xml_elem *elem,
 #define APR_XML_X2T_INNER        1	/**< contents only */
 #define APR_XML_X2T_LANG_INNER   2	/**< xml:lang + inner contents */
 #define APR_XML_X2T_FULL_NS_LANG 3	/**< FULL + ns defns + xml:lang */
+#define APR_XML_X2T_PARSED       4	/**< original prefixes */
 
 /**
  * empty XML element

@@ -28,23 +28,6 @@ Package=<4>
     End Project Dependency
 }}}
 
-###############################################################################
-
-Project: "apr_dbd_freetds"="..\dbd\apr_dbd_freetds.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name libapr
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name libaprutil
-    End Project Dependency
-}}}
 
 ###############################################################################
 
