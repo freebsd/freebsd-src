@@ -152,7 +152,6 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 	u32 vlan_macip_lens, type_tucmd_mlhl;
 	u32 mss_l4len_idx;
 	mss_l4len_idx = vlan_macip_lens = type_tucmd_mlhl = 0;
-	int offload = TRUE; 
 
 	/* First check if TSO is to be used */
 	if (pi->ipi_csum_flags & CSUM_TSO)
@@ -186,7 +185,6 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 		type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV6;
 		break;
 	default:
-		offload = FALSE;
 		break;
 	}
 
@@ -195,24 +193,26 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 
 	switch (pi->ipi_ipproto) {
 	case IPPROTO_TCP:
-		if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
+		if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP)) {
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_TCP;
+			*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+		}
 		break;
 	case IPPROTO_UDP:
-		if (pi->ipi_csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP))
+		if (pi->ipi_csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP)) {
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_UDP;
+			*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+		}
 		break;
 	case IPPROTO_SCTP:
-		if (pi->ipi_csum_flags & (CSUM_IP_SCTP | CSUM_IP6_SCTP))
+		if (pi->ipi_csum_flags & (CSUM_IP_SCTP | CSUM_IP6_SCTP)) {
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_SCTP;
+			*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+		}
 		break;
 	default:
-		offload = FALSE;
 		break;
 	}
-
-	if (offload) /* For the TX descriptor setup */
-		*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
 
 	/* 82575 needs the queue index added */
 	if (adapter->hw.mac.type == e1000_82575)

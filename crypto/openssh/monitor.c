@@ -114,6 +114,7 @@ static struct sshbuf *child_state;
 
 int mm_answer_moduli(int, struct sshbuf *);
 int mm_answer_sign(int, struct sshbuf *);
+int mm_answer_login_getpwclass(int, struct sshbuf *);
 int mm_answer_pwnamallow(int, struct sshbuf *);
 int mm_answer_auth2_read_banner(int, struct sshbuf *);
 int mm_answer_authserv(int, struct sshbuf *);
@@ -189,6 +190,7 @@ struct mon_table mon_dispatch_proto20[] = {
     {MONITOR_REQ_MODULI, MON_ONCE, mm_answer_moduli},
 #endif
     {MONITOR_REQ_SIGN, MON_ONCE, mm_answer_sign},
+    {MONITOR_REQ_GETPWCLASS, MON_AUTH, mm_answer_login_getpwclass},
     {MONITOR_REQ_PWNAM, MON_ONCE, mm_answer_pwnamallow},
     {MONITOR_REQ_AUTHSERV, MON_ONCE, mm_answer_authserv},
     {MONITOR_REQ_AUTH2_READ_BANNER, MON_ONCE, mm_answer_auth2_read_banner},
@@ -707,6 +709,46 @@ mm_answer_sign(int sock, struct sshbuf *m)
 	return (0);
 }
 
+int
+mm_answer_login_getpwclass(int sock, struct sshbuf *m)
+{
+	login_cap_t *lc;
+	struct passwd *pw;
+	int r;
+	u_int len;
+
+	debug3("%s", __func__);
+
+	pw = sshbuf_get_passwd(m);
+	if (pw == NULL)
+		fatal("%s: receive get struct passwd failed", __func__);
+
+	lc = login_getpwclass(pw);
+
+	sshbuf_reset(m);
+
+	if (lc == NULL) {
+		if (r = sshbuf_put_u8(m, 0) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		goto out;
+	}
+
+	if ((r = sshbuf_put_u8(m, 1)) != 0 ||
+	    (r = sshbuf_put_cstring(m, lc->lc_class)) != 0 ||
+	    (r = sshbuf_put_cstring(m, lc->lc_cap)) != 0 ||
+	    (r = sshbuf_put_cstring(m, lc->lc_style)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+
+	login_close(lc);
+ out:
+	debug3("%s: sending MONITOR_ANS_GETPWCLASS", __func__);
+	mm_request_send(sock, MONITOR_ANS_GETPWCLASS, m);
+
+	sshbuf_free_passwd(pw);
+
+	return (0);
+}
+
 /* Retrieves the password entry and also checks if the user is permitted */
 
 int
@@ -745,19 +787,8 @@ mm_answer_pwnamallow(int sock, struct sshbuf *m)
 	authctxt->pw = pwent;
 	authctxt->valid = 1;
 
-	/* XXX don't sent pwent to unpriv; send fake class/dir/shell too */
 	if ((r = sshbuf_put_u8(m, 1)) != 0 ||
-	    (r = sshbuf_put_string(m, pwent, sizeof(*pwent))) != 0 ||
-	    (r = sshbuf_put_cstring(m, pwent->pw_name)) != 0 ||
-	    (r = sshbuf_put_cstring(m, "*")) != 0 ||
-#ifdef HAVE_STRUCT_PASSWD_PW_GECOS
-	    (r = sshbuf_put_cstring(m, pwent->pw_gecos)) != 0 ||
-#endif
-#ifdef HAVE_STRUCT_PASSWD_PW_CLASS
-	    (r = sshbuf_put_cstring(m, pwent->pw_class)) != 0 ||
-#endif
-	    (r = sshbuf_put_cstring(m, pwent->pw_dir)) != 0 ||
-	    (r = sshbuf_put_cstring(m, pwent->pw_shell)) != 0)
+	    (r = sshbuf_put_passwd(m, pwent)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
  out:
