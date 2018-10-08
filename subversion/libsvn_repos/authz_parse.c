@@ -1058,14 +1058,15 @@ expand_group_callback(void *baton,
       else
         {
           /* Recursively expand the group membership */
-          members = svn_hash_gets(cb->parsed_groups, member);
-          if (!members)
+          apr_array_header_t *member_members
+            = svn_hash_gets(cb->parsed_groups, member);
+          if (!member_members)
             return svn_error_createf(
                 SVN_ERR_AUTHZ_INVALID_CONFIG, NULL,
                 _("Undefined group '%s'"),
                 member);
           SVN_ERR(expand_group_callback(cb, key, klen,
-                                        members, scratch_pool));
+                                        member_members, scratch_pool));
         }
     }
   return SVN_NO_ERROR;

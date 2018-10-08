@@ -1,5 +1,35 @@
+Version 1.10.2
+(20 Jul 2018, from /branches/1.10.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.10.2
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * Correctly claim to offer Gnome Keyring support with libsecret (r1831142)
+    * Fix segfault using Gnome Keyring with libsecret (r1835782)
+    * Fix JavaHL local refs capacity warning when unparsing externals (r1831143)
+    * Since on Windows Subversion does not handle symlinks, never check for reparse points (r1835701)
+    * Prune externals after 'update --set-depth=exclude' (r1835702)
+    * Fix issue #4740, "conflict resolver searches too far back ..." (r1835703)
+  - Server-side bugfixes:
+    * Fix regression issue #4741: authz group refers to multiple groups (r1831220)
+
+ Developer-visible changes:
+  - General:
+    * Regression test and FSFS checksum test, part of issue #4722 (r1828043)
+    * Explicit error on configure --without-lz4 or --without-utf8proc (r1831604)
+    * configure.ac: Fix regression relating to path to 'rdoc' (r1833486)
+    * Ensure consistent use of $PYTHON during build and test (r1833487)
+    * Fix libsvn_auth_gnome_keyring.pc when built using libsecret (r1835781)
+  - Bindings:
+    * Fix regression in use of pre-generated Swig bindings in release builds (r1833488)
+
+
+Version 1.10.1
+(Not released; see changes for 1.10.2.)
+
+
 Version 1.10.0
-(?? ??? 2018, from /branches/1.10.x)
+(13 Apr 2018, from /branches/1.10.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.10.0
 
 See the 1.10 release notes for a more verbose overview of the changes since
@@ -284,6 +314,41 @@ the 1.9 release:  https://subversion.apache.org/docs/release-notes/1.10.html
     * JavaHL: Add missing exception checks (r1801108)
     * Ruby: Fix handling of NULL MD5 digests (r1811786)
     * Ruby: Detect versions up to 2.4 (r1806570)
+
+
+Version 1.9.9
+(20 Jul 2018, from /branches/1.9.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.9.9
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * Fix SEGV for 'svn export -rN WC' with relative externals (r1803755)
+    * Fix issue #4677: 'svn up' after a directory replaced a file (r1814248)
+    * Fix segfault when no home directory is available (r1819199)
+    * Performance: Make 'svn info' fast on old repository revisions (r1827690)
+    * Fix RA-serf problem with proxy username and password (r1833571)
+
+  - Server-side bugfixes:
+    * svnadmin: Fix false errors on some valid LOCK_PATH arguments (r1803754)
+    * Fix crash when exiting 'svnserve --config-file' (r1824405)
+    * Fix issue #4722: false "filesystem is corrupt" error on commit (r1827688)
+    * Reword confusing "nested" wording in an httpd.conf warning (r1835700)
+
+  - Bindings bugfixes:
+    * swig-py: svn.core.Stream supports raw binary file-like objects (r1820620)
+    * swig-rb: Don't crash if svn_md5_digest_to_cstring returns NULL (r1823805)
+
+ Developer-visible changes:
+  - General:
+    * Fix CVE-2017-9800: Malicious server can execute arbitrary command on client (r1804698)
+    * Fix test failure if compile- and run-time HTTPD versions differ (r1820523)
+
+  - API changes:
+    (none)
+
+
+Version 1.9.8
+(Not released; see changes for 1.9.9.)
 
 
 Version 1.9.7
@@ -5720,7 +5785,7 @@ http://svn.apache.org/repos/asf/subversion/tags/0.28.2
       twice as slow and lose all concurrent-client scalability.
 
       This is a temporary fix for a larger design problem.  See issue
-      http://subversion.tigris.org/issues/show_bug.cgi?id=1499
+      https://issues.apache.org/jira/browse/SVN-1499
 
 
 Version 0.28.1

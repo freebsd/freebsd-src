@@ -166,7 +166,7 @@ svn_cl__help(apr_getopt_t *os,
                              pool);
 #endif
     }
-#ifdef SVN_HAVE_GNOME_KEYRING
+#if (defined(SVN_HAVE_GNOME_KEYRING) || defined(SVN_HAVE_LIBSECRET))
   svn_stringbuf_appendcstr(version_footer, "* Gnome Keyring\n");
 #endif
 #ifdef SVN_HAVE_GPG_AGENT

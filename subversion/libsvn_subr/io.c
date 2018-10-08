@@ -342,8 +342,13 @@ io_check_path(const char *path,
   /* Not using svn_io_stat() here because we want to check the
      apr_err return explicitly. */
   SVN_ERR(cstring_from_utf8(&path_apr, path, pool));
-
+#ifdef WIN32
+  /* on Windows, svn does not handle reparse points or hard links.
+     So ignore the 'resolve_symlinks' flag. */
+  flags = APR_FINFO_MIN;
+#else
   flags = resolve_symlinks ? APR_FINFO_MIN : (APR_FINFO_MIN | APR_FINFO_LINK);
+#endif
   apr_err = apr_stat(&finfo, path_apr, flags, pool);
 
   if (APR_STATUS_IS_ENOENT(apr_err))
