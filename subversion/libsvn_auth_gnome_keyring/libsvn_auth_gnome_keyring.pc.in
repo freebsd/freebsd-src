@@ -6,7 +6,7 @@ includedir=@includedir@
 Name: libsvn_auth_gnome_keyring
 Description: Subversion GNOME Keyring Library
 Version: @PACKAGE_VERSION@
-Requires:  apr-@SVN_APR_MAJOR_VERSION@ gnome-keyring-1
-Requires.private:  libsvn_subr
+Requires:  apr-@SVN_APR_MAJOR_VERSION@
+Requires.private:  libsvn_subr @SVN_GNOME_KEYRING_PCLIBS@
 Libs: -L${libdir}  -lsvn_auth_gnome_keyring
 Cflags: -I${includedir}

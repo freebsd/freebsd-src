@@ -182,6 +182,88 @@ record_conflict(svn_wc_conflict_result_t **result,
   return SVN_NO_ERROR;
 }
 
+/* Perform post-update processing of externals defined below LOCAL_ABSPATH. */
+static svn_error_t *
+handle_externals(svn_boolean_t *timestamp_sleep,
+                 const char *local_abspath,
+                 svn_depth_t depth,
+                 const char *repos_root_url,
+                 svn_ra_session_t *ra_session,
+                 svn_client_ctx_t *ctx,
+                 apr_pool_t *scratch_pool)
+{
+  apr_hash_t *new_externals;
+  apr_hash_t *new_depths;
+
+  SVN_ERR(svn_wc__externals_gather_definitions(&new_externals,
+                                               &new_depths,
+                                               ctx->wc_ctx, local_abspath,
+                                               depth,
+                                               scratch_pool, scratch_pool));
+
+  SVN_ERR(svn_client__handle_externals(new_externals,
+                                       new_depths,
+                                       repos_root_url, local_abspath,
+                                       depth, timestamp_sleep, ra_session,
+                                       ctx, scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+/* Try to reuse the RA session by reparenting it to the anchor_url.
+ * This code is probably overly cautious since we only use this
+ * currently when parents are missing and so all the anchor_urls
+ * have to be in the same repo.
+ * Note that ra_session_p is an (optional) input parameter as well
+ * as an output parameter. */
+static svn_error_t *
+reuse_ra_session(svn_ra_session_t **ra_session_p,
+                 const char **corrected_url,
+                 const char *anchor_url,
+                 const char *anchor_abspath,
+                 svn_client_ctx_t *ctx,
+                 apr_pool_t *result_pool,
+                 apr_pool_t *scratch_pool)
+{
+  svn_ra_session_t *ra_session = *ra_session_p;
+
+  if (ra_session)
+    {
+      svn_error_t *err = svn_ra_reparent(ra_session, anchor_url, scratch_pool);
+      if (err)
+        {
+          if (err->apr_err == SVN_ERR_RA_ILLEGAL_URL)
+            {
+            /* session changed repos, can't reuse it */
+              svn_error_clear(err);
+              ra_session = NULL;
+            }
+          else
+            {
+              return svn_error_trace(err);
+            }
+        }
+      else
+        {
+          *corrected_url = NULL;
+        }
+    }
+
+  /* Open an RA session for the URL if one isn't already available */
+  if (!ra_session)
+    {
+      SVN_ERR(svn_client__open_ra_session_internal(&ra_session, corrected_url,
+                                                   anchor_url,
+                                                   anchor_abspath, NULL,
+                                                   TRUE /* write_dav_props */,
+                                                   TRUE /* read_dav_props */,
+                                                   ctx,
+                                                   result_pool, scratch_pool));
+      *ra_session_p = ra_session;
+    }
+
+  return SVN_NO_ERROR;
+}
+
 /* This is a helper for svn_client__update_internal(), which see for
    an explanation of most of these parameters.  Some stuff that's
    unique is as follows:
@@ -320,6 +402,18 @@ update_internal(svn_revnum_t *result_rev,
                                  ctx->notify_func2, ctx->notify_baton2,
                                  scratch_pool));
 
+          if (!ignore_externals)
+            {
+              /* We may now be able to remove externals below LOCAL_ABSPATH. */
+              SVN_ERR(reuse_ra_session(ra_session_p, &corrected_url,
+                                       anchor_url, anchor_abspath,
+                                       ctx, result_pool, scratch_pool));
+              ra_session = *ra_session_p;
+              SVN_ERR(handle_externals(timestamp_sleep, local_abspath, depth,
+                                       repos_root_url, ra_session, ctx,
+                                       scratch_pool));
+            }
+
           /* Target excluded, we are done now */
           return SVN_NO_ERROR;
         }
@@ -373,44 +467,9 @@ update_internal(svn_revnum_t *result_rev,
       ctx->notify_func2(ctx->notify_baton2, notify, scratch_pool);
     }
 
-  /* Try to reuse the RA session by reparenting it to the anchor_url.
-   * This code is probably overly cautious since we only use this
-   * currently when parents are missing and so all the anchor_urls
-   * have to be in the same repo. */
-  if (ra_session)
-    {
-      svn_error_t *err = svn_ra_reparent(ra_session, anchor_url, scratch_pool);
-      if (err)
-        {
-          if (err->apr_err == SVN_ERR_RA_ILLEGAL_URL)
-            {
-            /* session changed repos, can't reuse it */
-              svn_error_clear(err);
-              ra_session = NULL;
-            }
-          else
-            {
-              return svn_error_trace(err);
-            }
-        }
-      else
-        {
-          corrected_url = NULL;
-        }
-    }
-
-  /* Open an RA session for the URL if one isn't already available */
-  if (!ra_session)
-    {
-      SVN_ERR(svn_client__open_ra_session_internal(&ra_session, &corrected_url,
-                                                   anchor_url,
-                                                   anchor_abspath, NULL,
-                                                   TRUE /* write_dav_props */,
-                                                   TRUE /* read_dav_props */,
-                                                   ctx,
-                                                   result_pool, scratch_pool));
-      *ra_session_p = ra_session;
-    }
+  SVN_ERR(reuse_ra_session(ra_session_p, &corrected_url, anchor_url,
+                           anchor_abspath, ctx, result_pool, scratch_pool));
+  ra_session = *ra_session_p;
 
   /* If we got a corrected URL from the RA subsystem, we'll need to
      relocate our working copy first. */
@@ -513,19 +572,8 @@ update_internal(svn_revnum_t *result_rev,
   if ((SVN_DEPTH_IS_RECURSIVE(depth) || cropping_target)
       && (! ignore_externals))
     {
-      apr_hash_t *new_externals;
-      apr_hash_t *new_depths;
-      SVN_ERR(svn_wc__externals_gather_definitions(&new_externals,
-                                                   &new_depths,
-                                                   ctx->wc_ctx, local_abspath,
-                                                   depth,
-                                                   scratch_pool, scratch_pool));
-
-      SVN_ERR(svn_client__handle_externals(new_externals,
-                                           new_depths,
-                                           repos_root_url, local_abspath,
-                                           depth, timestamp_sleep, ra_session,
-                                           ctx, scratch_pool));
+      SVN_ERR(handle_externals(timestamp_sleep, local_abspath, depth,
+                               repos_root_url, ra_session, ctx, scratch_pool));
     }
 
   /* Let everyone know we're finished here (unless we're asked not to). */

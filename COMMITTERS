@@ -27,7 +27,7 @@ Blanket commit access:
            dlr   Daniel Rall <dlr@finemaltcoding.com>
            mbk   Mark Benedetto King <mbk@lowlatency.com>
            jaa   Jani Averbach <jaa@iki.fi>
-    julianfoad   Julian Foad <julian@foad.me.uk>
+    julianfoad   Julian Foad <julianfoad@apache.org>
   jszakmeister   John Szakmeister <john@szakmeister.net>
            ehu   Erik Hülsmann <ehuels@gmail.com>
         breser   Ben Reser <ben@reser.org>
@@ -87,6 +87,7 @@ Partial committers who have asked to be listed as dormant:
       rassilon   Bill Tutt <bill@tutts.org> (Win32, COM, issue-1003-dev br.)
            pll   Paul lussier <p.lussier@comcast.net>        (releases)
         rdonch   Роман Донченко <dpb@corrigendum.ru>         (Swig-Python b.)
+      karolszk   Karol Szkudlarek <karol@mikronika.com.pl>   (po: pl)
 
 
 Commit access for specific areas:
@@ -179,7 +180,6 @@ Commit access for specific areas:
       oyvindmo   Øyvind Møll <svn@moll.no>                   (po: nb)
       sunny256   Øyvind A. Holm <sunny@sunbase.org>          (po: nb)
         jzgoda   Jaroslaw Zgoda <jzgoda@o2.pl>               (po: pl)
-      karolszk   Karol Szkudlarek <karol@mikronika.com.pl>   (po: pl)
         plasma   Wei-Hon Chen <plasma@ms9.hinet.net>         (po: zh_TW)
        jihuang   June-Yen Huang <jihuang@iis.sinica.edu.tw>  (po: zh_TW) [EMAIL
                                                              IS BOUNCING]

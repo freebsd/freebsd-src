@@ -2624,6 +2624,10 @@ conflict_tree_get_details_local_missing(svn_client_conflict_t *conflict,
   svn_revnum_t related_peg_rev;
   const char *repos_root_url;
   const char *repos_uuid;
+  const char *url, *corrected_url;
+  svn_ra_session_t *ra_session;
+  svn_client__pathrev_t *yca_loc;
+  svn_revnum_t end_rev;
 
   SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
             &old_repos_relpath, &old_rev, NULL, conflict,
@@ -2660,51 +2664,62 @@ conflict_tree_get_details_local_missing(svn_client_conflict_t *conflict,
               (old_rev < new_rev ? old_repos_relpath : new_repos_relpath),
               (old_rev < new_rev ? old_rev : new_rev),
               conflict, ctx, scratch_pool, scratch_pool));
-    
+
+  /* Set END_REV to our best guess of the nearest YCA revision. */
+  url = svn_path_url_add_component2(repos_root_url, related_repos_relpath,
+                                    scratch_pool);
+  SVN_ERR(svn_client__open_ra_session_internal(&ra_session,
+                                               &corrected_url,
+                                               url, NULL, NULL,
+                                               FALSE,
+                                               FALSE,
+                                               ctx,
+                                               scratch_pool,
+                                               scratch_pool));
+  SVN_ERR(find_nearest_yca(&yca_loc, related_repos_relpath, related_peg_rev,
+                           parent_repos_relpath, parent_peg_rev,
+                           repos_root_url, repos_uuid, ra_session, ctx,
+                           scratch_pool, scratch_pool));
+  if (yca_loc)
+   {
+     end_rev = yca_loc->rev;
+
+    /* END_REV must be smaller than PARENT_PEG_REV, else the call to
+     * find_revision_for_suspected_deletion() below will abort. */
+    if (end_rev >= parent_peg_rev)
+      end_rev = parent_peg_rev > 0 ? parent_peg_rev - 1 : 0;
+   }
+  else
+    end_rev = 0; /* ### We might walk through all of history... */
+
   SVN_ERR(find_revision_for_suspected_deletion(
             &deleted_rev, &deleted_rev_author, &replacing_node_kind, &moves,
             conflict, deleted_basename, parent_repos_relpath,
-            parent_peg_rev, 0, related_repos_relpath, related_peg_rev,
+            parent_peg_rev, end_rev, related_repos_relpath, related_peg_rev,
             ctx, conflict->pool, scratch_pool));
 
   /* If the victim was not deleted then check if the related path was moved. */
   if (deleted_rev == SVN_INVALID_REVNUM)
     {
       const char *victim_abspath;
-      svn_ra_session_t *ra_session;
-      const char *url, *corrected_url;
-      svn_client__pathrev_t *yca_loc;
-      svn_revnum_t end_rev;
       svn_node_kind_t related_node_kind;
 
       /* ### The following describes all moves in terms of forward-merges,
        * should do we something else for reverse-merges? */
 
       victim_abspath = svn_client_conflict_get_local_abspath(conflict);
-      url = svn_path_url_add_component2(repos_root_url, related_repos_relpath,
-                                        scratch_pool);
-      SVN_ERR(svn_client__open_ra_session_internal(&ra_session,
-                                                   &corrected_url,
-                                                   url, NULL, NULL,
-                                                   FALSE,
-                                                   FALSE,
-                                                   ctx,
-                                                   scratch_pool,
-                                                   scratch_pool));
 
-      /* Set END_REV to our best guess of the nearest YCA revision. */
-      SVN_ERR(find_nearest_yca(&yca_loc, related_repos_relpath, related_peg_rev,
-                               parent_repos_relpath, parent_peg_rev,
-                               repos_root_url, repos_uuid, ra_session, ctx,
-                               scratch_pool, scratch_pool));
-      if (yca_loc == NULL)
-        return SVN_NO_ERROR;
-      end_rev = yca_loc->rev;
+      if (yca_loc)
+       {
+          end_rev = yca_loc->rev;
 
-      /* END_REV must be smaller than RELATED_PEG_REV, else the call
-         to find_moves_in_natural_history() below will error out. */
-      if (end_rev >= related_peg_rev)
-        end_rev = related_peg_rev > 0 ? related_peg_rev - 1 : 0;
+          /* END_REV must be smaller than RELATED_PEG_REV, else the call
+             to find_moves_in_natural_history() below will error out. */
+          if (end_rev >= related_peg_rev)
+            end_rev = related_peg_rev > 0 ? related_peg_rev - 1 : 0;
+       }
+      else
+        end_rev = 0; /* ### We might walk through all of history... */
 
       SVN_ERR(svn_ra_check_path(ra_session, "", related_peg_rev,
                                 &related_node_kind, scratch_pool));
