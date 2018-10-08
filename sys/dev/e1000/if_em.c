@@ -1804,13 +1804,11 @@ em_if_update_admin_status(if_ctx_t ctx)
 		}
 		iflib_link_state_change(ctx, LINK_STATE_UP,
 		    IF_Mbps(adapter->link_speed));
-		printf("Link state changed to up\n");
 	} else if (!link_check && (adapter->link_active == 1)) {
 		adapter->link_speed = 0;
 		adapter->link_duplex = 0;
 		adapter->link_active = 0;
 		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
-		printf("Link state changed to down\n");
 	}
 	em_update_stats_counters(adapter);
 
