@@ -123,8 +123,9 @@ void usage(void);
 #define	TIMESTAMP_ELAPSED	0x2
 #define	TIMESTAMP_RELATIVE	0x4
 
-static int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
-    resolv = 0, abiflag = 0, syscallno = 0;
+static bool abiflag, decimal, fancy = true, resolv, suppressdata, syscallno,
+    tail, threads;
+static int timestamp, maxdata;
 static const char *tracefile = DEF_TRACEFILE;
 static struct ktr_header ktr_header;
 
@@ -388,40 +389,40 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc,argv,"f:dElm:np:AHRrSsTt:")) != -1)
 		switch (ch) {
 		case 'A':
-			abiflag = 1;
+			abiflag = true;
 			break;
 		case 'f':
 			tracefile = optarg;
 			break;
 		case 'd':
-			decimal = 1;
+			decimal = true;
 			break;
 		case 'l':
-			tail = 1;
+			tail = true;
 			break;
 		case 'm':
 			maxdata = atoi(optarg);
 			break;
 		case 'n':
-			fancy = 0;
+			fancy = false;
 			break;
 		case 'p':
 			pid = atoi(optarg);
 			break;
 		case 'r':
-			resolv = 1;
+			resolv = true;
 			break;
 		case 'S':
-			syscallno = 1;
+			syscallno = true;
 			break;
 		case 's':
-			suppressdata = 1;
+			suppressdata = true;
 			break;
 		case 'E':
 			timestamp |= TIMESTAMP_ELAPSED;
 			break;
 		case 'H':
-			threads = 1;
+			threads = true;
 			break;
 		case 'R':
 			timestamp |= TIMESTAMP_RELATIVE;
@@ -451,18 +452,18 @@ main(int argc, char *argv[])
 	strerror_init();
 	localtime_init();
 #ifdef HAVE_LIBCASPER
-	if (resolv != 0) {
+	if (resolv) {
 		if (cappwdgrp_setup(&cappwd, &capgrp) < 0) {
 			cappwd = NULL;
 			capgrp = NULL;
 		}
 	}
-	if (resolv == 0 || (cappwd != NULL && capgrp != NULL)) {
+	if (!resolv || (cappwd != NULL && capgrp != NULL)) {
 		if (cap_enter() < 0 && errno != ENOSYS)
 			err(1, "unable to enter capability mode");
 	}
 #else
-	if (resolv == 0) {
+	if (!resolv) {
 		if (cap_enter() < 0 && errno != ENOSYS)
 			err(1, "unable to enter capability mode");
 	}
@@ -1901,14 +1902,14 @@ ktrstat(struct stat *statp)
 	printf("struct stat {");
 	printf("dev=%ju, ino=%ju, ",
 		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino);
-	if (resolv == 0)
+	if (!resolv)
 		printf("mode=0%jo, ", (uintmax_t)statp->st_mode);
 	else {
 		strmode(statp->st_mode, mode);
 		printf("mode=%s, ", mode);
 	}
 	printf("nlink=%ju, ", (uintmax_t)statp->st_nlink);
-	if (resolv == 0) {
+	if (!resolv) {
 		pwd = NULL;
 	} else {
 #ifdef HAVE_LIBCASPER
@@ -1922,7 +1923,7 @@ ktrstat(struct stat *statp)
 		printf("uid=%ju, ", (uintmax_t)statp->st_uid);
 	else
 		printf("uid=\"%s\", ", pwd->pw_name);
-	if (resolv == 0) {
+	if (!resolv) {
 		grp = NULL;
 	} else {
 #ifdef HAVE_LIBCASPER
@@ -1938,7 +1939,7 @@ ktrstat(struct stat *statp)
 		printf("gid=\"%s\", ", grp->gr_name);
 	printf("rdev=%ju, ", (uintmax_t)statp->st_rdev);
 	printf("atime=");
-	if (resolv == 0)
+	if (!resolv)
 		printf("%jd", (intmax_t)statp->st_atim.tv_sec);
 	else {
 		tm = localtime(&statp->st_atim.tv_sec);
@@ -1950,7 +1951,7 @@ ktrstat(struct stat *statp)
 	else
 		printf(", ");
 	printf("mtime=");
-	if (resolv == 0)
+	if (!resolv)
 		printf("%jd", (intmax_t)statp->st_mtim.tv_sec);
 	else {
 		tm = localtime(&statp->st_mtim.tv_sec);
@@ -1962,7 +1963,7 @@ ktrstat(struct stat *statp)
 	else
 		printf(", ");
 	printf("ctime=");
-	if (resolv == 0)
+	if (!resolv)
 		printf("%jd", (intmax_t)statp->st_ctim.tv_sec);
 	else {
 		tm = localtime(&statp->st_ctim.tv_sec);
@@ -1974,7 +1975,7 @@ ktrstat(struct stat *statp)
 	else
 		printf(", ");
 	printf("birthtime=");
-	if (resolv == 0)
+	if (!resolv)
 		printf("%jd", (intmax_t)statp->st_birthtim.tv_sec);
 	else {
 		tm = localtime(&statp->st_birthtim.tv_sec);
