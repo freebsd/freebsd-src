@@ -417,7 +417,7 @@ provide_file_10(SSL* ssl, char* fname)
 	}
 	fclose(in);
 	at += len;
-	avail -= len;
+	/* avail -= len; unused */
 	if(SSL_write(ssl, buf, at-buf) <= 0) {
 		/* write failure */
 	}
@@ -506,7 +506,7 @@ provide_file_chunked(SSL* ssl, char* fname)
 			snprintf(at, avail, "\r\n");
 			r = strlen(at);
 			at += r;
-			avail -= r;
+			/* avail -= r; unused */
 		}
 		/* send chunk */
 		if(SSL_write(ssl, buf, at-buf) <= 0) {
@@ -569,7 +569,9 @@ do_service(char* addr, int port, char* key, char* cert)
 	while(go) {
 		struct sockaddr_storage from;
 		socklen_t flen = (socklen_t)sizeof(from);
-		int s = accept(fd, (struct sockaddr*)&from, &flen);
+		int s;
+		memset(&from, 0, sizeof(from));
+		s = accept(fd, (struct sockaddr*)&from, &flen);
 		if(verb) fflush(stdout);
 		if(s != -1) {
 			SSL* ssl = setup_ssl(s, sslctx);
@@ -633,7 +635,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	argc -= optind;
-	argv += optind;
+	/* argv += optind; not using further arguments */
 	if(argc != 0)
 		usage();
 

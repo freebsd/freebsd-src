@@ -841,6 +841,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 {
 	char buf[1024], nopt[64];
 	size_t len = sizeof(buf);
+	if(!opt) return 0;
 	if(opt && opt[strlen(opt)-1] == ':' && strlen(opt)<sizeof(nopt)) {
 		memmove(nopt, opt, strlen(opt));
 		nopt[strlen(opt)-1] = 0;
@@ -1526,11 +1527,15 @@ int ub_c_wrap(void)
 int cfg_strlist_append(struct config_strlist_head* list, char* item)
 {
 	struct config_strlist *s;
-	if(!item || !list)
+	if(!item || !list) {
+		free(item);
 		return 0;
+	}
 	s = (struct config_strlist*)calloc(1, sizeof(struct config_strlist));
-	if(!s)
+	if(!s) {
+		free(item);
 		return 0;
+	}
 	s->str = item;
 	s->next = NULL;
 	if(list->last)
@@ -1578,11 +1583,15 @@ int
 cfg_strlist_insert(struct config_strlist** head, char* item)
 {
 	struct config_strlist *s;
-	if(!item || !head)
+	if(!item || !head) {
+		free(item);
 		return 0;
+	}
 	s = (struct config_strlist*)calloc(1, sizeof(struct config_strlist));
-	if(!s)
+	if(!s) {
+		free(item);
 		return 0;
+	}
 	s->str = item;
 	s->next = *head;
 	*head = s;
@@ -1593,11 +1602,17 @@ int
 cfg_str2list_insert(struct config_str2list** head, char* item, char* i2)
 {
 	struct config_str2list *s;
-	if(!item || !i2 || !head)
+	if(!item || !i2 || !head) {
+		free(item);
+		free(i2);
 		return 0;
+	}
 	s = (struct config_str2list*)calloc(1, sizeof(struct config_str2list));
-	if(!s)
+	if(!s) {
+		free(item);
+		free(i2);
 		return 0;
+	}
 	s->str = item;
 	s->str2 = i2;
 	s->next = *head;

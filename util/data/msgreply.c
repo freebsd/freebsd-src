@@ -441,10 +441,14 @@ parse_create_msg(sldns_buffer* pkt, struct msg_parse* msg,
 		return 0;
 	if(!parse_create_repinfo(msg, rep, region))
 		return 0;
-	if(!reply_info_alloc_rrset_keys(*rep, alloc, region))
+	if(!reply_info_alloc_rrset_keys(*rep, alloc, region)) {
+		if(!region) reply_info_parsedelete(*rep, alloc);
 		return 0;
-	if(!parse_copy_decompress(pkt, msg, *rep, region))
+	}
+	if(!parse_copy_decompress(pkt, msg, *rep, region)) {
+		if(!region) reply_info_parsedelete(*rep, alloc);
 		return 0;
+	}
 	return 1;
 }
 

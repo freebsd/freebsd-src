@@ -788,7 +788,7 @@ service_tcp_relay(struct tcp_proxy** tcp_proxies, struct timeval* now,
 			if(!tcp_relay_write(p->server_s, &p->querylist, 
 				&p->querylast, now))
 				delete_it = 1;
-			if(p->querylist && p->server_s != -1 &&
+			if(p->querylist &&
 				dl_tv_smaller(&p->querylist->wait, now))
 				FD_SET(FD_SET_T p->server_s, worig);
 			else 	FD_CLR(FD_SET_T p->server_s, worig);

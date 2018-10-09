@@ -218,7 +218,7 @@ msg_add_rrset_an(struct auth_zone* z, struct regional* region,
 {
 	log_assert(msg->rep->ns_numrrsets == 0);
 	log_assert(msg->rep->ar_numrrsets == 0);
-	if(!rrset)
+	if(!rrset || !node)
 		return 1;
 	if(msg_rrset_duplicate(msg, node->name, node->namelen, rrset->type,
 		z->dclass))
@@ -242,7 +242,7 @@ msg_add_rrset_ns(struct auth_zone* z, struct regional* region,
 	struct dns_msg* msg, struct auth_data* node, struct auth_rrset* rrset)
 {
 	log_assert(msg->rep->ar_numrrsets == 0);
-	if(!rrset)
+	if(!rrset || !node)
 		return 1;
 	if(msg_rrset_duplicate(msg, node->name, node->namelen, rrset->type,
 		z->dclass))
@@ -265,7 +265,7 @@ static int
 msg_add_rrset_ar(struct auth_zone* z, struct regional* region,
 	struct dns_msg* msg, struct auth_data* node, struct auth_rrset* rrset)
 {
-	if(!rrset)
+	if(!rrset || !node)
 		return 1;
 	if(msg_rrset_duplicate(msg, node->name, node->namelen, rrset->type,
 		z->dclass))

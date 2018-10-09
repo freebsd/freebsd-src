@@ -792,6 +792,7 @@ char* config_collate_cat(struct config_strlist* list);
  * @param list: list head. zeroed at start.
  * @param item: new item. malloced by caller. if NULL the insertion fails.
  * @return true on success.
+ * on fail the item is free()ed.
  */
 int cfg_strlist_append(struct config_strlist_head* list, char* item);
 
@@ -809,6 +810,7 @@ struct config_strlist* cfg_strlist_find(struct config_strlist* head,
  * @param head: pointer to strlist head variable.
  * @param item: new item. malloced by caller. If NULL the insertion fails.
  * @return: true on success.
+ * on fail, the item is free()d.
  */
 int cfg_strlist_insert(struct config_strlist** head, char* item);
 
@@ -822,6 +824,7 @@ int cfg_region_strlist_insert(struct regional* region,
  * @param item: new item. malloced by caller. If NULL the insertion fails.
  * @param i2: 2nd string, malloced by caller. If NULL the insertion fails.
  * @return: true on success.
+ * on fail, the item and i2 are free()d.
  */
 int cfg_str2list_insert(struct config_str2list** head, char* item, char* i2);
 

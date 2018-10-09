@@ -610,7 +610,7 @@ int main(int argc, char* argv[])
 		case 'd':
 			if(atoi(optarg)==0 && strcmp(optarg, "0")!=0) {
 				printf("-d not a number %s", optarg);
-				return 1;
+				exit(1);
 			}
 			info.duration = atoi(optarg);
 			break;
@@ -635,11 +635,11 @@ int main(int argc, char* argv[])
 	}
 	if(!extstrtoaddr(argv[0], &info.dest, &info.destlen)) {
 		printf("Could not parse ip: %s\n", argv[0]);
-		return 1;
+		exit(1);
 	}
 	if(info.qlist_size == 0) {
 		printf("No queries to make, use -f or -a.\n");
-		return 1;
+		exit(1);
 	}
 	
 	/* do the performance test */

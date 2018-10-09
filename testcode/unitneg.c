@@ -118,6 +118,8 @@ static void get_random_data(char** fromp, char** top, char* zname)
 	int labnum1[10], labnum2[10];
 	int i;
 	char* p;
+	memset(labnum1, 0, sizeof(int)*10);
+	memset(labnum2, 0, sizeof(int)*10);
 
 	*fromp = buf1;
 	*top = buf2;

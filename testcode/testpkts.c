@@ -46,6 +46,7 @@ enum verbosity_value { NO_VERBOSE=0 };
 #endif
 /** logging routine, provided by caller */
 void verbose(enum verbosity_value lvl, const char* msg, ...) ATTR_FORMAT(printf, 2, 3);
+static void error(const char* msg, ...) ATTR_NORETURN;
 
 /** print error and exit */
 static void error(const char* msg, ...)
