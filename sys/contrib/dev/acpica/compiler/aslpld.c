@@ -728,11 +728,7 @@ OpcEncodePldBuffer (
     UINT32                  Dword;
 
 
-    Buffer = ACPI_ALLOCATE_ZEROED (ACPI_PLD_BUFFER_SIZE);
-    if (!Buffer)
-    {
-        return (NULL);
-    }
+    Buffer = ACPI_CAST_PTR (UINT32, UtLocalCacheCalloc (ACPI_PLD_BUFFER_SIZE));
 
     /* First 32 bits */
 
