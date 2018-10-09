@@ -656,12 +656,6 @@ trap(struct trapframe *frame)
 	KASSERT((read_rflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 
-	/*
-	 * Clear any pending debug exceptions after allowing a
-	 * debugger to read DR6 while stopped in trapsignal().
-	 */
-	if (type == T_TRCTRAP)
-		load_dr6(0);
 userret:
 	userret(td, frame);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
