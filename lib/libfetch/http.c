@@ -778,9 +778,9 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 			goto out;
 		}
 		init_http_auth_challenge(cs->challenges[cs->count]);
-		if (!strcasecmp(key, "basic")) {
+		if (strcasecmp(key, "basic") == 0) {
 			cs->challenges[cs->count]->scheme = HTTPAS_BASIC;
-		} else if (!strcasecmp(key, "digest")) {
+		} else if (strcasecmp(key, "digest") == 0) {
 			cs->challenges[cs->count]->scheme = HTTPAS_DIGEST;
 		} else {
 			cs->challenges[cs->count]->scheme = HTTPAS_UNKNOWN;
@@ -809,25 +809,27 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 			if (lex != HTTPHL_WORD && lex != HTTPHL_STRING)
 				goto out;
 
-			if (!strcasecmp(key, "realm"))
+			if (strcasecmp(key, "realm") == 0) {
 				cs->challenges[cs->count]->realm =
-					strdup(value);
-			else if (!strcasecmp(key, "qop"))
+				    strdup(value);
+			} else if (strcasecmp(key, "qop") == 0) {
 				cs->challenges[cs->count]->qop =
-					strdup(value);
-			else if (!strcasecmp(key, "nonce"))
+				    strdup(value);
+			} else if (strcasecmp(key, "nonce") == 0) {
 				cs->challenges[cs->count]->nonce =
-					strdup(value);
-			else if (!strcasecmp(key, "opaque"))
+				    strdup(value);
+			} else if (strcasecmp(key, "opaque") == 0) {
 				cs->challenges[cs->count]->opaque =
-					strdup(value);
-			else if (!strcasecmp(key, "algorithm"))
+				    strdup(value);
+			} else if (strcasecmp(key, "algorithm") == 0) {
 				cs->challenges[cs->count]->algo =
-					strdup(value);
-			else if (!strcasecmp(key, "stale"))
+				    strdup(value);
+			} else if (strcasecmp(key, "stale") == 0) {
 				cs->challenges[cs->count]->stale =
-					strcasecmp(value, "no");
-			/* Else ignore unknown attributes */
+				    strcasecmp(value, "no");
+			} else {
+				/* ignore unknown attributes */
+			}
 
 			/* Comma or Next challenge or End */
 			lex = http_header_lex(&cp, key);
@@ -889,10 +891,9 @@ http_parse_mtime(const char *p, time_t *mtime)
 	setlocale(LC_TIME, locale);
 	if (r == NULL)
 		return (-1);
-	DEBUG(fprintf(stderr, "last modified: [%04d-%02d-%02d "
-		  "%02d:%02d:%02d]\n",
-		  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-		  tm.tm_hour, tm.tm_min, tm.tm_sec));
+	DEBUGF("last modified: [%04d-%02d-%02d %02d:%02d:%02d]\n",
+	    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+	    tm.tm_hour, tm.tm_min, tm.tm_sec);
 	*mtime = timegm(&tm);
 	return (0);
 }
@@ -909,8 +910,7 @@ http_parse_length(const char *p, off_t *length)
 		len = len * 10 + (*p - '0');
 	if (*p)
 		return (-1);
-	DEBUG(fprintf(stderr, "content length: [%lld]\n",
-	    (long long)len));
+	DEBUGF("content length: [%lld]\n", (long long)len);
 	*length = len;
 	return (0);
 }
@@ -944,12 +944,11 @@ http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 	if (*p || len < last - first + 1)
 		return (-1);
 	if (first == -1) {
-		DEBUG(fprintf(stderr, "content range: [*/%lld]\n",
-		    (long long)len));
+		DEBUGF("content range: [*/%lld]\n", (long long)len);
 		*length = 0;
 	} else {
-		DEBUG(fprintf(stderr, "content range: [%lld-%lld/%lld]\n",
-		    (long long)first, (long long)last, (long long)len));
+		DEBUGF("content range: [%lld-%lld/%lld]\n",
+		    (long long)first, (long long)last, (long long)len);
 		*length = last - first + 1;
 	}
 	*offset = first;
@@ -1185,9 +1184,10 @@ DigestCalcResponse(
 	OUT HASHHEX Response      /* request-digest or response-digest */
 	)
 {
-/*	DEBUG(fprintf(stderr,
-		      "Calc: HA1[%s] Nonce[%s] qop[%s] method[%s] URI[%s]\n",
-		      HA1, pszNonce, pszQop, pszMethod, pszDigestUri));*/
+#if 0
+	DEBUGF("Calc: HA1[%s] Nonce[%s] qop[%s] method[%s] URI[%s]\n",
+	    HA1, pszNonce, pszQop, pszMethod, pszDigestUri);
+#endif
 	MD5_CTX Md5Ctx;
 	HASH HA2;
 	HASH RespHash;
@@ -1255,15 +1255,15 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 	char *options = NULL;
 
 	if (!c->realm || !c->nonce) {
-		DEBUG(fprintf(stderr, "realm/nonce not set in challenge\n"));
+		DEBUGF("realm/nonce not set in challenge\n");
 		return(-1);
 	}
 	if (!c->algo)
 		c->algo = strdup("");
 
 	if (asprintf(&options, "%s%s%s%s",
-		     *c->algo? ",algorithm=" : "", c->algo,
-		     c->opaque? ",opaque=" : "", c->opaque?c->opaque:"")== -1)
+	    *c->algo? ",algorithm=" : "", c->algo,
+	    c->opaque? ",opaque=" : "", c->opaque?c->opaque:"") < 0)
 		return (-1);
 
 	if (!c->qop) {
@@ -1280,7 +1280,7 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 	HASHHEX HA1;
 	DigestCalcHA1(c->algo, parms->user, c->realm,
 		      parms->password, c->nonce, cnonce, HA1);
-	DEBUG(fprintf(stderr, "HA1: [%s]\n", HA1));
+	DEBUGF("HA1: [%s]\n", HA1);
 	HASHHEX digest;
 	DigestCalcResponse(HA1, c->nonce, noncecount, cnonce, c->qop,
 			   "GET", url->doc, "", digest);
@@ -1312,8 +1312,8 @@ http_basic_auth(conn_t *conn, const char *hdr, const char *usr, const char *pwd)
 	char *upw, *auth;
 	int r;
 
-	DEBUG(fprintf(stderr, "basic: usr: [%s]\n", usr));
-	DEBUG(fprintf(stderr, "basic: pwd: [%s]\n", pwd));
+	DEBUGF("basic: usr: [%s]\n", usr);
+	DEBUGF("basic: pwd: [%s]\n", pwd);
 	if (asprintf(&upw, "%s:%s", usr, pwd) == -1)
 		return (-1);
 	auth = http_base64(upw);
@@ -1338,7 +1338,7 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 
 	/* If user or pass are null we're not happy */
 	if (!parms->user || !parms->password) {
-		DEBUG(fprintf(stderr, "NULL usr or pass\n"));
+		DEBUGF("NULL usr or pass\n");
 		return (-1);
 	}
 
@@ -1349,10 +1349,9 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 	}
 
 	/* Error if "Digest" was specified and there is no Digest challenge */
-	if (!digest && (parms->scheme &&
-			!strcasecmp(parms->scheme, "digest"))) {
-		DEBUG(fprintf(stderr,
-			      "Digest auth in env, not supported by peer\n"));
+	if (!digest &&
+	    (parms->scheme && strcasecmp(parms->scheme, "digest") == 0)) {
+		DEBUGF("Digest auth in env, not supported by peer\n");
 		return (-1);
 	}
 	/*
@@ -1360,7 +1359,8 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 	 * challenge, do the basic thing. Don't need a challenge for this,
 	 * so no need to check basic!=NULL
 	 */
-	if (!digest || (parms->scheme && !strcasecmp(parms->scheme,"basic")))
+	if (!digest ||
+	    (parms->scheme && strcasecmp(parms->scheme, "basic") == 0))
 		return (http_basic_auth(conn,hdr,parms->user,parms->password));
 
 	/* Else, prefer digest. We just checked that it's not NULL */
@@ -1852,26 +1852,29 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 				if (new)
 					free(new);
 				if (verbose)
-					fetch_info("%d redirect to %s", conn->err, p);
+					fetch_info("%d redirect to %s",
+					    conn->err, p);
 				if (*p == '/')
 					/* absolute path */
-					new = fetchMakeURL(url->scheme, url->host, url->port, p,
-					    url->user, url->pwd);
+					new = fetchMakeURL(url->scheme, url->host,
+					    url->port, p, url->user, url->pwd);
 				else
 					new = fetchParseURL(p);
 				if (new == NULL) {
 					/* XXX should set an error code */
-					DEBUG(fprintf(stderr, "failed to parse new URL\n"));
+					DEBUGF("failed to parse new URL\n");
 					goto ouch;
 				}
 
 				/* Only copy credentials if the host matches */
-				if (!strcmp(new->host, url->host) && !*new->user && !*new->pwd) {
+				if (strcmp(new->host, url->host) == 0 &&
+				    !*new->user && !*new->pwd) {
 					strcpy(new->user, url->user);
 					strcpy(new->pwd, url->pwd);
 				}
 				new->offset = url->offset;
 				new->length = url->length;
+				new->ims_time = url->ims_time;
 				break;
 			case hdr_transfer_encoding:
 				/* XXX weak test*/
@@ -1906,7 +1909,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			    (conn->err == HTTP_NEED_PROXY_AUTH &&
 			     !proxy_challenges.valid)) {
 				/* 401/7 but no www/proxy-authenticate ?? */
-				DEBUG(fprintf(stderr, "401/7 and no auth header\n"));
+				DEBUGF("%03d without auth header\n", conn->err);
 				goto ouch;
 			}
 			fetch_close(conn);
@@ -1941,7 +1944,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		fetch_close(conn);
 		conn = NULL;
 		if (!new) {
-			DEBUG(fprintf(stderr, "redirect with no new location\n"));
+			DEBUGF("redirect with no new location\n");
 			break;
 		}
 		if (url != URL)
@@ -1955,10 +1958,9 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		goto ouch;
 	}
 
-	DEBUG(fprintf(stderr, "offset %lld, length %lld,"
-		  " size %lld, clength %lld\n",
-		  (long long)offset, (long long)length,
-		  (long long)size, (long long)clength));
+	DEBUGF("offset %lld, length %lld, size %lld, clength %lld\n",
+	    (long long)offset, (long long)length,
+	    (long long)size, (long long)clength);
 
 	if (conn->err == HTTP_NOT_MODIFIED) {
 		http_seterr(HTTP_NOT_MODIFIED);
