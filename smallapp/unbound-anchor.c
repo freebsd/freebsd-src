@@ -1097,11 +1097,14 @@ read_http_result(SSL* ssl)
 	}
 	if(!data) return NULL;
 	if(verb >= 4) print_data("read data", data, (int)len);
-	m = BIO_new_mem_buf(data, (int)len);
+	m = BIO_new(BIO_s_mem());
 	if(!m) {
 		if(verb) printf("out of memory\n");
+		free(data);
 		exit(0);
 	}
+	BIO_write(m, data, (int)len);
+	free(data);
 	return m;
 }
 
@@ -1166,17 +1169,6 @@ https(struct ip_list* ip_list, const char* pathname, const char* urlname)
 			pathname, (int)BIO_ctrl_pending(bio));
 	}
 	return bio;
-}
-
-/** free up a downloaded file BIO */
-static void
-free_file_bio(BIO* bio)
-{
-	char* pp = NULL;
-	(void)BIO_reset(bio);
-	(void)BIO_get_mem_data(bio, &pp);
-	free(pp);
-	BIO_free(bio);
 }
 
 /** XML parse private data during the parse */
@@ -1603,7 +1595,7 @@ xml_parse(BIO* xml, time_t now)
 	xml_parse_setup(parser, &data, now);
 
 	/* parse it */
-	(void)BIO_reset(xml);
+	(void)BIO_seek(xml, 0);
 	len = (int)BIO_get_mem_data(xml, &pp);
 	if(!len || !pp) {
 		if(verb) printf("out of memory\n");
@@ -1777,8 +1769,8 @@ verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust, const char* p7signer)
 	X509_VERIFY_PARAM_free(param);
 #endif
 
-	(void)BIO_reset(p7s);
-	(void)BIO_reset(data);
+	(void)BIO_seek(p7s, 0);
+	(void)BIO_seek(data, 0);
 
 	/* convert p7s to p7 (the signature) */
 	p7 = d2i_PKCS7_bio(p7s, NULL);
@@ -1956,8 +1948,8 @@ do_certupdate(const char* root_anchor_file, const char* root_cert_file,
 	if(verb) printf("success: the anchor has been updated "
 			"using the cert\n");
 
-	free_file_bio(xml);
-	free_file_bio(p7s);
+	BIO_free(xml);
+	BIO_free(p7s);
 #ifndef S_SPLINT_S
 	sk_X509_pop_free(cert, X509_free);
 #endif
@@ -2349,7 +2341,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	argc -= optind;
-	argv += optind;
+	/* argv += optind; not using further arguments */
 	if(argc != 0)
 		usage();
 

@@ -1013,8 +1013,8 @@ int infra_ip_ratelimit_inc(struct infra_cache* infra,
 			char client_ip[128];
 			addr_to_str((struct sockaddr_storage *)&repinfo->addr,
 				repinfo->addrlen, client_ip, sizeof(client_ip));
-			verbose(VERB_OPS, "ratelimit exceeded %s %d", client_ip,
-				infra_ip_ratelimit);
+			verbose(VERB_OPS, "ip_ratelimit exceeded %s %d",
+				client_ip, infra_ip_ratelimit);
 		}
 		return (max <= infra_ip_ratelimit);
 	}

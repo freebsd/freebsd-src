@@ -187,7 +187,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		if(!w->is_bg || w->is_bg_thread) {
 			lock_basic_unlock(&ctx->cfglock);
 		}
-		seed = 0;
+		explicit_bzero(&seed, sizeof(seed));
 		libworker_delete(w);
 		return NULL;
 	}
@@ -207,7 +207,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 			hash_set_raninit((uint32_t)ub_random(w->env->rnd));
 		}
 	}
-	seed = 0;
+	explicit_bzero(&seed, sizeof(seed));
 
 	if(eb)
 		w->base = comm_base_create_event(eb);

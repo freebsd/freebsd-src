@@ -182,6 +182,8 @@ struct ext_thr_info {
 	char** argv;
 	/** number of queries to do */
 	int numq;
+	/** list of ids to free once threads are done */
+	struct track_id* id_list;
 };
 
 /** if true, we are testing against 'localhost' and extra checking is done */
@@ -309,6 +311,7 @@ ext_thread(void* arg)
 		for(i=0; i<inf->numq; i++) {
 			lock_basic_init(&async_ids[i].lock);
 		}
+		inf->id_list = async_ids;
 	}
 	for(i=0; i<inf->numq; i++) {
 		if(async_ids) {
@@ -347,14 +350,6 @@ ext_thread(void* arg)
 	/* if these locks are destroyed, or if the async_ids is freed, then
 	   a use-after-free happens in another thread.
 	   The allocation is only part of this test, though. */
-	/*
-	if(async_ids) {
-		for(i=0; i<inf->numq; i++) {
-			lock_basic_destroy(&async_ids[i].lock);
-		}
-	}
-	free(async_ids);
-	*/
 	
 	return NULL;
 }
@@ -375,6 +370,7 @@ ext_test(struct ub_ctx* ctx, int argc, char** argv)
 		inf[i].argc = argc;
 		inf[i].argv = argv;
 		inf[i].numq = 100;
+		inf[i].id_list = NULL;
 		ub_thread_create(&inf[i].tid, ext_thread, &inf[i]);
 	}
 	/* the work happens here */
@@ -382,6 +378,16 @@ ext_test(struct ub_ctx* ctx, int argc, char** argv)
 		ub_thread_join(inf[i].tid);
 	}
 	printf("extended test end\n");
+	/* free the id lists */
+	for(i=0; i<NUMTHR; i++) {
+		if(inf[i].id_list) {
+			int j;
+			for(j=0; j<inf[i].numq; j++) {
+				lock_basic_destroy(&inf[i].id_list[j].lock);
+			}
+			free(inf[i].id_list);
+		}
+	}
 	ub_ctx_delete(ctx);
 	checklock_stop();
 	return 0;

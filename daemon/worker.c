@@ -1180,7 +1180,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			char addrbuf[128];
 			addr_to_str(&repinfo->addr, repinfo->addrlen,
 						addrbuf, sizeof(addrbuf));
-		  verbose(VERB_OPS, "ip_ratelimit allowed through for ip address %s ",
+		  verbose(VERB_QUERY, "ip_ratelimit allowed through for ip address %s because of slip in ip_ratelimit_factor",
 				  addrbuf);
 		} else {
 			worker->stats.num_queries_ip_ratelimited++;
@@ -1671,14 +1671,14 @@ worker_create(struct daemon* daemon, int id, int* ports, int n)
 		(((unsigned int)worker->thread_num)<<17);
 		/* shift thread_num so it does not match out pid bits */
 	if(!(worker->rndstate = ub_initstate(seed, daemon->rand))) {
-		seed = 0;
+		explicit_bzero(&seed, sizeof(seed));
 		log_err("could not init random numbers.");
 		tube_delete(worker->cmd);
 		free(worker->ports);
 		free(worker);
 		return NULL;
 	}
-	seed = 0;
+	explicit_bzero(&seed, sizeof(seed));
 #ifdef USE_DNSTAP
 	if(daemon->cfg->dnstap) {
 		log_assert(daemon->dtenv != NULL);

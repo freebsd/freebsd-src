@@ -11,14 +11,14 @@ sinclude(dnscrypt/dnscrypt.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[8])
-m4_define([VERSION_MICRO],[0])
+m4_define([VERSION_MICRO],[1])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=8
-LIBUNBOUND_REVISION=0
+LIBUNBOUND_REVISION=1
 LIBUNBOUND_AGE=0
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -81,7 +81,8 @@ LIBUNBOUND_AGE=0
 # 1.7.1 had 7:9:5
 # 1.7.2 had 7:10:5
 # 1.7.3 had 7:11:5
-# 1.7.4 had 8:0:0 # changes the event callback function signature
+# 1.8.0 had 8:0:0 # changes the event callback function signature
+# 1.8.1 had 8:1:0
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -310,10 +311,35 @@ __attribute__((weak)) void f(int x) { printf("%d", x); }
 AC_MSG_RESULT($ac_cv_c_weak_attribute)
 if test $ac_cv_c_weak_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_WEAK, 1, [Whether the C compiler accepts the "weak" attribute])
+  AC_DEFINE(ATTR_WEAK, [__attribute__((weak))], [apply the weak attribute to a symbol])
 fi
 ])dnl End of CHECK_WEAK_ATTRIBUTE
 
 CHECK_WEAK_ATTRIBUTE
+
+AC_DEFUN([CHECK_NORETURN_ATTRIBUTE],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "noreturn" attribute)
+AC_CACHE_VAL(ac_cv_c_noreturn_attribute,
+[ac_cv_c_noreturn_attribute=no
+AC_TRY_COMPILE(
+[ #include <stdio.h>
+__attribute__((noreturn)) void f(int x) { printf("%d", x); }
+], [
+   f(1);
+],
+[ac_cv_c_noreturn_attribute="yes"],
+[ac_cv_c_noreturn_attribute="no"])
+])
+
+AC_MSG_RESULT($ac_cv_c_noreturn_attribute)
+if test $ac_cv_c_noreturn_attribute = yes; then
+  AC_DEFINE(HAVE_ATTR_NORETURN, 1, [Whether the C compiler accepts the "noreturn" attribute])
+  AC_DEFINE(ATTR_NORETURN, [__attribute__((__noreturn__))], [apply the noreturn attribute to a function that exits the program])
+fi
+])dnl End of CHECK_NORETURN_ATTRIBUTE
+
+CHECK_NORETURN_ATTRIBUTE
 
 if test "$srcdir" != "."; then
 	CPPFLAGS="$CPPFLAGS -I$srcdir"
@@ -1396,6 +1422,7 @@ AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(memmove)
 AC_REPLACE_FUNCS(gmtime_r)
 AC_REPLACE_FUNCS(isblank)
+AC_REPLACE_FUNCS(explicit_bzero)
 dnl without CTIME, ARC4-functions and without reallocarray.
 LIBOBJ_WITHOUT_CTIMEARC4="$LIBOBJS"
 AC_SUBST(LIBOBJ_WITHOUT_CTIMEARC4)
@@ -1404,7 +1431,6 @@ if test "$USE_NSS" = "no"; then
 	AC_REPLACE_FUNCS(arc4random)
 	AC_REPLACE_FUNCS(arc4random_uniform)
 	if test "$ac_cv_func_arc4random" = "no"; then
-		AC_LIBOBJ(explicit_bzero)
 		AC_LIBOBJ(arc4_lock)
 		AC_CHECK_FUNCS([getentropy],,[
 		    if test "$USE_WINSOCK" = 1; then
@@ -1729,6 +1755,11 @@ char *strsep(char **stringp, const char *delim);
 int isblank(int c);
 #endif
 
+#ifndef HAVE_EXPLICIT_BZERO
+#define explicit_bzero unbound_explicit_bzero
+void explicit_bzero(void* buf, size_t len);
+#endif
+
 #if defined(HAVE_INET_NTOP) && !HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
@@ -1761,7 +1792,6 @@ void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM
-void explicit_bzero(void* buf, size_t len);
 int getentropy(void* buf, size_t len);
 uint32_t arc4random(void);
 void arc4random_buf(void* buf, size_t n);

@@ -16,7 +16,7 @@ CONFIG_END
 
 SCENARIO_BEGIN Test validator with DLV where it needs to ask higher up in dlv.
 ; at first negative DLV response, it needs to ask higher.
-; the SOA record in that negative reponse has a big span (if interpreted as NSEC)
+; the SOA record in that negative response has a big span (if interpreted as NSEC)
 ; then a positive response for DLV.
 
 ; K.ROOT-SERVERS.NET.

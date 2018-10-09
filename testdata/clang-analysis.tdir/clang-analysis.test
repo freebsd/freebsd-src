@@ -1,0 +1,69 @@
+# #-- clang-analysis.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+# common functions
+. ../common.sh
+
+if test ! -x "`which clang 2>&1`"; then
+	echo "No clang in path"
+	exit 0
+fi
+#echo "have clang"
+
+# read value from Makefile
+# $1: result variable name
+# $2: string on Makefile
+# $3: Makefile location
+read_value () {
+	x=`grep "$2" $3 | sed -e "s/$2//"`
+	eval $1="'""$x""'"
+	# print what we just read
+	#echo $1"="'"'"`eval echo '$'$1`"'"'
+}
+
+PRE="../.."
+# read some values from the Makefile
+read_value srcdir '^srcdir=' $PRE/Makefile
+read_value CPPFLAGS '^CPPFLAGS=' $PRE/Makefile
+read_value LIBOBJS '^LIBOBJS= *' $PRE/Makefile
+read_value DNSCRYPT_SRC '^DNSCRYPT_SRC= *' $PRE/Makefile
+read_value DNSTAP_SRC '^DNSTAP_SRC= *' $PRE/Makefile
+read_value WITH_PYTHONMODULE '^WITH_PYTHONMODULE= *' $PRE/Makefile
+read_value WINAPPS '^WINAPPS= *' $PRE/Makefile
+
+#echo dir is $dir
+# turn libobjs into C files
+compatfiles=`echo "$LIBOBJS" | sed -e 's?..LIBOBJDIR.?compat/?g' -e 's/.U.o/.c/g'`
+#echo compatfiles are $compatfiles
+#echo
+if test "$WITH_PYTHONMODULE" = "yes"; then PYTHONMOD_SRC="pythonmod/*.c"; fi
+if test ! -z "$WINAPPS"; then WIN_SRC="winrc/*.c"; fi
+
+cd $PRE; cd $srcdir
+# check the files in the srcdir
+fail="no"
+for x in cachedb/*.c daemon/*.c dns64/*.c $DNSCRYPT_SRC $DNSTAP_SRC edns-subnet/*.c ipsecmod/*.c iterator/*.c libunbound/*.c $PYTHONMOD_SRC respip/*.c services/*.c services/*/*.c sldns/*.c smallapp/*.c util/*.c util/*/*.c validator/*.c $WIN_SRC $compatfiles testcode/*.c; do
+	if test "$x" = "util/configlexer.c"; then continue; fi
+	if test "$x" = "util/configparser.c"; then continue; fi
+	if test "$x" = "testcode/signit.c"; then continue; fi
+	echo clang --analyze $CPPFLAGS $x
+	plist=`basename $x .c`.plist
+	rm -rf $plist
+	clang --analyze $CPPFLAGS $x 2>&1 | tee tmp.$$
+	if grep -e warning -e error tmp.$$ >/dev/null; then
+		fail="yes"
+		fails="$fails $x"
+	fi
+	rm -rf $plist tmp.$$
+done
+
+echo
+if test "$fail" = "yes"; then
+	echo "Failures"
+	echo "create reports in file.plist dir with 	clang --analyze --analyzer-output html $CPPFLAGS""$fails"
+	exit 1
+fi
+echo "OK"
+exit 0

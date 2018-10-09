@@ -1,15 +1,11 @@
 Description: based on the included patch contrib/fastrpz.patch
 Author: fastrpz@farsightsecurity.com
 ---
-This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: unboundfastrpz/Makefile.in
 ===================================================================
-RCS file: ./RCS/Makefile.in,v
-retrieving revision 1.1
-Index: unbound-1.7.0~rc1/Makefile.in
-===================================================================
---- unbound-1.7.0~rc1.orig/Makefile.in
-+++ unbound-1.7.0~rc1/Makefile.in
-@@ -23,6 +23,8 @@ CHECKLOCK_SRC=testcode/checklocks.c
+--- unboundfastrpz/Makefile.in	(revision 4923)
++++ unboundfastrpz/Makefile.in	(working copy)
+@@ -23,6 +23,8 @@
  CHECKLOCK_OBJ=@CHECKLOCK_OBJ@
  DNSTAP_SRC=@DNSTAP_SRC@
  DNSTAP_OBJ=@DNSTAP_OBJ@
@@ -18,7 +14,7 @@ Index: unbound-1.7.0~rc1/Makefile.in
  DNSCRYPT_SRC=@DNSCRYPT_SRC@
  DNSCRYPT_OBJ=@DNSCRYPT_OBJ@
  WITH_PYTHONMODULE=@WITH_PYTHONMODULE@
-@@ -125,7 +127,7 @@ validator/val_sigcrypt.c validator/val_u
+@@ -126,7 +128,7 @@
  edns-subnet/edns-subnet.c edns-subnet/subnetmod.c \
  edns-subnet/addrtree.c edns-subnet/subnet-whitelist.c \
  cachedb/cachedb.c cachedb/redis.c respip/respip.c $(CHECKLOCK_SRC) \
@@ -27,16 +23,16 @@ Index: unbound-1.7.0~rc1/Makefile.in
  COMMON_OBJ_WITHOUT_NETCALL=dns.lo infra.lo rrset.lo dname.lo msgencode.lo \
  as112.lo msgparse.lo msgreply.lo packed_rrset.lo iterator.lo iter_delegpt.lo \
  iter_donotq.lo iter_fwd.lo iter_hints.lo iter_priv.lo iter_resptype.lo \
-@@ -137,7 +139,7 @@ slabhash.lo timehist.lo tube.lo winsock_
+@@ -139,7 +141,7 @@
  validator.lo val_kcache.lo val_kentry.lo val_neg.lo val_nsec3.lo val_nsec.lo \
- val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo cachedb.lo authzone.lo\
+ val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo cachedb.lo redis.lo authzone.lo \
  $(SUBNET_OBJ) $(PYTHONMOD_OBJ) $(CHECKLOCK_OBJ) $(DNSTAP_OBJ) $(DNSCRYPT_OBJ) \
 -$(IPSECMOD_OBJ) respip.lo
 +$(FASTRPZ_OBJ) $(IPSECMOD_OBJ) respip.lo
  COMMON_OBJ_WITHOUT_UB_EVENT=$(COMMON_OBJ_WITHOUT_NETCALL) netevent.lo listen_dnsport.lo \
  outside_network.lo
  COMMON_OBJ=$(COMMON_OBJ_WITHOUT_UB_EVENT) ub_event.lo
-@@ -400,6 +402,11 @@ dnscrypt.lo dnscrypt.o: $(srcdir)/dnscry
+@@ -405,6 +407,11 @@
  	$(srcdir)/util/config_file.h $(srcdir)/util/log.h \
  	$(srcdir)/util/netevent.h
  
@@ -48,11 +44,11 @@ Index: unbound-1.7.0~rc1/Makefile.in
  # Python Module
  pythonmod.lo pythonmod.o: $(srcdir)/pythonmod/pythonmod.c config.h \
  	pythonmod/interface.h \
-Index: unbound-1.7.0~rc1/config.h.in
+Index: unboundfastrpz/config.h.in
 ===================================================================
---- unbound-1.7.0~rc1.orig/config.h.in
-+++ unbound-1.7.0~rc1/config.h.in
-@@ -1228,4 +1228,11 @@ void *unbound_stat_realloc_log(void *ptr
+--- unboundfastrpz/config.h.in	(revision 4923)
++++ unboundfastrpz/config.h.in	(working copy)
+@@ -1272,4 +1272,11 @@
  /** the version of unbound-control that this software implements */
  #define UNBOUND_CONTROL_VERSION 1
  
@@ -65,11 +61,11 @@ Index: unbound-1.7.0~rc1/config.h.in
 +#undef FASTRPZ_LIB_OPEN
 +/** turn on fastrpz response policy zones */
 +#undef ENABLE_FASTRPZ
-Index: unbound-1.7.0~rc1/configure.ac
+Index: unboundfastrpz/configure.ac
 ===================================================================
---- unbound-1.7.0~rc1.orig/configure.ac
-+++ unbound-1.7.0~rc1/configure.ac
-@@ -6,6 +6,7 @@ sinclude(ax_pthread.m4)
+--- unboundfastrpz/configure.ac	(revision 4923)
++++ unboundfastrpz/configure.ac	(working copy)
+@@ -6,6 +6,7 @@
  sinclude(acx_python.m4)
  sinclude(ac_pkg_swig.m4)
  sinclude(dnstap/dnstap.m4)
@@ -77,7 +73,7 @@ Index: unbound-1.7.0~rc1/configure.ac
  sinclude(dnscrypt/dnscrypt.m4)
  
  # must be numbers. ac_defun because of later processing
-@@ -1453,6 +1454,9 @@ case "$enable_ipsecmod" in
+@@ -1565,6 +1566,9 @@
  		;;
  esac
  
@@ -87,11 +83,11 @@ Index: unbound-1.7.0~rc1/configure.ac
  AC_MSG_CHECKING([if ${MAKE:-make} supports $< with implicit rule in scope])
  # on openBSD, the implicit rule make $< work.
  # on Solaris, it does not work ($? is changed sources, $^ lists dependencies).
-Index: unbound-1.7.0~rc1/daemon/daemon.c
+Index: unboundfastrpz/daemon/daemon.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/daemon/daemon.c
-+++ unbound-1.7.0~rc1/daemon/daemon.c
-@@ -90,6 +90,9 @@
+--- unboundfastrpz/daemon/daemon.c	(revision 4923)
++++ unboundfastrpz/daemon/daemon.c	(working copy)
+@@ -91,6 +91,9 @@
  #include "sldns/keyraw.h"
  #include "respip/respip.h"
  #include <signal.h>
@@ -101,7 +97,7 @@ Index: unbound-1.7.0~rc1/daemon/daemon.c
  
  #ifdef HAVE_SYSTEMD
  #include <systemd/sd-daemon.h>
-@@ -461,6 +464,14 @@ daemon_create_workers(struct daemon* dae
+@@ -462,6 +465,14 @@
  		fatal_exit("dnstap enabled in config but not built with dnstap support");
  #endif
  	}
@@ -116,9 +112,9 @@ Index: unbound-1.7.0~rc1/daemon/daemon.c
  	for(i=0; i<daemon->num; i++) {
  		if(!(daemon->workers[i] = worker_create(daemon, i,
  			shufport+numport*i/daemon->num, 
-@@ -710,6 +721,9 @@ daemon_cleanup(struct daemon* daemon)
- #ifdef USE_DNSCRYPT
+@@ -719,6 +730,9 @@
  	dnsc_delete(daemon->dnscenv);
+ 	daemon->dnscenv = NULL;
  #endif
 +#ifdef ENABLE_FASTRPZ
 +	rpz_delete(&daemon->rpz_clist, &daemon->rpz_client);
@@ -126,11 +122,11 @@ Index: unbound-1.7.0~rc1/daemon/daemon.c
  	daemon->cfg = NULL;
  }
  
-Index: unbound-1.7.0~rc1/daemon/daemon.h
+Index: unboundfastrpz/daemon/daemon.h
 ===================================================================
---- unbound-1.7.0~rc1.orig/daemon/daemon.h
-+++ unbound-1.7.0~rc1/daemon/daemon.h
-@@ -134,6 +134,11 @@ struct daemon {
+--- unboundfastrpz/daemon/daemon.h	(revision 4923)
++++ unboundfastrpz/daemon/daemon.h	(working copy)
+@@ -136,6 +136,11 @@
  	/** the dnscrypt environment */
  	struct dnsc_env* dnscenv;
  #endif
@@ -142,11 +138,11 @@ Index: unbound-1.7.0~rc1/daemon/daemon.h
  };
  
  /**
-Index: unbound-1.7.0~rc1/daemon/worker.c
+Index: unboundfastrpz/daemon/worker.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/daemon/worker.c
-+++ unbound-1.7.0~rc1/daemon/worker.c
-@@ -74,6 +74,9 @@
+--- unboundfastrpz/daemon/worker.c	(revision 4923)
++++ unboundfastrpz/daemon/worker.c	(working copy)
+@@ -75,6 +75,9 @@
  #include "libunbound/context.h"
  #include "libunbound/libworker.h"
  #include "sldns/sbuffer.h"
@@ -156,7 +152,7 @@ Index: unbound-1.7.0~rc1/daemon/worker.c
  #include "sldns/wire2str.h"
  #include "util/shm_side/shm_main.h"
  #include "dnscrypt/dnscrypt.h"
-@@ -527,8 +530,27 @@ answer_norec_from_cache(struct worker* w
+@@ -533,8 +536,27 @@
  			/* not secure */
  			secure = 0;
  			break;
@@ -182,9 +178,9 @@ Index: unbound-1.7.0~rc1/daemon/worker.c
 +	}
 +#endif
  	/* return this delegation from the cache */
+ 	edns_bak = *edns;
  	edns->edns_version = EDNS_ADVERTISED_VERSION;
- 	edns->udp_size = EDNS_ADVERTISED_SIZE;
-@@ -689,6 +711,23 @@ answer_from_cache(struct worker* worker,
+@@ -702,6 +724,23 @@
  			secure = 0;
  		}
  	} else	secure = 0;
@@ -206,9 +202,9 @@ Index: unbound-1.7.0~rc1/daemon/worker.c
 +        }
 +#endif
  
+ 	edns_bak = *edns;
  	edns->edns_version = EDNS_ADVERTISED_VERSION;
- 	edns->udp_size = EDNS_ADVERTISED_SIZE;
-@@ -1291,6 +1330,15 @@ worker_handle_request(struct comm_point*
+@@ -1407,6 +1446,15 @@
  		log_addr(VERB_ALGO, "refused nonrec (cache snoop) query from",
  			&repinfo->addr, repinfo->addrlen);
  		goto send_reply;
@@ -224,7 +220,7 @@ Index: unbound-1.7.0~rc1/daemon/worker.c
  	}
  
  	/* If we've found a local alias, replace the qname with the alias
-@@ -1339,12 +1387,21 @@ lookup_cache:
+@@ -1455,12 +1503,21 @@
  		h = query_info_hash(lookup_qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
  		if((e=slabhash_lookup(worker->env.msg_cache, h, lookup_qinfo, 0))) {
  			/* answer from cache - we have acquired a readlock on it */
@@ -248,7 +244,7 @@ Index: unbound-1.7.0~rc1/daemon/worker.c
  				/* prefetch it if the prefetch TTL expired.
  				 * Note that if there is more than one pass
  				 * its qname must be that used for cache
-@@ -1398,11 +1455,19 @@ lookup_cache:
+@@ -1514,11 +1571,19 @@
  			lock_rw_unlock(&e->lock);
  		}
  		if(!LDNS_RD_WIRE(sldns_buffer_begin(c->buffer))) {
@@ -270,11 +266,11 @@ Index: unbound-1.7.0~rc1/daemon/worker.c
  				goto send_reply;
  			}
  			verbose(VERB_ALGO, "answer norec from cache -- "
-Index: unbound-1.7.0~rc1/doc/unbound.conf.5.in
+Index: unboundfastrpz/doc/unbound.conf.5.in
 ===================================================================
---- unbound-1.7.0~rc1.orig/doc/unbound.conf.5.in
-+++ unbound-1.7.0~rc1/doc/unbound.conf.5.in
-@@ -1705,6 +1705,81 @@ It must be /96 or shorter.  The default
+--- unboundfastrpz/doc/unbound.conf.5.in	(revision 4923)
++++ unboundfastrpz/doc/unbound.conf.5.in	(working copy)
+@@ -1728,6 +1728,81 @@
  used by dns64 processing instead.  Can be entered multiple times, list a
  new domain for which it applies, one per line.  Applies also to names
  underneath the name given.
@@ -356,10 +352,10 @@ Index: unbound-1.7.0~rc1/doc/unbound.conf.5.in
  .SS "DNSCrypt Options"
  .LP
  The
-Index: unbound-1.7.0~rc1/fastrpz/librpz.h
+Index: unboundfastrpz/fastrpz/librpz.h
 ===================================================================
---- /dev/null
-+++ unbound-1.7.0~rc1/fastrpz/librpz.h
+--- unboundfastrpz/fastrpz/librpz.h	(nonexistent)
++++ unboundfastrpz/fastrpz/librpz.h	(working copy)
 @@ -0,0 +1,957 @@
 +/*
 + * Define the interface from a DNS resolver to the Response Policy Zone
@@ -1318,11 +1314,11 @@ Index: unbound-1.7.0~rc1/fastrpz/librpz.h
 +#endif /* LIBRPZ_LIB_OPEN */
 +
 +#endif /* LIBRPZ_H */
-Index: unbound-1.7.0~rc1/fastrpz/rpz.c
+Index: unboundfastrpz/fastrpz/rpz.c
 ===================================================================
---- /dev/null
-+++ unbound-1.7.0~rc1/fastrpz/rpz.c
-@@ -0,0 +1,1357 @@
+--- unboundfastrpz/fastrpz/rpz.c	(nonexistent)
++++ unboundfastrpz/fastrpz/rpz.c	(working copy)
+@@ -0,0 +1,1352 @@
 +/*
 + * fastrpz/rpz.c - interface to the fastrpz response policy zone library
 + *
@@ -1438,8 +1434,6 @@ Index: unbound-1.7.0~rc1/fastrpz/rpz.c
 +static void
 +log_fnc(librpz_log_level_t level, void* ATTR_UNUSED(ctx), const char* buf)
 +{
-+	char label_buf[sizeof("rpz ")+8];
-+
 +	/* Setting librpz_log_level overrides the unbound "verbose" level. */
 +	if(level > LIBRPZ_LOG_TRACE1 &&
 +	   level <= librpz->log_level_val(LIBRPZ_LOG_INVALID))
@@ -1949,12 +1943,9 @@ Index: unbound-1.7.0~rc1/fastrpz/rpz.c
 +	case st_ck_ns:
 +		/* An NSDNAME or NSIP check failed for lack of cached data. */
 +		return false;
-+#pragma clang diagnostic push
-+#pragma clang diagnostic ignored "-Wunreachable-code"
 +	default:
 +		fatal_exit("impossible RPZ state %d in rpz_worker_cache()",
 +			   rpz->st);
-+#pragma clang diagnostic pop
 +	}
 +
 +	/* Wait for a trigger. */
@@ -2680,10 +2671,10 @@ Index: unbound-1.7.0~rc1/fastrpz/rpz.c
 +}
 +
 +#endif /* ENABLE_FASTRPZ */
-Index: unbound-1.7.0~rc1/fastrpz/rpz.h
+Index: unboundfastrpz/fastrpz/rpz.h
 ===================================================================
---- /dev/null
-+++ unbound-1.7.0~rc1/fastrpz/rpz.h
+--- unboundfastrpz/fastrpz/rpz.h	(nonexistent)
++++ unboundfastrpz/fastrpz/rpz.h	(working copy)
 @@ -0,0 +1,138 @@
 +/*
 + * fastrpz/rpz.h - interface to the fastrpz response policy zone library
@@ -2823,10 +2814,10 @@ Index: unbound-1.7.0~rc1/fastrpz/rpz.h
 +
 +#endif /* ENABLE_FASTRPZ */
 +#endif /* UNBOUND_FASTRPZ_RPZ_H */
-Index: unbound-1.7.0~rc1/fastrpz/rpz.m4
+Index: unboundfastrpz/fastrpz/rpz.m4
 ===================================================================
---- /dev/null
-+++ unbound-1.7.0~rc1/fastrpz/rpz.m4
+--- unboundfastrpz/fastrpz/rpz.m4	(nonexistent)
++++ unboundfastrpz/fastrpz/rpz.m4	(working copy)
 @@ -0,0 +1,64 @@
 +# fastrpz/rpz.m4
 +
@@ -2892,10 +2883,10 @@ Index: unbound-1.7.0~rc1/fastrpz/rpz.m4
 +    AC_MSG_WARN([[dlopen and librpz.so needed for fastrpz]])
 +  fi
 +])
-Index: unbound-1.7.0~rc1/iterator/iterator.c
+Index: unboundfastrpz/iterator/iterator.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/iterator/iterator.c
-+++ unbound-1.7.0~rc1/iterator/iterator.c
+--- unboundfastrpz/iterator/iterator.c	(revision 4923)
++++ unboundfastrpz/iterator/iterator.c	(working copy)
 @@ -68,6 +68,9 @@
  #include "sldns/str2wire.h"
  #include "sldns/parseutil.h"
@@ -2906,7 +2897,7 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  
  int 
  iter_init(struct module_env* env, int id)
-@@ -511,6 +514,23 @@ handle_cname_response(struct module_qsta
+@@ -525,6 +528,23 @@
  		if(ntohs(r->rk.type) == LDNS_RR_TYPE_CNAME &&
  			query_dname_compare(*mname, r->rk.dname) == 0 &&
  			!iter_find_rrset_in_prepend_answer(iq, r)) {
@@ -2930,7 +2921,7 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  			/* Add this relevant CNAME rrset to the prepend list.*/
  			if(!iter_add_prepend_answer(qstate, iq, r))
  				return 0;
-@@ -519,6 +539,9 @@ handle_cname_response(struct module_qsta
+@@ -533,6 +553,9 @@
  
  		/* Other rrsets in the section are ignored. */
  	}
@@ -2940,7 +2931,7 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  	/* add authority rrsets to authority prepend, for wildcarded CNAMEs */
  	for(i=msg->rep->an_numrrsets; i<msg->rep->an_numrrsets +
  		msg->rep->ns_numrrsets; i++) {
-@@ -1148,6 +1171,7 @@ processInitRequest(struct module_qstate*
+@@ -1216,6 +1239,7 @@
  	uint8_t* delname;
  	size_t delnamelen;
  	struct dns_msg* msg = NULL;
@@ -2948,7 +2939,7 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  
  	log_query_info(VERB_DETAIL, "resolving", &qstate->qinfo);
  	/* check effort */
-@@ -1223,8 +1247,7 @@ processInitRequest(struct module_qstate*
+@@ -1302,8 +1326,7 @@
  	}
  	if(msg) {
  		/* handle positive cache response */
@@ -2958,7 +2949,7 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  		if(verbosity >= VERB_ALGO) {
  			log_dns_msg("msg from cache lookup", &msg->qinfo, 
  				msg->rep);
-@@ -1232,7 +1255,22 @@ processInitRequest(struct module_qstate*
+@@ -1311,7 +1334,22 @@
  				(int)msg->rep->ttl, 
  				(int)msg->rep->prefetch_ttl);
  		}
@@ -2981,7 +2972,7 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  		if(type == RESPONSE_TYPE_CNAME) {
  			uint8_t* sname = 0;
  			size_t slen = 0;
-@@ -2552,6 +2590,62 @@ processQueryResponse(struct module_qstat
+@@ -2716,6 +2754,62 @@
  			sock_list_insert(&qstate->reply_origin, 
  				&qstate->reply->addr, qstate->reply->addrlen, 
  				qstate->region);
@@ -3041,10 +3032,10 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
 +			}
 +		}
 +#endif
- 		if(iq->minimisation_state != DONOT_MINIMISE_STATE) {
+ 		if(iq->minimisation_state != DONOT_MINIMISE_STATE
+ 			&& !(iq->chase_flags & BIT_RD)) {
  			if(FLAGS_GET_RCODE(iq->response->rep->flags) != 
- 				LDNS_RCODE_NOERROR) {
-@@ -3273,12 +3367,44 @@ processFinished(struct module_qstate* qs
+@@ -3462,6 +3556,10 @@
  		 * but only if we did recursion. The nonrecursion referral
  		 * from cache does not need to be stored in the msg cache. */
  		if(!qstate->no_cache_store && qstate->query_flags&BIT_RD) {
@@ -3055,6 +3046,7 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  			iter_dns_store(qstate->env, &qstate->qinfo, 
  				iq->response->rep, 0, qstate->prefetch_leeway,
  				iq->dp&&iq->dp->has_parent_side_NS,
+@@ -3468,6 +3566,34 @@
  				qstate->region, qstate->query_flags);
  		}
  	}
@@ -3089,11 +3081,11 @@ Index: unbound-1.7.0~rc1/iterator/iterator.c
  	qstate->return_rcode = LDNS_RCODE_NOERROR;
  	qstate->return_msg = iq->response;
  	return 0;
-Index: unbound-1.7.0~rc1/iterator/iterator.h
+Index: unboundfastrpz/iterator/iterator.h
 ===================================================================
---- unbound-1.7.0~rc1.orig/iterator/iterator.h
-+++ unbound-1.7.0~rc1/iterator/iterator.h
-@@ -383,6 +383,16 @@ struct iter_qstate {
+--- unboundfastrpz/iterator/iterator.h	(revision 4923)
++++ unboundfastrpz/iterator/iterator.h	(working copy)
+@@ -386,6 +386,16 @@
  	 */
  	int minimise_count;
  
@@ -3110,11 +3102,11 @@ Index: unbound-1.7.0~rc1/iterator/iterator.h
  	/**
  	 * Count number of time-outs. Used to prevent resolving failures when
  	 * the QNAME minimisation QTYPE is blocked. */
-Index: unbound-1.7.0~rc1/services/cache/dns.c
+Index: unboundfastrpz/services/cache/dns.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/services/cache/dns.c
-+++ unbound-1.7.0~rc1/services/cache/dns.c
-@@ -876,6 +876,14 @@ dns_cache_store(struct module_env* env,
+--- unboundfastrpz/services/cache/dns.c	(revision 4923)
++++ unboundfastrpz/services/cache/dns.c	(working copy)
+@@ -928,6 +928,14 @@
  	struct regional* region, uint32_t flags)
  {
  	struct reply_info* rep = NULL;
@@ -3129,11 +3121,11 @@ Index: unbound-1.7.0~rc1/services/cache/dns.c
  	/* alloc, malloc properly (not in region, like msg is) */
  	rep = reply_info_copy(msgrep, env->alloc, NULL);
  	if(!rep)
-Index: unbound-1.7.0~rc1/services/mesh.c
+Index: unboundfastrpz/services/mesh.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/services/mesh.c
-+++ unbound-1.7.0~rc1/services/mesh.c
-@@ -59,6 +59,9 @@
+--- unboundfastrpz/services/mesh.c	(revision 4923)
++++ unboundfastrpz/services/mesh.c	(working copy)
+@@ -60,6 +60,9 @@
  #include "sldns/wire2str.h"
  #include "services/localzone.h"
  #include "util/data/dname.h"
@@ -3143,7 +3135,7 @@ Index: unbound-1.7.0~rc1/services/mesh.c
  #include "respip/respip.h"
  
  /** subtract timers and the values do not overflow or become negative */
-@@ -1050,6 +1053,13 @@ mesh_send_reply(struct mesh_state* m, in
+@@ -1057,6 +1060,13 @@
  	else	secure = 0;
  	if(!rep && rcode == LDNS_RCODE_NOERROR)
  		rcode = LDNS_RCODE_SERVFAIL;
@@ -3157,7 +3149,7 @@ Index: unbound-1.7.0~rc1/services/mesh.c
  	/* send the reply */
  	/* We don't reuse the encoded answer if either the previous or current
  	 * response has a local alias.  We could compare the alias records
-@@ -1199,6 +1209,7 @@ struct mesh_state* mesh_area_find(struct
+@@ -1230,6 +1240,7 @@
  	key.s.is_valrec = valrec;
  	key.s.qinfo = *qinfo;
  	key.s.query_flags = qflags;
@@ -3165,7 +3157,7 @@ Index: unbound-1.7.0~rc1/services/mesh.c
  	/* We are searching for a similar mesh state when we DO want to
  	 * aggregate the state. Thus unique is set to NULL. (default when we
  	 * desire aggregation).*/
-@@ -1245,6 +1256,10 @@ int mesh_state_add_reply(struct mesh_sta
+@@ -1276,6 +1287,10 @@
  	if(!r)
  		return 0;
  	r->query_reply = *rep;
@@ -3176,11 +3168,11 @@ Index: unbound-1.7.0~rc1/services/mesh.c
  	r->edns = *edns;
  	if(edns->opt_list) {
  		r->edns.opt_list = edns_opt_copy_region(edns->opt_list,
-Index: unbound-1.7.0~rc1/util/config_file.c
+Index: unboundfastrpz/util/config_file.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/config_file.c
-+++ unbound-1.7.0~rc1/util/config_file.c
-@@ -1323,6 +1323,8 @@ config_delete(struct config_file* cfg)
+--- unboundfastrpz/util/config_file.c	(revision 4923)
++++ unboundfastrpz/util/config_file.c	(working copy)
+@@ -1386,6 +1386,8 @@
  	free(cfg->dnstap_socket_path);
  	free(cfg->dnstap_identity);
  	free(cfg->dnstap_version);
@@ -3189,11 +3181,11 @@ Index: unbound-1.7.0~rc1/util/config_file.c
  	config_deldblstrlist(cfg->ratelimit_for_domain);
  	config_deldblstrlist(cfg->ratelimit_below_domain);
  #ifdef USE_IPSECMOD
-Index: unbound-1.7.0~rc1/util/config_file.h
+Index: unboundfastrpz/util/config_file.h
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/config_file.h
-+++ unbound-1.7.0~rc1/util/config_file.h
-@@ -431,6 +431,11 @@ struct config_file {
+--- unboundfastrpz/util/config_file.h	(revision 4923)
++++ unboundfastrpz/util/config_file.h	(working copy)
+@@ -468,6 +468,11 @@
  	/** true to disable DNSSEC lameness check in iterator */
  	int disable_dnssec_lame_check;
  
@@ -3205,11 +3197,11 @@ Index: unbound-1.7.0~rc1/util/config_file.h
  	/** ratelimit for ip addresses. 0 is off, otherwise qps (unless overridden) */
  	int ip_ratelimit;
  	/** number of slabs for ip_ratelimit cache */
-Index: unbound-1.7.0~rc1/util/configlexer.lex
+Index: unboundfastrpz/util/configlexer.lex
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/configlexer.lex
-+++ unbound-1.7.0~rc1/util/configlexer.lex
-@@ -412,6 +412,10 @@ dnstap-log-forwarder-query-messages{COLO
+--- unboundfastrpz/util/configlexer.lex	(revision 4923)
++++ unboundfastrpz/util/configlexer.lex	(working copy)
+@@ -429,6 +429,10 @@
  		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
  dnstap-log-forwarder-response-messages{COLON}	{
  		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
@@ -3220,11 +3212,11 @@ Index: unbound-1.7.0~rc1/util/configlexer.lex
  disable-dnssec-lame-check{COLON} { YDVAR(1, VAR_DISABLE_DNSSEC_LAME_CHECK) }
  ip-ratelimit{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT) }
  ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
-Index: unbound-1.7.0~rc1/util/configparser.y
+Index: unboundfastrpz/util/configparser.y
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/configparser.y
-+++ unbound-1.7.0~rc1/util/configparser.y
-@@ -124,6 +124,7 @@ extern struct config_parser_state* cfg_p
+--- unboundfastrpz/util/configparser.y	(revision 4923)
++++ unboundfastrpz/util/configparser.y	(working copy)
+@@ -125,6 +125,7 @@
  %token VAR_DNSTAP_LOG_CLIENT_RESPONSE_MESSAGES
  %token VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES
  %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
@@ -3232,7 +3224,7 @@ Index: unbound-1.7.0~rc1/util/configparser.y
  %token VAR_RESPONSE_IP_TAG VAR_RESPONSE_IP VAR_RESPONSE_IP_DATA
  %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
  %token VAR_DISABLE_DNSSEC_LAME_CHECK
-@@ -158,7 +159,7 @@ extern struct config_parser_state* cfg_p
+@@ -164,7 +165,7 @@
  
  %%
  toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -3241,7 +3233,7 @@ Index: unbound-1.7.0~rc1/util/configparser.y
  	forwardstart contents_forward | pythonstart contents_py | 
  	rcstart contents_rc | dtstart contents_dt | viewstart contents_view |
  	dnscstart contents_dnsc | cachedbstart contents_cachedb |
-@@ -2384,6 +2385,50 @@ dt_dnstap_log_forwarder_response_message
+@@ -2546,6 +2547,50 @@
  			(strcmp($2, "yes")==0);
  	}
  	;
@@ -3269,7 +3261,7 @@ Index: unbound-1.7.0~rc1/util/configparser.y
 +
 +		OUTYY(("P(rpz_zone:%s)\n", $2));
 +		old_cstr = cfg_parser->cfg->rpz_cstr;
-+		asprintf(&new_cstr, "%s\nzone %s", old_cstr?old_cstr:"", $2);
++		(void)asprintf(&new_cstr, "%s\nzone %s", old_cstr?old_cstr:"", $2);
 +		if(!new_cstr)
 +			yyerror("out of memory");
 +		free(old_cstr);
@@ -3282,7 +3274,7 @@ Index: unbound-1.7.0~rc1/util/configparser.y
 +
 +		OUTYY(("P(rpz_option:%s)\n", $2));
 +		old_cstr = cfg_parser->cfg->rpz_cstr;
-+		asprintf(&new_cstr, "%s\n%s", old_cstr ? old_cstr : "", $2);
++		(void)asprintf(&new_cstr, "%s\n%s", old_cstr ? old_cstr : "", $2);
 +		if(!new_cstr)
 +			yyerror("out of memory");
 +		free(old_cstr);
@@ -3292,11 +3284,11 @@ Index: unbound-1.7.0~rc1/util/configparser.y
  pythonstart: VAR_PYTHON
  	{ 
  		OUTYY(("\nP(python:)\n")); 
-Index: unbound-1.7.0~rc1/util/data/msgencode.c
+Index: unboundfastrpz/util/data/msgencode.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/data/msgencode.c
-+++ unbound-1.7.0~rc1/util/data/msgencode.c
-@@ -585,6 +585,35 @@ insert_section(struct reply_info* rep, s
+--- unboundfastrpz/util/data/msgencode.c	(revision 4923)
++++ unboundfastrpz/util/data/msgencode.c	(working copy)
+@@ -585,6 +585,35 @@
  	return RETVAL_OK;
  }
  
@@ -3332,7 +3324,7 @@ Index: unbound-1.7.0~rc1/util/data/msgencode.c
  /** store query section in wireformat buffer, return RETVAL */
  static int
  insert_query(struct query_info* qinfo, struct compress_tree_node** tree, 
-@@ -750,6 +779,19 @@ reply_info_encode(struct query_info* qin
+@@ -748,6 +777,19 @@
  			return 0;
  		}
  		sldns_buffer_write_u16_at(buffer, 10, arcount);
@@ -3352,13 +3344,13 @@ Index: unbound-1.7.0~rc1/util/data/msgencode.c
  	}
  	sldns_buffer_flip(buffer);
  	return 1;
-Index: unbound-1.7.0~rc1/util/data/packed_rrset.c
+Index: unboundfastrpz/util/data/packed_rrset.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/data/packed_rrset.c
-+++ unbound-1.7.0~rc1/util/data/packed_rrset.c
-@@ -254,6 +254,10 @@ sec_status_to_string(enum sec_status s)
- 	case sec_status_indeterminate: 	return "sec_status_indeterminate";
+--- unboundfastrpz/util/data/packed_rrset.c	(revision 4923)
++++ unboundfastrpz/util/data/packed_rrset.c	(working copy)
+@@ -255,6 +255,10 @@
  	case sec_status_insecure: 	return "sec_status_insecure";
+ 	case sec_status_secure_sentinel_fail: 	return "sec_status_secure_sentinel_fail";
  	case sec_status_secure: 	return "sec_status_secure";
 +#ifdef ENABLE_FASTRPZ
 +	case sec_status_rpz_rewritten: 	return "sec_status_rpz_rewritten";
@@ -3367,12 +3359,12 @@ Index: unbound-1.7.0~rc1/util/data/packed_rrset.c
  	}
  	return "unknown_sec_status_value";
  }
-Index: unbound-1.7.0~rc1/util/data/packed_rrset.h
+Index: unboundfastrpz/util/data/packed_rrset.h
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/data/packed_rrset.h
-+++ unbound-1.7.0~rc1/util/data/packed_rrset.h
-@@ -189,7 +189,15 @@ enum sec_status {
- 	sec_status_insecure,
+--- unboundfastrpz/util/data/packed_rrset.h	(revision 4923)
++++ unboundfastrpz/util/data/packed_rrset.h	(working copy)
+@@ -193,7 +193,15 @@
+ 	sec_status_secure_sentinel_fail,
  	/** SECURE means that the object (RRset or message) validated 
  	 * according to local policy. */
 -	sec_status_secure
@@ -3388,11 +3380,11 @@ Index: unbound-1.7.0~rc1/util/data/packed_rrset.h
  };
  
  /**
-Index: unbound-1.7.0~rc1/util/netevent.c
+Index: unboundfastrpz/util/netevent.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/netevent.c
-+++ unbound-1.7.0~rc1/util/netevent.c
-@@ -54,6 +54,9 @@
+--- unboundfastrpz/util/netevent.c	(revision 4923)
++++ unboundfastrpz/util/netevent.c	(working copy)
+@@ -56,6 +56,9 @@
  #ifdef HAVE_OPENSSL_ERR_H
  #include <openssl/err.h>
  #endif
@@ -3402,7 +3394,7 @@ Index: unbound-1.7.0~rc1/util/netevent.c
  
  /* -------- Start of local definitions -------- */
  /** if CMSG_ALIGN is not defined on this platform, a workaround */
-@@ -585,6 +588,9 @@ comm_point_udp_ancil_callback(int fd, sh
+@@ -588,6 +591,9 @@
  	struct cmsghdr* cmsg;
  #endif /* S_SPLINT_S */
  
@@ -3412,7 +3404,7 @@ Index: unbound-1.7.0~rc1/util/netevent.c
  	rep.c = (struct comm_point*)arg;
  	log_assert(rep.c->type == comm_udp);
  
-@@ -674,6 +680,9 @@ comm_point_udp_callback(int fd, short ev
+@@ -677,6 +683,9 @@
  	int i;
  	struct sldns_buffer *buffer;
  
@@ -3422,7 +3414,7 @@ Index: unbound-1.7.0~rc1/util/netevent.c
  	rep.c = (struct comm_point*)arg;
  	log_assert(rep.c->type == comm_udp);
  
-@@ -717,6 +726,9 @@ comm_point_udp_callback(int fd, short ev
+@@ -720,6 +729,9 @@
  			(void)comm_point_send_udp_msg(rep.c, buffer,
  				(struct sockaddr*)&rep.addr, rep.addrlen);
  		}
@@ -3432,7 +3424,7 @@ Index: unbound-1.7.0~rc1/util/netevent.c
  		if(!rep.c || rep.c->fd != fd) /* commpoint closed to -1 or reused for
  		another UDP port. Note rep.c cannot be reused with TCP fd. */
  			break;
-@@ -2956,6 +2968,9 @@ comm_point_send_reply(struct comm_reply
+@@ -3035,6 +3047,9 @@
  		comm_point_start_listening(repinfo->c, -1,
  			repinfo->c->tcp_timeout_msec);
  	}
@@ -3442,7 +3434,7 @@ Index: unbound-1.7.0~rc1/util/netevent.c
  }
  
  void 
-@@ -2965,6 +2980,9 @@ comm_point_drop_reply(struct comm_reply*
+@@ -3044,6 +3059,9 @@
  		return;
  	log_assert(repinfo && repinfo->c);
  	log_assert(repinfo->c->type != comm_tcp_accept);
@@ -3452,7 +3444,7 @@ Index: unbound-1.7.0~rc1/util/netevent.c
  	if(repinfo->c->type == comm_udp)
  		return;
  	reclaim_tcp_handler(repinfo->c);
-@@ -2984,6 +3002,9 @@ comm_point_start_listening(struct comm_p
+@@ -3063,6 +3081,9 @@
  {
  	verbose(VERB_ALGO, "comm point start listening %d", 
  		c->fd==-1?newfd:c->fd);
@@ -3462,11 +3454,11 @@ Index: unbound-1.7.0~rc1/util/netevent.c
  	if(c->type == comm_tcp_accept && !c->tcp_free) {
  		/* no use to start listening no free slots. */
  		return;
-Index: unbound-1.7.0~rc1/util/netevent.h
+Index: unboundfastrpz/util/netevent.h
 ===================================================================
---- unbound-1.7.0~rc1.orig/util/netevent.h
-+++ unbound-1.7.0~rc1/util/netevent.h
-@@ -119,6 +119,10 @@ struct comm_reply {
+--- unboundfastrpz/util/netevent.h	(revision 4923)
++++ unboundfastrpz/util/netevent.h	(working copy)
+@@ -120,6 +120,10 @@
  	/** return type 0 (none), 4(IP4), 6(IP6) */
  	int srctype;
  	/* DnsCrypt context */
@@ -3477,11 +3469,11 @@ Index: unbound-1.7.0~rc1/util/netevent.h
  #ifdef USE_DNSCRYPT
  	uint8_t client_nonce[crypto_box_HALF_NONCEBYTES];
  	uint8_t nmkey[crypto_box_BEFORENMBYTES];
-Index: unbound-1.7.0~rc1/validator/validator.c
+Index: unboundfastrpz/validator/validator.c
 ===================================================================
---- unbound-1.7.0~rc1.orig/validator/validator.c
-+++ unbound-1.7.0~rc1/validator/validator.c
-@@ -2688,6 +2688,12 @@ ds_response_to_ke(struct module_qstate*
+--- unboundfastrpz/validator/validator.c	(revision 4923)
++++ unboundfastrpz/validator/validator.c	(working copy)
+@@ -2755,6 +2755,12 @@
  			default:
  				/* NSEC proof did not work, try next */
  				break;
@@ -3494,7 +3486,7 @@ Index: unbound-1.7.0~rc1/validator/validator.c
  		}
  
  		sec = nsec3_prove_nods(qstate->env, ve, 
-@@ -2721,6 +2727,12 @@ ds_response_to_ke(struct module_qstate*
+@@ -2788,6 +2794,12 @@
  			default:
  				/* NSEC3 proof did not work */
  				break;
@@ -3507,4 +3499,3 @@ Index: unbound-1.7.0~rc1/validator/validator.c
  		}
  
  		/* Apparently, no available NSEC/NSEC3 proved NODATA, so 
-
