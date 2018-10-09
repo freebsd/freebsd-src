@@ -53,6 +53,7 @@
 #include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 

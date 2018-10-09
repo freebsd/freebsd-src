@@ -40,6 +40,7 @@
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 
+#include <string.h>
 #include <syslog.h>
 
 #include "dma.h"

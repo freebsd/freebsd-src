@@ -128,15 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_set_bit 3"
-.TH BN_set_bit 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_SET_BIT 3"
+.TH BN_SET_BIT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_set_bit, BN_clear_bit, BN_is_bit_set, BN_mask_bits, BN_lshift,
-BN_lshift1, BN_rshift, BN_rshift1 \- bit operations on BIGNUMs
+BN_set_bit, BN_clear_bit, BN_is_bit_set, BN_mask_bits, BN_lshift, BN_lshift1, BN_rshift, BN_rshift1 \- bit operations on BIGNUMs
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -186,9 +185,12 @@ All other functions return 1 for success, 0 on error. The error codes
 can be obtained by \fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIBN_num_bytes\fR\|(3), \fIBN_add\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIBN_set_bit()\fR, \fIBN_clear_bit()\fR, \fIBN_is_bit_set()\fR, \fIBN_mask_bits()\fR,
-\&\fIBN_lshift()\fR, \fIBN_lshift1()\fR, \fIBN_rshift()\fR, and \fIBN_rshift1()\fR are available
-in all versions of SSLeay and OpenSSL.
+\&\fIBN_num_bytes\fR\|(3), \fIBN_add\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

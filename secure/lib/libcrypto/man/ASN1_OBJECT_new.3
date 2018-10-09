@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "ASN1_OBJECT_new 3"
-.TH ASN1_OBJECT_new 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "ASN1_OBJECT_NEW 3"
+.TH ASN1_OBJECT_NEW 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ASN1_OBJECT_new, ASN1_OBJECT_free, \- object allocation functions
+ASN1_OBJECT_new, ASN1_OBJECT_free \- object allocation functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -149,9 +149,10 @@ ASN1_OBJECT_new, ASN1_OBJECT_free, \- object allocation functions
 The \s-1ASN1_OBJECT\s0 allocation routines, allocate and free an
 \&\s-1ASN1_OBJECT\s0 structure, which represents an \s-1ASN1 OBJECT IDENTIFIER.\s0
 .PP
-\&\fIASN1_OBJECT_new()\fR allocates and initializes a \s-1ASN1_OBJECT\s0 structure.
+\&\fIASN1_OBJECT_new()\fR allocates and initializes an \s-1ASN1_OBJECT\s0 structure.
 .PP
 \&\fIASN1_OBJECT_free()\fR frees up the \fB\s-1ASN1_OBJECT\s0\fR structure \fBa\fR.
+If \fBa\fR is \s-1NULL,\s0 nothing is done.
 .SH "NOTES"
 .IX Header "NOTES"
 Although \fIASN1_OBJECT_new()\fR allocates a new \s-1ASN1_OBJECT\s0 structure it
@@ -167,6 +168,11 @@ Otherwise it returns a pointer to the newly allocated structure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIERR_get_error\fR\|(3), \fId2i_ASN1_OBJECT\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIASN1_OBJECT_new()\fR and \fIASN1_OBJECT_free()\fR are available in all versions of SSLeay and OpenSSL.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

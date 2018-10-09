@@ -1,8 +1,10 @@
-/* ====================================================================
- * Copyright (c) 2010 The OpenSSL Project.  All rights reserved.
+/*
+ * Copyright 2010-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use is governed by OpenSSL license.
- * ====================================================================
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/modes.h>
@@ -71,6 +73,7 @@ typedef unsigned char u8;
 #  endif
 # elif defined(_MSC_VER)
 #  if _MSC_VER>=1300
+#   include <stdlib.h>
 #   pragma intrinsic(_byteswap_uint64,_byteswap_ulong)
 #   define BSWAP8(x)    _byteswap_uint64((u64)(x))
 #   define BSWAP4(x)    _byteswap_ulong((u32)(x))
@@ -125,6 +128,9 @@ struct gcm128_context {
     unsigned int mres, ares;
     block128_f block;
     void *key;
+#if !defined(OPENSSL_SMALL_FOOTPRINT)
+    unsigned char Xn[48];
+#endif
 };
 
 struct xts128_context {
@@ -141,3 +147,44 @@ struct ccm128_context {
     block128_f block;
     void *key;
 };
+
+#ifndef OPENSSL_NO_OCB
+
+typedef union {
+    u64 a[2];
+    unsigned char c[16];
+} OCB_BLOCK;
+# define ocb_block16_xor(in1,in2,out) \
+    ( (out)->a[0]=(in1)->a[0]^(in2)->a[0], \
+      (out)->a[1]=(in1)->a[1]^(in2)->a[1] )
+# if STRICT_ALIGNMENT
+#  define ocb_block16_xor_misaligned(in1,in2,out) \
+    ocb_block_xor((in1)->c,(in2)->c,16,(out)->c)
+# else
+#  define ocb_block16_xor_misaligned ocb_block16_xor
+# endif
+
+struct ocb128_context {
+    /* Need both encrypt and decrypt key schedules for decryption */
+    block128_f encrypt;
+    block128_f decrypt;
+    void *keyenc;
+    void *keydec;
+    ocb128_f stream;    /* direction dependent */
+    /* Key dependent variables. Can be reused if key remains the same */
+    size_t l_index;
+    size_t max_l_index;
+    OCB_BLOCK l_star;
+    OCB_BLOCK l_dollar;
+    OCB_BLOCK *l;
+    /* Must be reset for each session */
+    struct {
+        u64 blocks_hashed;
+        u64 blocks_processed;
+        OCB_BLOCK offset_aad;
+        OCB_BLOCK sum;
+        OCB_BLOCK offset;
+        OCB_BLOCK checksum;
+    } sess;
+};
+#endif                          /* OPENSSL_NO_OCB */

@@ -129,17 +129,17 @@
 .\" ========================================================================
 .\"
 .IX Title "DHPARAM 1"
-.TH DHPARAM 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH DHPARAM 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-dhparam,
-dhparam \- DH parameter manipulation and generation
+openssl\-dhparam, dhparam \- DH parameter manipulation and generation
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl dhparam\fR
+[\fB\-help\fR]
 [\fB\-inform DER|PEM\fR]
 [\fB\-outform DER|PEM\fR]
 [\fB\-in\fR \fIfilename\fR]
@@ -151,7 +151,8 @@ dhparam \- DH parameter manipulation and generation
 [\fB\-C\fR]
 [\fB\-2\fR]
 [\fB\-5\fR]
-[\fB\-rand\fR \fIfile(s)\fR]
+[\fB\-rand file...\fR]
+[\fB\-writerand file\fR]
 [\fB\-engine id\fR]
 [\fInumbits\fR]
 .SH "DESCRIPTION"
@@ -159,6 +160,9 @@ dhparam \- DH parameter manipulation and generation
 This command is used to manipulate \s-1DH\s0 parameter files.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-inform DER|PEM\fR" 4
 .IX Item "-inform DER|PEM"
 This specifies the input format. The \fB\s-1DER\s0\fR option uses an \s-1ASN1 DER\s0 encoded
@@ -167,8 +171,8 @@ default format: it consists of the \fB\s-1DER\s0\fR format base64 encoded with
 additional header and footer lines.
 .IP "\fB\-outform DER|PEM\fR" 4
 .IX Item "-outform DER|PEM"
-This specifies the output format, the options have the same meaning as the 
-\&\fB\-inform\fR option.
+This specifies the output format, the options have the same meaning and default
+as the \fB\-inform\fR option.
 .IP "\fB\-in\fR \fIfilename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read parameters from or standard input if
@@ -191,48 +195,53 @@ parameters, a fresh \s-1DH\s0 key should be created for each use to
 avoid small-subgroup attacks that may be possible otherwise.
 .IP "\fB\-check\fR" 4
 .IX Item "-check"
-check if the parameters are valid primes and generator.
+Performs numerous checks to see if the supplied parameters are valid and
+displays a warning if not.
 .IP "\fB\-2\fR, \fB\-5\fR" 4
 .IX Item "-2, -5"
 The generator to use, either 2 or 5. If present then the
 input file is ignored and parameters are generated instead. If not
 present but \fBnumbits\fR is present, parameters are generated with the
 default generator 2.
-.IP "\fB\-rand\fR \fIfile(s)\fR" 4
-.IX Item "-rand file(s)"
-a file or files containing random data used to seed the random number
-generator, or an \s-1EGD\s0 socket (see \fIRAND_egd\fR\|(3)).
-Multiple files can be specified separated by a OS-dependent character.
+.IP "\fB\-rand file...\fR" 4
+.IX Item "-rand file..."
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
 The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
 all others.
+.IP "[\fB\-writerand file\fR]" 4
+.IX Item "[-writerand file]"
+Writes random data to the specified \fIfile\fR upon exit.
+This can be used with a subsequent \fB\-rand\fR flag.
 .IP "\fInumbits\fR" 4
 .IX Item "numbits"
-this option specifies that a parameter set should be generated of size
+This option specifies that a parameter set should be generated of size
 \&\fInumbits\fR. It must be the last option. If this option is present then
 the input file is ignored and parameters are generated instead. If
 this option is not present but a generator (\fB\-2\fR or \fB\-5\fR) is
 present, parameters are generated with a default length of 2048 bits.
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
-this option inhibits the output of the encoded version of the parameters.
+This option inhibits the output of the encoded version of the parameters.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
-this option prints out the \s-1DH\s0 parameters in human readable form.
+This option prints out the \s-1DH\s0 parameters in human readable form.
 .IP "\fB\-C\fR" 4
 .IX Item "-C"
-this option converts the parameters into C code. The parameters can then
-be loaded by calling the \fBget_dh\fR\fInumbits\fR\fB()\fR function.
+This option converts the parameters into C code. The parameters can then
+be loaded by calling the \fIget_dhNNNN()\fR function.
 .IP "\fB\-engine id\fR" 4
 .IX Item "-engine id"
-specifying an engine (by its unique \fBid\fR string) will cause \fBdhparam\fR
+Specifying an engine (by its unique \fBid\fR string) will cause \fBdhparam\fR
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
 .SH "WARNINGS"
 .IX Header "WARNINGS"
 The program \fBdhparam\fR combines the functionality of the programs \fBdh\fR and
-\&\fBgendh\fR in previous versions of OpenSSL and SSLeay. The \fBdh\fR and \fBgendh\fR
-programs are retained for now but may have different purposes in future 
+\&\fBgendh\fR in previous versions of OpenSSL. The \fBdh\fR and \fBgendh\fR
+programs are retained for now but may have different purposes in future
 versions of OpenSSL.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -253,7 +262,11 @@ There should be a way to generate and manipulate \s-1DH\s0 keys.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIdsaparam\fR\|(1)
-.SH "HISTORY"
-.IX Header "HISTORY"
-The \fBdhparam\fR command was added in OpenSSL 0.9.5.
-The \fB\-dsaparam\fR option was added in OpenSSL 0.9.6.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

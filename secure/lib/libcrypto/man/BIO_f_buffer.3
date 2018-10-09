@@ -128,26 +128,26 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_f_buffer 3"
-.TH BIO_f_buffer 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_F_BUFFER 3"
+.TH BIO_F_BUFFER 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_f_buffer \- buffering BIO
+BIO_get_buffer_num_lines, BIO_set_read_buffer_size, BIO_set_write_buffer_size, BIO_set_buffer_size, BIO_set_buffer_read_data, BIO_f_buffer \&\- buffering BIO
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO_METHOD * BIO_f_buffer(void);
+\& const BIO_METHOD *BIO_f_buffer(void);
 \&
-\& #define BIO_get_buffer_num_lines(b)    BIO_ctrl(b,BIO_C_GET_BUFF_NUM_LINES,0,NULL)
-\& #define BIO_set_read_buffer_size(b,size) BIO_int_ctrl(b,BIO_C_SET_BUFF_SIZE,size,0)
-\& #define BIO_set_write_buffer_size(b,size) BIO_int_ctrl(b,BIO_C_SET_BUFF_SIZE,size,1)
-\& #define BIO_set_buffer_size(b,size)    BIO_ctrl(b,BIO_C_SET_BUFF_SIZE,size,NULL)
-\& #define BIO_set_buffer_read_data(b,buf,num) BIO_ctrl(b,BIO_C_SET_BUFF_READ_DATA,num,buf)
+\& long BIO_get_buffer_num_lines(BIO *b);
+\& long BIO_set_read_buffer_size(BIO *b, long size);
+\& long BIO_set_write_buffer_size(BIO *b, long size);
+\& long BIO_set_buffer_size(BIO *b, long size);
+\& long BIO_set_buffer_read_data(BIO *b, void *buf, long num);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -173,7 +173,9 @@ bytes of \fBbuf\fR. If \fBnum\fR is larger than the current buffer size the buff
 is expanded.
 .SH "NOTES"
 .IX Header "NOTES"
-Buffering BIOs implement \fIBIO_gets()\fR by using \fIBIO_read()\fR operations on the
+These functions, other than \fIBIO_f_buffer()\fR, are implemented as macros.
+.PP
+Buffering BIOs implement \fIBIO_gets()\fR by using \fIBIO_read_ex()\fR operations on the
 next \s-1BIO\s0 in the chain. By prepending a buffering \s-1BIO\s0 to a chain it is therefore
 possible to provide \fIBIO_gets()\fR functionality if the following BIOs do not
 support it (for example \s-1SSL\s0 BIOs).
@@ -196,9 +198,16 @@ return 1 if the buffer was successfully resized or 0 for failure.
 there was an error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\s-1\fIBIO\s0\fR\|(3),
+\&\fIbio\fR\|(7),
 \&\fIBIO_reset\fR\|(3),
 \&\fIBIO_flush\fR\|(3),
 \&\fIBIO_pop\fR\|(3),
-\&\fIBIO_ctrl\fR\|(3),
-\&\fIBIO_int_ctrl\fR\|(3)
+\&\fIBIO_ctrl\fR\|(3).
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.
