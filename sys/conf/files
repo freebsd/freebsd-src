@@ -439,6 +439,7 @@ contrib/dev/acpica/components/executer/exregion.c	optional acpi
 contrib/dev/acpica/components/executer/exresnte.c	optional acpi
 contrib/dev/acpica/components/executer/exresolv.c	optional acpi
 contrib/dev/acpica/components/executer/exresop.c	optional acpi
+contrib/dev/acpica/components/executer/exserial.c	optional acpi
 contrib/dev/acpica/components/executer/exstore.c	optional acpi
 contrib/dev/acpica/components/executer/exstoren.c	optional acpi
 contrib/dev/acpica/components/executer/exstorob.c	optional acpi

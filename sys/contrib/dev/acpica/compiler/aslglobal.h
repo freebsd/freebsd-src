@@ -169,11 +169,11 @@
 
 
 #ifdef _DECLARE_GLOBALS
-UINT32                              Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
+UINT32                              AslGbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
 
 /* Table below must match ASL_FILE_TYPES in asltypes.h */
 
-ASL_FILE_INFO                       Gbl_Files [ASL_NUM_FILES] =
+ASL_FILE_INFO                       AslGbl_Files [ASL_NUM_FILES] =
 {
     {NULL, NULL, "stdout:       ", "Standard Output"},
     {NULL, NULL, "stderr:       ", "Standard Error"},
@@ -198,7 +198,7 @@ ASL_FILE_INFO                       Gbl_Files [ASL_NUM_FILES] =
 
 /* Table below must match the defines with the same names in actypes.h */
 
-const char                          *Gbl_OpFlagNames[ACPI_NUM_OP_FLAGS] =
+const char                          *AslGbl_OpFlagNames[ACPI_NUM_OP_FLAGS] =
 {
     "OP_VISITED",
     "OP_AML_PACKAGE",
@@ -225,9 +225,9 @@ const char                          *Gbl_OpFlagNames[ACPI_NUM_OP_FLAGS] =
 };
 
 #else
-extern UINT32                       Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
-extern ASL_FILE_INFO                Gbl_Files [ASL_NUM_FILES];
-extern const char                   *Gbl_OpFlagNames[ACPI_NUM_OP_FLAGS];
+extern UINT32                       AslGbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
+extern ASL_FILE_INFO                AslGbl_Files [ASL_NUM_FILES];
+extern const char                   *AslGbl_OpFlagNames[ACPI_NUM_OP_FLAGS];
 #endif
 
 
@@ -261,69 +261,68 @@ extern int                  AslCompilerdebug;
 
 /* Source code buffers and pointers for error reporting */
 
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_CurrentLineBuffer, NULL);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_LineBufPtr, NULL);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_LineBufferSize, ASL_DEFAULT_LINE_BUFFER_SIZE);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentColumn, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLineNumber, 1);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_LogicalLineNumber, 1);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLineOffset, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_OriginalInputFileSize, 0);
-ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_SyntaxError, 0);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_CurrentLineBuffer, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_LineBufPtr, NULL);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_LineBufferSize, ASL_DEFAULT_LINE_BUFFER_SIZE);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentColumn, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentLineNumber, 1);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_LogicalLineNumber, 1);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentLineOffset, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_OriginalInputFileSize, 0);
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_SyntaxError, 0);
 
 /* Exception reporting */
 
-ASL_EXTERN ASL_ERROR_MSG            ASL_INIT_GLOBAL (*Gbl_ErrorLog,NULL);
-ASL_EXTERN ASL_ERROR_MSG            ASL_INIT_GLOBAL (*Gbl_NextError,NULL);
+ASL_EXTERN ASL_ERROR_MSG            ASL_INIT_GLOBAL (*AslGbl_ErrorLog,NULL);
+ASL_EXTERN ASL_ERROR_MSG            ASL_INIT_GLOBAL (*AslGbl_NextError,NULL);
 
 /* Option flags */
 
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoCompile, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoSignon, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessOnly, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessFlag, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DisassembleAll, FALSE);
-
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_UseDefaultAmlFilename, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_MapfileFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_NsOutputFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessorOutputFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_KeepPreprocessorTempFile, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DebugFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_CrossReferenceOutput, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_AsmOutputFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_C_OutputFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_C_OffsetTableFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_AsmIncludeOutputFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_C_IncludeOutputFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_ListingFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_IgnoreErrors, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_SourceOutputFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_ParseOnlyFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_CompileTimesFlag, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_FoldConstants, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_VerboseErrors, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_NoErrors, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_WarningsAsErrors, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_NoResourceChecking, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_IntegerOptimizationFlag, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_ReferenceOptimizationFlag, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DisplayRemarks, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DisplayWarnings, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DisplayOptimizations, FALSE);
-ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_WarningLevel, ASL_WARNING);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_UseOriginalCompilerId, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_VerboseTemplates, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoTemplates, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_CompileGeneric, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_AllExceptionsDisabled, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PruneParseTree, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoTypechecking, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_EnableReferenceTypechecking, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoExternals, TRUE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoExternalsInPlace, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoAslConversion, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_OptimizeTrivialParseNodes, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoCompile, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoSignon, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_PreprocessOnly, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_PreprocessFlag, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DisassembleAll, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_UseDefaultAmlFilename, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_MapfileFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_NsOutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_PreprocessorOutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_KeepPreprocessorTempFile, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DebugFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_CrossReferenceOutput, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_AsmOutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_C_OutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_C_OffsetTableFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_AsmIncludeOutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_C_IncludeOutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_ListingFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_IgnoreErrors, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_SourceOutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_ParseOnlyFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_CompileTimesFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_FoldConstants, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_VerboseErrors, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_NoErrors, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_WarningsAsErrors, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_NoResourceChecking, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_IntegerOptimizationFlag, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_ReferenceOptimizationFlag, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DisplayRemarks, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DisplayWarnings, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DisplayOptimizations, FALSE);
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_WarningLevel, ASL_WARNING);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_UseOriginalCompilerId, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_VerboseTemplates, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoTemplates, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_CompileGeneric, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_AllExceptionsDisabled, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_PruneParseTree, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoTypechecking, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_EnableReferenceTypechecking, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoExternals, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoExternalsInPlace, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoAslConversion, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_OptimizeTrivialParseNodes, TRUE);
 
 
 #define HEX_OUTPUT_NONE             0
@@ -331,102 +330,95 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_OptimizeTrivialParseNod
 #define HEX_OUTPUT_ASM              2
 #define HEX_OUTPUT_ASL              3
 
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_HexOutputFlag, HEX_OUTPUT_NONE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_HexOutputFlag, HEX_OUTPUT_NONE);
 
 
 /* Files */
 
-ASL_EXTERN char                     *Gbl_DirectoryPath;
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_IncludeFilename, NULL);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_OutputFilenamePrefix, NULL);
-ASL_EXTERN ASL_INCLUDE_DIR          ASL_INIT_GLOBAL (*Gbl_IncludeDirList, NULL);
-ASL_EXTERN char                     *Gbl_CurrentInputFilename;
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_ExternalRefFilename, NULL);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_PreviousIncludeFilename, NULL);
-
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_HasIncludeFiles, FALSE);
-
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_HasIncludeFiles, FALSE);
+ASL_EXTERN char                     *AslGbl_DirectoryPath;
+ASL_EXTERN char                     *AslGbl_CurrentInputFilename;
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_IncludeFilename, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_OutputFilenamePrefix, NULL);
+ASL_EXTERN ASL_INCLUDE_DIR          ASL_INIT_GLOBAL (*AslGbl_IncludeDirList, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_ExternalRefFilename, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_PreviousIncludeFilename, NULL);
 
 /* Statistics */
 
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_InputByteCount, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_InputFieldCount, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_NsLookupCount, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalKeywords, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalNamedObjects, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalExecutableOpcodes, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalParseNodes, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalMethods, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalAllocations, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalAllocated, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (TotalFolds, 0);
-
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_InputByteCount, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_InputFieldCount, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_NsLookupCount, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalKeywords, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalNamedObjects, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalExecutableOpcodes, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalParseNodes, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalMethods, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalAllocations, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalAllocated, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TotalFolds, 0);
 
 /* Local caches */
 
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_ParseOpCount, 0);
-ASL_EXTERN ASL_CACHE_INFO           ASL_INIT_GLOBAL (*Gbl_ParseOpCacheList, NULL);
-ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*Gbl_ParseOpCacheNext, NULL);
-ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*Gbl_ParseOpCacheLast, NULL);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_ParseOpCount, 0);
+ASL_EXTERN ASL_CACHE_INFO           ASL_INIT_GLOBAL (*AslGbl_ParseOpCacheList, NULL);
+ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*AslGbl_ParseOpCacheNext, NULL);
+ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*AslGbl_ParseOpCacheLast, NULL);
 
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_StringCount, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_StringSize, 0);
-ASL_EXTERN ASL_CACHE_INFO           ASL_INIT_GLOBAL (*Gbl_StringCacheList, NULL);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_StringCacheNext, NULL);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_StringCacheLast, NULL);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_StringCount, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_StringSize, 0);
+ASL_EXTERN ASL_CACHE_INFO           ASL_INIT_GLOBAL (*AslGbl_StringCacheList, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_StringCacheNext, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_StringCacheLast, NULL);
 
 /* Map file */
 
-ASL_EXTERN ACPI_GPIO_INFO           ASL_INIT_GLOBAL (*Gbl_GpioList, NULL);
-ASL_EXTERN ACPI_SERIAL_INFO         ASL_INIT_GLOBAL (*Gbl_SerialList, NULL);
-
+ASL_EXTERN ACPI_GPIO_INFO           ASL_INIT_GLOBAL (*AslGbl_GpioList, NULL);
+ASL_EXTERN ACPI_SERIAL_INFO         ASL_INIT_GLOBAL (*AslGbl_SerialList, NULL);
 
 /* Misc */
 
-ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_RevisionOverride, 0);
-ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_TempCount, 0);
-ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*Gbl_ParseTreeRoot, NULL);
-ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*Gbl_ExternalsListHead, NULL);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_TableLength, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_SourceLine, 0);
-ASL_EXTERN ASL_LISTING_NODE         ASL_INIT_GLOBAL (*Gbl_ListingNode, NULL);
-ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_FileType, 0);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_Signature, NULL);
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_RevisionOverride, 0);
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_TempCount, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_TableLength, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_SourceLine, 0);
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_FileType, 0);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_Signature, NULL);
+ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*AslGbl_ParseTreeRoot, NULL);
+ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*AslGbl_ExternalsListHead, NULL);
+ASL_EXTERN ASL_LISTING_NODE         ASL_INIT_GLOBAL (*AslGbl_ListingNode, NULL);
+ASL_EXTERN ACPI_PARSE_OBJECT        *AslGbl_FirstLevelInsertionNode;
 
-ASL_EXTERN ACPI_PARSE_OBJECT        *Gbl_FirstLevelInsertionNode;
-
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentHexColumn, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentAmlOffset, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLine, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_DisabledMessagesIndex, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_ExpectedMessagesIndex, 0);
-ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_HexBytesWereWritten, FALSE);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_NumNamespaceObjects, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_ReservedMethods, 0);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_TableSignature, "NO_SIG");
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_TableId, "NO_ID");
-ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_PruneDepth, 0);
-ASL_EXTERN UINT16                   ASL_INIT_GLOBAL (Gbl_PruneType, 0);
-
-ASL_EXTERN ASL_FILE_NODE            ASL_INIT_GLOBAL (*Gbl_IncludeFileStack, NULL);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentHexColumn, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentAmlOffset, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentLine, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_DisabledMessagesIndex, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_ExpectedMessagesIndex, 0);
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_HexBytesWereWritten, FALSE);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_NumNamespaceObjects, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_ReservedMethods, 0);
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_PruneDepth, 0);
+ASL_EXTERN UINT16                   ASL_INIT_GLOBAL (AslGbl_PruneType, 0);
+ASL_EXTERN ASL_FILE_NODE            ASL_INIT_GLOBAL (*AslGbl_IncludeFileStack, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_TableSignature, "NO_SIG");
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_TableId, "NO_ID");
 
 /* Specific to the -q option */
 
-ASL_EXTERN ASL_COMMENT_STATE        Gbl_CommentState;
-
+ASL_EXTERN ASL_COMMENT_STATE        AslGbl_CommentState;
 
 /*
  * Determines if an inline comment should be saved in the InlineComment or NodeEndComment
  *  field of ACPI_PARSE_OBJECT.
  */
-ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_CommentListHead, NULL);
-ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_CommentListTail, NULL);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_InlineCommentBuffer, NULL);
+ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*AslGbl_CommentListHead, NULL);
+ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*AslGbl_CommentListTail, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_InlineCommentBuffer, NULL);
 
 /* Static structures */
 
-ASL_EXTERN ASL_ANALYSIS_WALK_INFO   AnalysisWalkInfo;
-ASL_EXTERN ACPI_TABLE_HEADER        TableHeader;
+ASL_EXTERN ASL_ANALYSIS_WALK_INFO   AslGbl_AnalysisWalkInfo;
+ASL_EXTERN ACPI_TABLE_HEADER        AslGbl_TableHeader;
 
 /* Event timing */
 
@@ -437,12 +429,12 @@ ASL_EXTERN UINT8                    AslGbl_NamespaceEvent;
 
 /* Scratch buffers */
 
-ASL_EXTERN UINT8                    Gbl_AmlBuffer[HEX_LISTING_LINE_SIZE];
-ASL_EXTERN char                     MsgBuffer[ASL_MSG_BUFFER_SIZE];
-ASL_EXTERN char                     StringBuffer[ASL_STRING_BUFFER_SIZE];
-ASL_EXTERN char                     StringBuffer2[ASL_STRING_BUFFER_SIZE];
-ASL_EXTERN UINT32                   Gbl_DisabledMessages[ASL_MAX_DISABLED_MESSAGES];
-ASL_EXTERN ASL_EXPECTED_MESSAGE     Gbl_ExpectedMessages[ASL_MAX_EXPECTED_MESSAGES];
+ASL_EXTERN UINT8                    AslGbl_AmlBuffer[HEX_LISTING_LINE_SIZE];
+ASL_EXTERN char                     AslGbl_MsgBuffer[ASL_MSG_BUFFER_SIZE];
+ASL_EXTERN char                     AslGbl_StringBuffer[ASL_STRING_BUFFER_SIZE];
+ASL_EXTERN char                     AslGbl_StringBuffer2[ASL_STRING_BUFFER_SIZE];
+ASL_EXTERN UINT32                   AslGbl_DisabledMessages[ASL_MAX_DISABLED_MESSAGES];
+ASL_EXTERN ASL_EXPECTED_MESSAGE     AslGbl_ExpectedMessages[ASL_MAX_EXPECTED_MESSAGES];
 
 
 #endif /* __ASLGLOBAL_H */

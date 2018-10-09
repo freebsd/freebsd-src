@@ -259,7 +259,7 @@ AcpiDmDecodeAttribute (
         AcpiOsPrintf ("AttribQuick");
         break;
 
-    case AML_FIELD_ATTRIB_SEND_RCV:
+    case AML_FIELD_ATTRIB_SEND_RECEIVE:
 
         AcpiOsPrintf ("AttribSendReceive");
         break;
@@ -279,17 +279,17 @@ AcpiDmDecodeAttribute (
         AcpiOsPrintf ("AttribBlock");
         break;
 
-    case AML_FIELD_ATTRIB_MULTIBYTE:
+    case AML_FIELD_ATTRIB_BYTES:
 
         AcpiOsPrintf ("AttribBytes");
         break;
 
-    case AML_FIELD_ATTRIB_WORD_CALL:
+    case AML_FIELD_ATTRIB_PROCESS_CALL:
 
         AcpiOsPrintf ("AttribProcessCall");
         break;
 
-    case AML_FIELD_ATTRIB_BLOCK_CALL:
+    case AML_FIELD_ATTRIB_BLOCK_PROCESS_CALL:
 
         AcpiOsPrintf ("AttribBlockProcessCall");
         break;
@@ -299,7 +299,7 @@ AcpiDmDecodeAttribute (
         AcpiOsPrintf ("AttribRawBytes");
         break;
 
-    case AML_FIELD_ATTRIB_RAW_PROCESS:
+    case AML_FIELD_ATTRIB_RAW_PROCESS_BYTES:
 
         AcpiOsPrintf ("AttribRawProcessBytes");
         break;
