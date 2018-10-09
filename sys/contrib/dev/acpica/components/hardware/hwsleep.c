@@ -205,16 +205,10 @@ AcpiHwLegacySleep (
     {
         return_ACPI_STATUS (Status);
     }
-    /*
-     * If the target sleep state is S5, clear all GPEs and fixed events too
-     */
-    if (SleepState == ACPI_STATE_S5)
+    Status = AcpiHwClearAcpiStatus();
+    if (ACPI_FAILURE(Status))
     {
-        Status = AcpiHwClearAcpiStatus();
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
+        return_ACPI_STATUS(Status);
     }
     AcpiGbl_SystemAwakeAndRunning = FALSE;
 
