@@ -2033,15 +2033,18 @@ lagg_lb_porttable(struct lagg_softc *sc, struct lagg_port *lp)
 {
 	struct lagg_lb *lb = (struct lagg_lb *)sc->sc_psc;
 	struct lagg_port *lp_next;
-	int i = 0;
+	int i = 0, rv;
 
+	rv = 0;
 	bzero(&lb->lb_ports, sizeof(lb->lb_ports));
 	LAGG_RLOCK();
 	CK_SLIST_FOREACH(lp_next, &sc->sc_ports, lp_entries) {
 		if (lp_next == lp)
 			continue;
-		if (i >= LAGG_MAX_PORTS)
-			return (EINVAL);
+		if (i >= LAGG_MAX_PORTS) {
+			rv = EINVAL;
+			break;
+		}
 		if (sc->sc_ifflags & IFF_DEBUG)
 			printf("%s: port %s at index %d\n",
 			    sc->sc_ifname, lp_next->lp_ifp->if_xname, i);
@@ -2049,7 +2052,7 @@ lagg_lb_porttable(struct lagg_softc *sc, struct lagg_port *lp)
 	}
 	LAGG_RUNLOCK();
 
-	return (0);
+	return (rv);
 }
 
 static int
