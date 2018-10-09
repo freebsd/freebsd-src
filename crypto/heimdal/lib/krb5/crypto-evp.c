@@ -41,19 +41,21 @@ _krb5_evp_schedule(krb5_context context,
     struct _krb5_evp_schedule *key = kd->schedule->data;
     const EVP_CIPHER *c = (*kt->evp)();
 
-    EVP_CIPHER_CTX_init(&key->ectx);
-    EVP_CIPHER_CTX_init(&key->dctx);
+    key->ectx = EVP_CIPHER_CTX_new();
+    key->dctx = EVP_CIPHER_CTX_new();
+    if (key->ectx == NULL || key->dctx == NULL)
+	krb5_abort(context, ENOMEM, "malloc failed");
 
-    EVP_CipherInit_ex(&key->ectx, c, NULL, kd->key->keyvalue.data, NULL, 1);
-    EVP_CipherInit_ex(&key->dctx, c, NULL, kd->key->keyvalue.data, NULL, 0);
+    EVP_CipherInit_ex(key->ectx, c, NULL, kd->key->keyvalue.data, NULL, 1);
+    EVP_CipherInit_ex(key->dctx, c, NULL, kd->key->keyvalue.data, NULL, 0);
 }
 
 void
 _krb5_evp_cleanup(krb5_context context, struct _krb5_key_data *kd)
 {
     struct _krb5_evp_schedule *key = kd->schedule->data;
-    EVP_CIPHER_CTX_cleanup(&key->ectx);
-    EVP_CIPHER_CTX_cleanup(&key->dctx);
+    EVP_CIPHER_CTX_free(key->ectx);
+    EVP_CIPHER_CTX_free(key->dctx);
 }
 
 krb5_error_code
@@ -67,7 +69,7 @@ _krb5_evp_encrypt(krb5_context context,
 {
     struct _krb5_evp_schedule *ctx = key->schedule->data;
     EVP_CIPHER_CTX *c;
-    c = encryptp ? &ctx->ectx : &ctx->dctx;
+    c = encryptp ? ctx->ectx : ctx->dctx;
     if (ivec == NULL) {
 	/* alloca ? */
 	size_t len2 = EVP_CIPHER_CTX_iv_length(c);
@@ -102,7 +104,7 @@ _krb5_evp_encrypt_cts(krb5_context context,
     EVP_CIPHER_CTX *c;
     unsigned char *p;
 
-    c = encryptp ? &ctx->ectx : &ctx->dctx;
+    c = encryptp ? ctx->ectx : ctx->dctx;
 
     blocksize = EVP_CIPHER_CTX_block_size(c);
 

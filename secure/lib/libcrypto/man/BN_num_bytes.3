@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_num_bytes 3"
-.TH BN_num_bytes 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_NUM_BYTES 3"
+.TH BN_NUM_BYTES 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -176,9 +176,13 @@ there's no real guarantee that will match the \*(L"key size\*(R", just a lot
 more probability).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIDH_size\fR\|(3), \fIDSA_size\fR\|(3),
+\&\fIDH_size\fR\|(3), \fIDSA_size\fR\|(3),
 \&\fIRSA_size\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIBN_num_bytes()\fR, \fIBN_num_bits()\fR and \fIBN_num_bits_word()\fR are available in
-all versions of SSLeay and OpenSSL.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

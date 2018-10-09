@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "EVP_PKEY_cmp 3"
-.TH EVP_PKEY_cmp 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "EVP_PKEY_CMP 3"
+.TH EVP_PKEY_CMP 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -161,7 +161,7 @@ in \fBfrom\fR and \fBto\fR are both present and match this function has no effec
 The function \fIEVP_PKEY_cmp_parameters()\fR compares the parameters of keys
 \&\fBa\fR and \fBb\fR.
 .PP
-The function \fIEVP_PKEY_cmp()\fR compares the public key components and paramters
+The function \fIEVP_PKEY_cmp()\fR compares the public key components and parameters
 (if present) of keys \fBa\fR and \fBb\fR.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -189,3 +189,11 @@ keys match, 0 if they don't match, \-1 if the key types are different and
 .IX Header "SEE ALSO"
 \&\fIEVP_PKEY_CTX_new\fR\|(3),
 \&\fIEVP_PKEY_keygen\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2006\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

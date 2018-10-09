@@ -128,29 +128,39 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "DSA_SIG_new 3"
-.TH DSA_SIG_new 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "DSA_SIG_NEW 3"
+.TH DSA_SIG_NEW 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DSA_SIG_new, DSA_SIG_free \- allocate and free DSA signature objects
+DSA_SIG_get0, DSA_SIG_set0, DSA_SIG_new, DSA_SIG_free \- allocate and free DSA signature objects
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dsa.h>
 \&
 \& DSA_SIG *DSA_SIG_new(void);
-\&
-\& void   DSA_SIG_free(DSA_SIG *a);
+\& void DSA_SIG_free(DSA_SIG *a);
+\& void DSA_SIG_get0(const DSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
+\& int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIDSA_SIG_new()\fR allocates and initializes a \fB\s-1DSA_SIG\s0\fR structure.
+\&\fIDSA_SIG_new()\fR allocates an empty \fB\s-1DSA_SIG\s0\fR structure.
 .PP
 \&\fIDSA_SIG_free()\fR frees the \fB\s-1DSA_SIG\s0\fR structure and its components. The
 values are erased before the memory is returned to the system.
+.PP
+\&\fIDSA_SIG_get0()\fR returns internal pointers to the \fBr\fR and \fBs\fR values contained
+in \fBsig\fR.
+.PP
+The \fBr\fR and \fBs\fR values can be set by calling \fIDSA_SIG_set0()\fR and passing the
+new values for \fBr\fR and \fBs\fR as parameters to the function. Calling this
+function transfers the memory management of the values to the \s-1DSA_SIG\s0 object,
+and therefore the values that have been passed in should not be freed directly
+after this function has been called.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 If the allocation fails, \fIDSA_SIG_new()\fR returns \fB\s-1NULL\s0\fR and sets an
@@ -159,10 +169,17 @@ error code that can be obtained by
 to the newly allocated structure.
 .PP
 \&\fIDSA_SIG_free()\fR returns no value.
+.PP
+\&\fIDSA_SIG_set0()\fR returns 1 on success or 0 on failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIdsa\fR\|(3), \fIERR_get_error\fR\|(3),
+\&\fIDSA_new\fR\|(3), \fIERR_get_error\fR\|(3),
 \&\fIDSA_do_sign\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIDSA_SIG_new()\fR and \fIDSA_SIG_free()\fR were added in OpenSSL 0.9.3.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

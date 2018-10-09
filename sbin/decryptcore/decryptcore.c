@@ -120,7 +120,7 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
     const char *input)
 {
 	uint8_t buf[KERNELDUMP_BUFFER_SIZE], key[KERNELDUMP_KEY_MAX_SIZE];
-	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX *ctx;
 	const EVP_CIPHER *cipher;
 	FILE *fp;
 	struct kerneldumpkey *kdk;
@@ -134,6 +134,7 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 	PJDLOG_ASSERT(keyfile != NULL);
 	PJDLOG_ASSERT(input != NULL);
 
+	ctx = NULL;
 	privkey = NULL;
 
 	/*
@@ -179,7 +180,9 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 		    ERR_error_string(ERR_get_error(), NULL));
 		goto failed;
 	}
-	EVP_CIPHER_CTX_init(&ctx);
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+		goto failed;
 
 	kdk = read_key(kfd);
 	close(kfd);
@@ -219,8 +222,8 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 	RSA_free(privkey);
 	privkey = NULL;
 
-	EVP_DecryptInit_ex(&ctx, cipher, NULL, key, kdk->kdk_iv);
-	EVP_CIPHER_CTX_set_padding(&ctx, 0);
+	EVP_DecryptInit_ex(ctx, cipher, NULL, key, kdk->kdk_iv);
+	EVP_CIPHER_CTX_set_padding(ctx, 0);
 
 	explicit_bzero(key, sizeof(key));
 
@@ -233,13 +236,13 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 		}
 
 		if (bytes > 0) {
-			if (EVP_DecryptUpdate(&ctx, buf, &olen, buf,
+			if (EVP_DecryptUpdate(ctx, buf, &olen, buf,
 			    bytes) == 0) {
 				pjdlog_error("Unable to decrypt core.");
 				goto failed;
 			}
 		} else {
-			if (EVP_DecryptFinal_ex(&ctx, buf, &olen) == 0) {
+			if (EVP_DecryptFinal_ex(ctx, buf, &olen) == 0) {
 				pjdlog_error("Unable to decrypt core.");
 				goto failed;
 			}
@@ -252,13 +255,14 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 	} while (bytes > 0);
 
 	explicit_bzero(buf, sizeof(buf));
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX_free(ctx);
 	exit(0);
 failed:
 	explicit_bzero(key, sizeof(key));
 	explicit_bzero(buf, sizeof(buf));
 	RSA_free(privkey);
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	if (ctx != NULL)
+		EVP_CIPHER_CTX_free(ctx);
 	exit(1);
 }
 

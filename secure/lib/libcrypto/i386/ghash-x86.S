@@ -1,7 +1,6 @@
 /* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from ghash-x86.pl. */
 #ifdef PIC
-.file	"ghash-x86.S"
 .text
 .globl	gcm_gmult_4bit_x86
 .type	gcm_gmult_4bit_x86,@function
@@ -1267,7 +1266,6 @@ gcm_ghash_clmul:
 .byte	112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62
 .byte	0
 #else
-.file	"ghash-x86.S"
 .text
 .globl	gcm_gmult_4bit_x86
 .type	gcm_gmult_4bit_x86,@function
