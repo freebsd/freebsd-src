@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "DSA_do_sign 3"
-.TH DSA_do_sign 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "DSA_DO_SIGN 3"
+.TH DSA_DO_SIGN 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,7 +144,7 @@ DSA_do_sign, DSA_do_verify \- raw DSA signature operations
 \& DSA_SIG *DSA_do_sign(const unsigned char *dgst, int dlen, DSA *dsa);
 \&
 \& int DSA_do_verify(const unsigned char *dgst, int dgst_len,
-\&             DSA_SIG *sig, DSA *dsa);
+\&                   DSA_SIG *sig, DSA *dsa);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -153,8 +153,8 @@ digest \fBdgst\fR using the private key \fBdsa\fR and returns it in a
 newly allocated \fB\s-1DSA_SIG\s0\fR structure.
 .PP
 \&\fIDSA_sign_setup\fR\|(3) may be used to precompute part
-of the signing operation for each signature in case signature generation
-is time-critical.
+of the signing operation in case signature generation is
+time-critical.
 .PP
 \&\fIDSA_do_verify()\fR verifies that the signature \fBsig\fR matches a given
 message digest \fBdgst\fR of size \fBlen\fR.  \fBdsa\fR is the signer's public
@@ -167,9 +167,14 @@ on error. The error codes can be obtained by
 \&\fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIdsa\fR\|(3), \fIERR_get_error\fR\|(3), \fIrand\fR\|(3),
+\&\fIDSA_new\fR\|(3), \fIERR_get_error\fR\|(3), \fIRAND_bytes\fR\|(3),
 \&\fIDSA_SIG_new\fR\|(3),
 \&\fIDSA_sign\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIDSA_do_sign()\fR and \fIDSA_do_verify()\fR were added in OpenSSL 0.9.3.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

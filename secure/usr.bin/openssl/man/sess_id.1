@@ -129,19 +129,19 @@
 .\" ========================================================================
 .\"
 .IX Title "SESS_ID 1"
-.TH SESS_ID 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH SESS_ID 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-sess_id,
-sess_id \- SSL/TLS session handling utility
+openssl\-sess_id, sess_id \- SSL/TLS session handling utility
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBsess_id\fR
+[\fB\-help\fR]
 [\fB\-inform PEM|DER\fR]
-[\fB\-outform PEM|DER\fR]
+[\fB\-outform PEM|DER|NSS\fR]
 [\fB\-in filename\fR]
 [\fB\-out filename\fR]
 [\fB\-text\fR]
@@ -154,16 +154,22 @@ and optionally prints out \s-1SSL\s0 session details (for example the \s-1SSL\s0
 master key) in human readable format. Since this is a diagnostic tool that
 needs some knowledge of the \s-1SSL\s0 protocol to use properly, most users will
 not need to use it.
+.SH "OPTIONS"
+.IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-inform DER|PEM\fR" 4
 .IX Item "-inform DER|PEM"
 This specifies the input format. The \fB\s-1DER\s0\fR option uses an \s-1ASN1 DER\s0 encoded
 format containing session details. The precise format can vary from one version
 to the next.  The \fB\s-1PEM\s0\fR form is the default format: it consists of the \fB\s-1DER\s0\fR
 format base64 encoded with additional header and footer lines.
-.IP "\fB\-outform DER|PEM\fR" 4
-.IX Item "-outform DER|PEM"
-This specifies the output format, the options have the same meaning as the 
-\&\fB\-inform\fR option.
+.IP "\fB\-outform DER|PEM|NSS\fR" 4
+.IX Item "-outform DER|PEM|NSS"
+This specifies the output format. The \fB\s-1PEM\s0\fR and \fB\s-1DER\s0\fR options have the same meaning
+and default as the \fB\-inform\fR option. The \fB\s-1NSS\s0\fR option outputs the session id and
+the master key in \s-1NSS\s0 keylog format.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read session information from or standard
@@ -174,19 +180,19 @@ This specifies the output filename to write session information to or standard
 output if this option is not specified.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
-prints out the various public or private key components in
+Prints out the various public or private key components in
 plain text in addition to the encoded version.
 .IP "\fB\-cert\fR" 4
 .IX Item "-cert"
-if a certificate is present in the session it will be output using this option,
+If a certificate is present in the session it will be output using this option,
 if the \fB\-text\fR option is also present then it will be printed out in text form.
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
-this option prevents output of the encoded version of the session.
+This option prevents output of the encoded version of the session.
 .IP "\fB\-context \s-1ID\s0\fR" 4
 .IX Item "-context ID"
-this option can set the session id so the output session information uses the
-supplied \s-1ID.\s0 The \s-1ID\s0 can be any string of characters. This option wont normally
+This option can set the session id so the output session information uses the
+supplied \s-1ID.\s0 The \s-1ID\s0 can be any string of characters. This option won't normally
 be used.
 .SH "OUTPUT"
 .IX Header "OUTPUT"
@@ -208,32 +214,30 @@ Typical output:
 Theses are described below in more detail.
 .IP "\fBProtocol\fR" 4
 .IX Item "Protocol"
-this is the protocol in use TLSv1, SSLv3 or SSLv2.
+This is the protocol in use TLSv1.3, TLSv1.2, TLSv1.1, TLSv1 or SSLv3.
 .IP "\fBCipher\fR" 4
 .IX Item "Cipher"
-the cipher used this is the actual raw \s-1SSL\s0 or \s-1TLS\s0 cipher code, see the \s-1SSL\s0
+The cipher used this is the actual raw \s-1SSL\s0 or \s-1TLS\s0 cipher code, see the \s-1SSL\s0
 or \s-1TLS\s0 specifications for more information.
 .IP "\fBSession-ID\fR" 4
 .IX Item "Session-ID"
-the \s-1SSL\s0 session \s-1ID\s0 in hex format.
+The \s-1SSL\s0 session \s-1ID\s0 in hex format.
 .IP "\fBSession-ID-ctx\fR" 4
 .IX Item "Session-ID-ctx"
-the session \s-1ID\s0 context in hex format.
+The session \s-1ID\s0 context in hex format.
 .IP "\fBMaster-Key\fR" 4
 .IX Item "Master-Key"
-this is the \s-1SSL\s0 session master key.
-.IP "\fBKey-Arg\fR" 4
-.IX Item "Key-Arg"
-the key argument, this is only used in \s-1SSL\s0 v2.
+This is the \s-1SSL\s0 session master key.
 .IP "\fBStart Time\fR" 4
 .IX Item "Start Time"
-this is the session start time represented as an integer in standard Unix format.
+This is the session start time represented as an integer in standard
+Unix format.
 .IP "\fBTimeout\fR" 4
 .IX Item "Timeout"
-the timeout in seconds.
+The timeout in seconds.
 .IP "\fBVerify return code\fR" 4
 .IX Item "Verify return code"
-this is the return code when an \s-1SSL\s0 client certificate is verified.
+This is the return code when an \s-1SSL\s0 client certificate is verified.
 .SH "NOTES"
 .IX Header "NOTES"
 The \s-1PEM\s0 encoded session format uses the header and footer lines:
@@ -243,13 +247,22 @@ The \s-1PEM\s0 encoded session format uses the header and footer lines:
 \& \-\-\-\-\-END SSL SESSION PARAMETERS\-\-\-\-\-
 .Ve
 .PP
-Since the \s-1SSL\s0 session output contains the master key it is possible to read the contents
-of an encrypted session using this information. Therefore appropriate security precautions
-should be taken if the information is being output by a \*(L"real\*(R" application. This is
-however strongly discouraged and should only be used for debugging purposes.
+Since the \s-1SSL\s0 session output contains the master key it is
+possible to read the contents of an encrypted session using this
+information. Therefore appropriate security precautions should be taken if
+the information is being output by a \*(L"real\*(R" application. This is however
+strongly discouraged and should only be used for debugging purposes.
 .SH "BUGS"
 .IX Header "BUGS"
 The cipher and start time should be printed out in human readable form.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIciphers\fR\|(1), \fIs_server\fR\|(1)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

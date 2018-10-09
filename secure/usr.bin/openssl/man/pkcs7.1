@@ -129,17 +129,17 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS7 1"
-.TH PKCS7 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH PKCS7 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-pkcs7,
-pkcs7 \- PKCS#7 utility
+openssl\-pkcs7, pkcs7 \- PKCS#7 utility
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBpkcs7\fR
+[\fB\-help\fR]
 [\fB\-inform PEM|DER\fR]
 [\fB\-outform PEM|DER\fR]
 [\fB\-in filename\fR]
@@ -151,8 +151,11 @@ pkcs7 \- PKCS#7 utility
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBpkcs7\fR command processes PKCS#7 files in \s-1DER\s0 or \s-1PEM\s0 format.
-.SH "COMMAND OPTIONS"
-.IX Header "COMMAND OPTIONS"
+.SH "OPTIONS"
+.IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-inform DER|PEM\fR" 4
 .IX Item "-inform DER|PEM"
 This specifies the input format. \fB\s-1DER\s0\fR format is \s-1DER\s0 encoded PKCS#7
@@ -160,31 +163,31 @@ v1.5 structure.\fB\s-1PEM\s0\fR (the default) is a base64 encoded version of
 the \s-1DER\s0 form with header and footer lines.
 .IP "\fB\-outform DER|PEM\fR" 4
 .IX Item "-outform DER|PEM"
-This specifies the output format, the options have the same meaning as the 
-\&\fB\-inform\fR option.
+This specifies the output format, the options have the same meaning and default
+as the \fB\-inform\fR option.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read from or standard input if this
 option is not specified.
 .IP "\fB\-out filename\fR" 4
 .IX Item "-out filename"
-specifies the output filename to write to or standard output by
+Specifies the output filename to write to or standard output by
 default.
 .IP "\fB\-print_certs\fR" 4
 .IX Item "-print_certs"
-prints out any certificates or CRLs contained in the file. They are
+Prints out any certificates or CRLs contained in the file. They are
 preceded by their subject and issuer names in one line format.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
-prints out certificates details in full rather than just subject and
+Prints out certificates details in full rather than just subject and
 issuer names.
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
-don't output the encoded version of the PKCS#7 structure (or certificates
+Don't output the encoded version of the PKCS#7 structure (or certificates
 is \fB\-print_certs\fR is set).
 .IP "\fB\-engine id\fR" 4
 .IX Item "-engine id"
-specifying an engine (by its unique \fBid\fR string) will cause \fBpkcs7\fR
+Specifying an engine (by its unique \fBid\fR string) will cause \fBpkcs7\fR
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -220,8 +223,16 @@ For compatibility with some CAs it will also accept:
 .IX Header "RESTRICTIONS"
 There is no option to print out all the fields of a PKCS#7 file.
 .PP
-This PKCS#7 routines only understand PKCS#7 v 1.5 as specified in \s-1RFC2315\s0 they 
+This PKCS#7 routines only understand PKCS#7 v 1.5 as specified in \s-1RFC2315\s0 they
 cannot currently parse, for example, the new \s-1CMS\s0 as described in \s-1RFC2630.\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIcrl2pkcs7\fR\|(1)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

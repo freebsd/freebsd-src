@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_find_type 3"
-.TH BIO_find_type 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_FIND_TYPE 3"
+.TH BIO_FIND_TYPE 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,46 +141,23 @@ BIO_find_type, BIO_next, BIO_method_type \- BIO chain traversal
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO *  BIO_find_type(BIO *b,int bio_type);
-\& BIO *  BIO_next(BIO *b);
-\&
-\& #define BIO_method_type(b)             ((b)\->method\->type)
-\&
-\& #define BIO_TYPE_NONE          0
-\& #define BIO_TYPE_MEM           (1|0x0400)
-\& #define BIO_TYPE_FILE          (2|0x0400)
-\&
-\& #define BIO_TYPE_FD            (4|0x0400|0x0100)
-\& #define BIO_TYPE_SOCKET                (5|0x0400|0x0100)
-\& #define BIO_TYPE_NULL          (6|0x0400)
-\& #define BIO_TYPE_SSL           (7|0x0200)
-\& #define BIO_TYPE_MD            (8|0x0200)
-\& #define BIO_TYPE_BUFFER                (9|0x0200)
-\& #define BIO_TYPE_CIPHER                (10|0x0200)
-\& #define BIO_TYPE_BASE64                (11|0x0200)
-\& #define BIO_TYPE_CONNECT       (12|0x0400|0x0100)
-\& #define BIO_TYPE_ACCEPT                (13|0x0400|0x0100)
-\& #define BIO_TYPE_PROXY_CLIENT  (14|0x0200)
-\& #define BIO_TYPE_PROXY_SERVER  (15|0x0200)
-\& #define BIO_TYPE_NBIO_TEST     (16|0x0200)
-\& #define BIO_TYPE_NULL_FILTER   (17|0x0200)
-\& #define BIO_TYPE_BER           (18|0x0200)
-\& #define BIO_TYPE_BIO           (19|0x0400)
-\&
-\& #define BIO_TYPE_DESCRIPTOR    0x0100
-\& #define BIO_TYPE_FILTER                0x0200
-\& #define BIO_TYPE_SOURCE_SINK   0x0400
+\& BIO *BIO_find_type(BIO *b, int bio_type);
+\& BIO *BIO_next(BIO *b);
+\& int BIO_method_type(const BIO *b);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fIBIO_find_type()\fR searches for a \s-1BIO\s0 of a given type in a chain, starting
-at \s-1BIO\s0 \fBb\fR. If \fBtype\fR is a specific type (such as \s-1BIO_TYPE_MEM\s0) then a search
+at \s-1BIO\s0 \fBb\fR. If \fBtype\fR is a specific type (such as \fB\s-1BIO_TYPE_MEM\s0\fR) then a search
 is made for a \s-1BIO\s0 of that type. If \fBtype\fR is a general type (such as
 \&\fB\s-1BIO_TYPE_SOURCE_SINK\s0\fR) then the next matching \s-1BIO\s0 of the given general type is
 searched for. \fIBIO_find_type()\fR returns the next matching \s-1BIO\s0 or \s-1NULL\s0 if none is
 found.
 .PP
-Note: not all the \fBBIO_TYPE_*\fR types above have corresponding \s-1BIO\s0 implementations.
+The following general types are defined:
+\&\fB\s-1BIO_TYPE_DESCRIPTOR\s0\fR, \fB\s-1BIO_TYPE_FILTER\s0\fR, and \fB\s-1BIO_TYPE_SOURCE_SINK\s0\fR.
+.PP
+For a list of the specific types, see the \fBopenssl/bio.h\fR header file.
 .PP
 \&\fIBIO_next()\fR returns the next \s-1BIO\s0 in a chain. It can be used to traverse all BIOs
 in a chain or used in conjunction with \fIBIO_find_type()\fR to find all BIOs of a
@@ -194,36 +171,29 @@ certain type.
 \&\fIBIO_next()\fR returns the next \s-1BIO\s0 in a chain.
 .PP
 \&\fIBIO_method_type()\fR returns the type of the \s-1BIO\s0 \fBb\fR.
-.SH "NOTES"
-.IX Header "NOTES"
-\&\fIBIO_next()\fR was added to OpenSSL 0.9.6 to provide a 'clean' way to traverse a \s-1BIO\s0
-chain or find multiple matches using \fIBIO_find_type()\fR. Previous versions had to
-use:
-.PP
-.Vb 1
-\& next = bio\->next_bio;
-.Ve
-.SH "BUGS"
-.IX Header "BUGS"
-\&\fIBIO_find_type()\fR in OpenSSL 0.9.5a and earlier could not be safely passed a
-\&\s-1NULL\s0 pointer for the \fBb\fR argument.
 .SH "EXAMPLE"
 .IX Header "EXAMPLE"
 Traverse a chain looking for digest BIOs:
 .PP
-.Vb 2
+.Vb 1
 \& BIO *btmp;
+\&
 \& btmp = in_bio; /* in_bio is chain to search through */
-\&
 \& do {
-\&        btmp = BIO_find_type(btmp, BIO_TYPE_MD);
-\&        if(btmp == NULL) break; /* Not found */
-\&        /* btmp is a digest BIO, do something with it ...*/
-\&        ...
+\&     btmp = BIO_find_type(btmp, BIO_TYPE_MD);
+\&     if (btmp == NULL)
+\&         break; /* Not found */
+\&     /* btmp is a digest BIO, do something with it ...*/
+\&     ...
 \&
-\&        btmp = BIO_next(btmp);
-\& } while(btmp);
+\&     btmp = BIO_next(btmp);
+\& } while (btmp);
 .Ve
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\s-1TBA\s0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

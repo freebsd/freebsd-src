@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "ERR_set_mark 3"
-.TH ERR_set_mark 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "ERR_SET_MARK 3"
+.TH ERR_SET_MARK 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,9 +158,11 @@ The mark is then removed.  If there is no mark, the whole stack is removed.
 .PP
 \&\fIERR_pop_to_mark()\fR returns 0 if there was no mark in the error stack, which
 implies that the stack became empty, otherwise 1.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\fIerr\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIERR_set_mark()\fR and \fIERR_pop_to_mark()\fR were added in OpenSSL 0.9.8.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2003\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

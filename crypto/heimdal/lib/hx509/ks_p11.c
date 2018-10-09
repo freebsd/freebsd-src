@@ -213,21 +213,47 @@ p11_rsa_finish(RSA *rsa)
     return 1;
 }
 
-static const RSA_METHOD p11_rsa_pkcs1_method = {
-    "hx509 PKCS11 PKCS#1 RSA",
-    p11_rsa_public_encrypt,
-    p11_rsa_public_decrypt,
-    p11_rsa_private_encrypt,
-    p11_rsa_private_decrypt,
-    NULL,
-    NULL,
-    p11_rsa_init,
-    p11_rsa_finish,
-    0,
-    NULL,
-    NULL,
-    NULL
-};
+static const RSA_METHOD *
+get_p11_rsa_pkcs1_method(void)
+{
+    static const RSA_METHOD *p11_rsa_pkcs1_method;
+    RSA_METHOD *new_method;
+
+    if (p11_rsa_pkcs1_method != NULL)
+	return p11_rsa_pkcs1_method;
+
+    new_method = RSA_meth_new("hx509 PKCS11 PKCS#1 RSA", 0);
+    if (new_method == NULL)
+	return NULL;
+
+    if (RSA_meth_set_pub_enc(new_method, p11_rsa_public_encrypt) != 1)
+	goto out;
+
+    if (RSA_meth_set_pub_dec(new_method, p11_rsa_public_decrypt) != 1)
+	goto out;
+
+    if (RSA_meth_set_priv_enc(new_method, p11_rsa_private_encrypt) != 1)
+	goto out;
+
+    if (RSA_meth_set_priv_dec(new_method, p11_rsa_private_decrypt) != 1)
+	goto out;
+
+    if (RSA_meth_set_init(new_method, p11_rsa_init) != 1)
+	goto out;
+
+    if (RSA_meth_set_finish(new_method, p11_rsa_finish) != 1)
+	goto out;
+
+    /*
+     * This might overwrite a previously-created method if multiple
+     * threads invoke this concurrently which will leak memory.
+     */
+    p11_rsa_pkcs1_method = new_method;
+    return p11_rsa_pkcs1_method;
+out:
+    RSA_meth_free(new_method);
+    return NULL;
+}
 
 /*
  *
@@ -607,6 +633,8 @@ collect_private_key(hx509_context context,
     hx509_private_key key;
     heim_octet_string localKeyId;
     int ret;
+    const RSA_METHOD *meth;
+    BIGNUM *n, *e;
     RSA *rsa;
     struct p11_rsa *p11rsa;
 
@@ -626,8 +654,15 @@ collect_private_key(hx509_context context,
      * the pkcs11 specification, but some smartcards leaves it out,
      * let ignore any failure to fetch it.
      */
-    rsa->n = getattr_bn(p, slot, session, object, CKA_MODULUS);
-    rsa->e = getattr_bn(p, slot, session, object, CKA_PUBLIC_EXPONENT);
+    n = getattr_bn(p, slot, session, object, CKA_MODULUS);
+    e = getattr_bn(p, slot, session, object, CKA_PUBLIC_EXPONENT);
+    if (RSA_set0_key(rsa, n, e, NULL) != 1) {
+	BN_free(n);
+	BN_free(e);
+	RSA_free(rsa);
+	hx509_private_key_free(&key);
+	return EINVAL;
+    }
 
     p11rsa = calloc(1, sizeof(*p11rsa));
     if (p11rsa == NULL)
@@ -643,7 +678,10 @@ collect_private_key(hx509_context context,
     if (p->ref == UINT_MAX)
 	_hx509_abort("pkcs11 ref == UINT_MAX on alloc");
 
-    RSA_set_method(rsa, &p11_rsa_pkcs1_method);
+    meth = get_p11_rsa_pkcs1_method();
+    if (meth == NULL)
+	_hx509_abort("failed to create RSA method");
+    RSA_set_method(rsa, meth);
     ret = RSA_set_app_data(rsa, p11rsa);
     if (ret != 1)
 	_hx509_abort("RSA_set_app_data");

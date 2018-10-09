@@ -129,17 +129,17 @@
 .\" ========================================================================
 .\"
 .IX Title "EC 1"
-.TH EC 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH EC 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-ec,
-ec \- EC key processing
+openssl\-ec, ec \- EC key processing
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBec\fR
+[\fB\-help\fR]
 [\fB\-inform PEM|DER\fR]
 [\fB\-outform PEM|DER\fR]
 [\fB\-in filename\fR]
@@ -156,16 +156,21 @@ ec \- EC key processing
 [\fB\-pubout\fR]
 [\fB\-conv_form arg\fR]
 [\fB\-param_enc arg\fR]
+[\fB\-no_public\fR]
+[\fB\-check\fR]
 [\fB\-engine id\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBec\fR command processes \s-1EC\s0 keys. They can be converted between various
-forms and their components printed out. \fBNote\fR OpenSSL uses the 
+forms and their components printed out. \fBNote\fR OpenSSL uses the
 private key format specified in '\s-1SEC 1:\s0 Elliptic Curve Cryptography'
-(http://www.secg.org/). To convert a OpenSSL \s-1EC\s0 private key into the
+(http://www.secg.org/). To convert an OpenSSL \s-1EC\s0 private key into the
 PKCS#8 private key format use the \fBpkcs8\fR command.
-.SH "COMMAND OPTIONS"
-.IX Header "COMMAND OPTIONS"
+.SH "OPTIONS"
+.IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-inform DER|PEM\fR" 4
 .IX Item "-inform DER|PEM"
 This specifies the input format. The \fB\s-1DER\s0\fR option with a private key uses
@@ -176,8 +181,8 @@ encoded with additional header and footer lines. In the case of a private key
 PKCS#8 format is also accepted.
 .IP "\fB\-outform DER|PEM\fR" 4
 .IX Item "-outform DER|PEM"
-This specifies the output format, the options have the same meaning as the 
-\&\fB\-inform\fR option.
+This specifies the output format, the options have the same meaning and default
+as the \fB\-inform\fR option.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read a key from or standard input if this
@@ -185,7 +190,7 @@ option is not specified. If the key is encrypted a pass phrase will be
 prompted for.
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
-the input file password source. For more information about the format of \fBarg\fR
+The input file password source. For more information about the format of \fBarg\fR
 see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fIopenssl\fR\|(1).
 .IP "\fB\-out filename\fR" 4
 .IX Item "-out filename"
@@ -195,11 +200,11 @@ prompted for. The output filename should \fBnot\fR be the same as the input
 filename.
 .IP "\fB\-passout arg\fR" 4
 .IX Item "-passout arg"
-the output file password source. For more information about the format of \fBarg\fR
+The output file password source. For more information about the format of \fBarg\fR
 see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fIopenssl\fR\|(1).
 .IP "\fB\-des|\-des3|\-idea\fR" 4
 .IX Item "-des|-des3|-idea"
-These options encrypt the private key with the \s-1DES,\s0 triple \s-1DES, IDEA\s0 or 
+These options encrypt the private key with the \s-1DES,\s0 triple \s-1DES, IDEA\s0 or
 any other cipher supported by OpenSSL before outputting it. A pass phrase is
 prompted for.
 If none of these options is specified the key is written in plain text. This
@@ -209,20 +214,20 @@ setting the encryption options it can be use to add or change the pass phrase.
 These options can only be used with \s-1PEM\s0 format output files.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
-prints out the public, private key components and parameters.
+Prints out the public, private key components and parameters.
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
-this option prevents output of the encoded version of the key.
+This option prevents output of the encoded version of the key.
 .IP "\fB\-modulus\fR" 4
 .IX Item "-modulus"
-this option prints out the value of the public key component of the key.
+This option prints out the value of the public key component of the key.
 .IP "\fB\-pubin\fR" 4
 .IX Item "-pubin"
-by default a private key is read from the input file: with this option a
+By default, a private key is read from the input file. With this option a
 public key is read instead.
 .IP "\fB\-pubout\fR" 4
 .IX Item "-pubout"
-by default a private key is output. With this option a public
+By default a private key is output. With this option a public
 key will be output instead. This option is automatically set if the input is
 a public key.
 .IP "\fB\-conv_form\fR" 4
@@ -238,14 +243,20 @@ the preprocessor macro \fB\s-1OPENSSL_EC_BIN_PT_COMP\s0\fR at compile time.
 .IX Item "-param_enc arg"
 This specifies how the elliptic curve parameters are encoded.
 Possible value are: \fBnamed_curve\fR, i.e. the ec parameters are
-specified by a \s-1OID,\s0 or \fBexplicit\fR where the ec parameters are
-explicitly given (see \s-1RFC 3279\s0 for the definition of the 
+specified by an \s-1OID,\s0 or \fBexplicit\fR where the ec parameters are
+explicitly given (see \s-1RFC 3279\s0 for the definition of the
 \&\s-1EC\s0 parameters structures). The default value is \fBnamed_curve\fR.
-\&\fBNote\fR the \fBimplicitlyCA\fR alternative ,as specified in \s-1RFC 3279,\s0
+\&\fBNote\fR the \fBimplicitlyCA\fR alternative, as specified in \s-1RFC 3279,\s0
 is currently not implemented in OpenSSL.
+.IP "\fB\-no_public\fR" 4
+.IX Item "-no_public"
+This option omits the public key components from the private key output.
+.IP "\fB\-check\fR" 4
+.IX Item "-check"
+This option checks the consistency of an \s-1EC\s0 private or public key.
 .IP "\fB\-engine id\fR" 4
 .IX Item "-engine id"
-specifying an engine (by its unique \fBid\fR string) will cause \fBec\fR
+Specifying an engine (by its unique \fBid\fR string) will cause \fBec\fR
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -304,9 +315,11 @@ To change the point conversion form to \fBcompressed\fR:
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIecparam\fR\|(1), \fIdsa\fR\|(1), \fIrsa\fR\|(1)
-.SH "HISTORY"
-.IX Header "HISTORY"
-The ec command was first introduced in OpenSSL 0.9.8.
-.SH "AUTHOR"
-.IX Header "AUTHOR"
-Nils Larsch for the OpenSSL project (http://www.openssl.org).
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2003\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.
