@@ -257,7 +257,7 @@ ftp_pwd(conn_t *conn, char *pwd, size_t pwdlen)
 		return (FTP_PROTOCOL_ERROR);
 	*dst = '\0';
 #if 0
-	DEBUG(fprintf(stderr, "pwd: [%s]\n", pwd));
+	DEBUGF("pwd: [%s]\n", pwd);
 #endif
 	return (FTP_OK);
 }
@@ -289,8 +289,8 @@ ftp_cwd(conn_t *conn, const char *file)
 			if (pwd[i] != file[i])
 				break;
 #if 0
-		DEBUG(fprintf(stderr, "have: [%.*s|%s]\n", i, pwd, pwd + i));
-		DEBUG(fprintf(stderr, "want: [%.*s|%s]\n", i, file, file + i));
+		DEBUGF("have: [%.*s|%s]\n", i, pwd, pwd + i);
+		DEBUGF("want: [%.*s|%s]\n", i, file, file + i);
 #endif
 		/* Keep going up a dir until we have a matching prefix. */
 		if (pwd[i] == '\0' && (file[i - 1] == '/' || file[i] == '/'))
@@ -431,7 +431,7 @@ ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
 	}
 	if (us->size == 0)
 		us->size = -1;
-	DEBUG(fprintf(stderr, "size: [%lld]\n", (long long)us->size));
+	DEBUGF("size: [%lld]\n", (long long)us->size);
 
 	e = ftp_cmd(conn, "MDTM %.*s", filenamelen, filename);
 	if (e != FTP_FILE_STATUS) {
@@ -466,10 +466,9 @@ ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
 		t = time(NULL);
 	us->mtime = t;
 	us->atime = t;
-	DEBUG(fprintf(stderr,
-	    "last modified: [%04d-%02d-%02d %02d:%02d:%02d]\n",
+	DEBUGF("last modified: [%04d-%02d-%02d %02d:%02d:%02d]\n",
 	    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-	    tm.tm_hour, tm.tm_min, tm.tm_sec));
+	    tm.tm_hour, tm.tm_min, tm.tm_sec);
 	return (0);
 }
 
@@ -583,7 +582,7 @@ ftp_closefn(void *v)
 	fetch_close(io->dconn);
 	io->dir = -1;
 	io->dconn = NULL;
-	DEBUG(fprintf(stderr, "Waiting for final status\n"));
+	DEBUGF("Waiting for final status\n");
 	r = ftp_chkerr(io->cconn);
 	if (io->cconn == cached_connection && io->cconn->ref == 1)
 		cached_connection = NULL;
@@ -913,7 +912,8 @@ ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 		fetch_netrc_auth(url);
 	user = url->user;
 	if (*user == '\0')
-		user = getenv("FTP_LOGIN");
+		if ((user = getenv("FTP_LOGIN")) != NULL)
+			DEBUGF("FTP_LOGIN=%s\n", user);
 	if (user == NULL || *user == '\0')
 		user = FTP_ANONYMOUS_USER;
 	if (purl && url->port == fetch_default_port(url->scheme))
@@ -927,7 +927,8 @@ ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 	if (e == FTP_NEED_PASSWORD) {
 		pwd = url->pwd;
 		if (*pwd == '\0')
-			pwd = getenv("FTP_PASSWORD");
+			if ((pwd = getenv("FTP_PASSWORD")) != NULL)
+				DEBUGF("FTP_PASSWORD=%s\n", pwd);
 		if (pwd == NULL || *pwd == '\0') {
 			if ((logname = getlogin()) == NULL)
 				logname = FTP_ANONYMOUS_USER;
