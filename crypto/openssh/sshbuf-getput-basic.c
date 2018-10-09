@@ -482,7 +482,9 @@ sshbuf_put_passwd(struct sshbuf *buf, const struct passwd *pwent)
 	    (r = sshbuf_put_cstring(buf, "*")) != 0 ||
 	    (r = sshbuf_put_u32(buf, pwent->pw_uid)) != 0 ||
 	    (r = sshbuf_put_u32(buf, pwent->pw_gid)) != 0 ||
-	    (r = sshbuf_put_u64(buf, pwent->pw_change)) != 0 ||
+#ifdef HAVE_STRUCT_PASSWD_PW_CHANGE
+	    (r = sshbuf_put_time(buf, pwent->pw_change)) != 0 ||
+#endif
 #ifdef HAVE_STRUCT_PASSWD_PW_GECOS
 	    (r = sshbuf_put_cstring(buf, pwent->pw_gecos)) != 0 ||
 #endif
@@ -491,7 +493,9 @@ sshbuf_put_passwd(struct sshbuf *buf, const struct passwd *pwent)
 #endif
 	    (r = sshbuf_put_cstring(buf, pwent->pw_dir)) != 0 ||
 	    (r = sshbuf_put_cstring(buf, pwent->pw_shell)) != 0 ||
-	    (r = sshbuf_put_u64(buf, pwent->pw_expire)) != 0 ||
+#ifdef HAVE_STRUCT_PASSWD_PW_EXPIRE
+	    (r = sshbuf_put_time(buf, pwent->pw_expire)) != 0 ||
+#endif
 	    (r = sshbuf_put_u32(buf, pwent->pw_fields)) != 0) {
 		return r;
 	}
@@ -505,8 +509,8 @@ struct passwd *
 sshbuf_get_passwd(struct sshbuf *buf)
 {
 	struct passwd *pw;
+	u_int64_t len;
 	int r;
-	size_t len;
 
 	/* check if size of struct passwd is as same as sender's size */
 	r = sshbuf_get_u64(buf, &len);
@@ -518,7 +522,9 @@ sshbuf_get_passwd(struct sshbuf *buf)
 	    sshbuf_get_cstring(buf, &pw->pw_passwd, NULL) != 0 ||
 	    sshbuf_get_u32(buf, &pw->pw_uid) != 0 ||
 	    sshbuf_get_u32(buf, &pw->pw_gid) != 0 ||
-	    sshbuf_get_u64(buf, &pw->pw_change) != 0 ||
+#ifdef HAVE_STRUCT_PASSWD_PW_CHANGE
+	    sshbuf_get_time(buf, &pw->pw_change) != 0 ||
+#endif
 #ifdef HAVE_STRUCT_PASSWD_PW_GECOS
 	    sshbuf_get_cstring(buf, &pw->pw_gecos, NULL) != 0 ||
 #endif
@@ -527,7 +533,9 @@ sshbuf_get_passwd(struct sshbuf *buf)
 #endif
 	    sshbuf_get_cstring(buf, &pw->pw_dir, NULL) != 0 ||
 	    sshbuf_get_cstring(buf, &pw->pw_shell, NULL) != 0 ||
-	    sshbuf_get_u64(buf, &pw->pw_expire) != 0 ||
+#ifdef HAVE_STRUCT_PASSWD_PW_EXPIRE
+	    sshbuf_get_time(buf, &pw->pw_expire) != 0 ||
+#endif
 	    sshbuf_get_u32(buf, &pw->pw_fields) != 0) {
 		sshbuf_free_passwd(pw);
 		return NULL;

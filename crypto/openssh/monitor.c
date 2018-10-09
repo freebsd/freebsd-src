@@ -114,7 +114,9 @@ static struct sshbuf *child_state;
 
 int mm_answer_moduli(int, struct sshbuf *);
 int mm_answer_sign(int, struct sshbuf *);
+#ifdef HAVE_LOGIN_CAP
 int mm_answer_login_getpwclass(int, struct sshbuf *);
+#endif
 int mm_answer_pwnamallow(int, struct sshbuf *);
 int mm_answer_auth2_read_banner(int, struct sshbuf *);
 int mm_answer_authserv(int, struct sshbuf *);
@@ -190,7 +192,9 @@ struct mon_table mon_dispatch_proto20[] = {
     {MONITOR_REQ_MODULI, MON_ONCE, mm_answer_moduli},
 #endif
     {MONITOR_REQ_SIGN, MON_ONCE, mm_answer_sign},
+#ifdef HAVE_LOGIN_CAP
     {MONITOR_REQ_GETPWCLASS, MON_AUTH, mm_answer_login_getpwclass},
+#endif
     {MONITOR_REQ_PWNAM, MON_ONCE, mm_answer_pwnamallow},
     {MONITOR_REQ_AUTHSERV, MON_ONCE, mm_answer_authserv},
     {MONITOR_REQ_AUTH2_READ_BANNER, MON_ONCE, mm_answer_auth2_read_banner},
@@ -709,6 +713,7 @@ mm_answer_sign(int sock, struct sshbuf *m)
 	return (0);
 }
 
+#ifdef HAVE_LOGIN_CAP
 int
 mm_answer_login_getpwclass(int sock, struct sshbuf *m)
 {
@@ -748,6 +753,7 @@ mm_answer_login_getpwclass(int sock, struct sshbuf *m)
 
 	return (0);
 }
+#endif
 
 /* Retrieves the password entry and also checks if the user is permitted */
 

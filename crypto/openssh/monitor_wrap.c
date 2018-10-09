@@ -247,6 +247,7 @@ mm_sshkey_sign(struct sshkey *key, u_char **sigp, size_t *lenp,
 	return (0);
 }
 
+#ifdef HAVE_LOGIN_CAP
 login_cap_t *
 mm_login_getpwclass(const struct passwd *pwent)
 {
@@ -286,7 +287,9 @@ mm_login_getpwclass(const struct passwd *pwent)
 
 	return (lc);
 }
+#endif
 
+#ifdef HAVE_LOGIN_CAP
 void
 mm_login_close(login_cap_t *lc)
 {
@@ -297,6 +300,7 @@ mm_login_close(login_cap_t *lc)
 	free(lc->lc_cap);
 	free(lc);
 }
+#endif
 
 struct passwd *
 mm_getpwnamallow(const char *username)
