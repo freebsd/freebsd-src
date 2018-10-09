@@ -434,8 +434,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				INP_RUNLOCK(last);
 		} else
 			INP_RUNLOCK(last);
-		INP_INFO_RUNLOCK_ET(pcbinfo, et);
 	inp_lost:
+		INP_INFO_RUNLOCK_ET(pcbinfo, et);
 		return (IPPROTO_DONE);
 	}
 	/*

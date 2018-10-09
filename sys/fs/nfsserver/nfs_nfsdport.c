@@ -133,7 +133,7 @@ static void nfsrv_pnfssetfh(struct vnode *, struct pnfsdsfile *, char *, char *,
 static int nfsrv_dsremove(struct vnode *, char *, struct ucred *, NFSPROC_T *);
 static int nfsrv_dssetacl(struct vnode *, struct acl *, struct ucred *,
     NFSPROC_T *);
-static int nfsrv_pnfsstatfs(struct statfs *);
+static int nfsrv_pnfsstatfs(struct statfs *, struct mount *);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -1593,7 +1593,7 @@ nfsvno_statfs(struct vnode *vp, struct statfs *sf)
 	if (nfsrv_devidcnt > 0) {
 		/* For a pNFS service, get the DS numbers. */
 		tsf = malloc(sizeof(*tsf), M_TEMP, M_WAITOK | M_ZERO);
-		error = nfsrv_pnfsstatfs(tsf);
+		error = nfsrv_pnfsstatfs(tsf, vp->v_mount);
 		if (error != 0) {
 			free(tsf, M_TEMP);
 			tsf = NULL;
@@ -1774,7 +1774,7 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
 	     NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_SPACEFREE) ||
 	     NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_SPACETOTAL))) {
 		sf = malloc(sizeof(*sf), M_TEMP, M_WAITOK | M_ZERO);
-		error = nfsrv_pnfsstatfs(sf);
+		error = nfsrv_pnfsstatfs(sf, mp);
 		if (error != 0) {
 			free(sf, M_TEMP);
 			sf = NULL;
@@ -5578,7 +5578,7 @@ nfsrv_killrpcs(struct nfsmount *nmp)
  * receive the total for all DSs.
  */
 static int
-nfsrv_pnfsstatfs(struct statfs *sf)
+nfsrv_pnfsstatfs(struct statfs *sf, struct mount *mp)
 {
 	struct statfs *tsf;
 	struct nfsdevice *ds;
@@ -5595,11 +5595,28 @@ nfsrv_pnfsstatfs(struct statfs *sf)
 	tdvpp = dvpp;
 	i = 0;
 	NFSDDSLOCK();
+	/* First, search for matches for same file system. */
 	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
-		if (ds->nfsdev_nmp != NULL) {
+		if (ds->nfsdev_nmp != NULL && ds->nfsdev_mdsisset != 0 &&
+		    ds->nfsdev_mdsfsid.val[0] == mp->mnt_stat.f_fsid.val[0] &&
+		    ds->nfsdev_mdsfsid.val[1] == mp->mnt_stat.f_fsid.val[1]) {
 			if (++i > nfsrv_devidcnt)
 				break;
 			*tdvpp++ = ds->nfsdev_dvp;
+		}
+	}
+	/*
+	 * If no matches for same file system, total all servers not assigned
+	 * to a file system.
+	 */
+	if (i == 0) {
+		TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
+			if (ds->nfsdev_nmp != NULL &&
+			    ds->nfsdev_mdsisset == 0) {
+				if (++i > nfsrv_devidcnt)
+					break;
+				*tdvpp++ = ds->nfsdev_dvp;
+			}
 		}
 	}
 	NFSDDSUNLOCK();
