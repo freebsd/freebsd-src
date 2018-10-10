@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jun 21, 2018" "NLnet Labs" "unbound 1.7.3"
+.TH "unbound.conf" "5" "Sep 10, 2018" "NLnet Labs" "unbound 1.8.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -121,7 +121,7 @@ interface and port number), if not specified the default port (from
 \fBport\fR) is used.
 .TP
 .B ip\-address: \fI<ip address[@port]>
-Same as interface: (for easy of compatibility with nsd.conf).
+Same as interface: (for ease of compatibility with nsd.conf).
 .TP
 .B interface\-automatic: \fI<yes or no>
 Detect source interface on UDP queries and copy them to replies.  This
@@ -278,9 +278,9 @@ to so\-rcvbuf.
 .B so\-reuseport: \fI<yes or no>
 If yes, then open dedicated listening sockets for incoming queries for each
 thread and try to set the SO_REUSEPORT socket option on each socket.  May
-distribute incoming queries to threads more evenly.  Default is no.  On Linux
-it is supported in kernels >= 3.9.  On other systems, FreeBSD, OSX it may
-also work.  You can enable it (on any platform and kernel),
+distribute incoming queries to threads more evenly.  Default is yes.
+On Linux it is supported in kernels >= 3.9.  On other systems, FreeBSD, OSX
+it may also work.  You can enable it (on any platform and kernel),
 it then attempts to open the port and passes the option if it was available
 at compile time, if that works it is used, if it fails, it continues
 silently (unless verbosity 3) without the option.
@@ -389,6 +389,37 @@ Note that not all platform supports socket option to set MSS (TCP_MAXSEG).
 Default is system default MSS determined by interface MTU and
 negotiation between Unbound and other servers.
 .TP
+.B tcp-idle-timeout: \fI<msec>\fR
+The period Unbound will wait for a query on a TCP connection.
+If this timeout expires Unbound closes the connection.
+This option defaults to 30000 milliseconds.
+When the number of free incoming TCP buffers falls below 50% of the
+total number configured, the option value used is progressively
+reduced, first to 1% of the configured value, then to 0.2% of the
+configured value if the number of free buffers falls below 35% of the
+total number configured, and finally to 0 if the number of free buffers
+falls below 20% of the total number configured. A minimum timeout of
+200 milliseconds is observed regardless of the option value used.
+.TP
+.B edns-tcp-keepalive: \fI<yes or no>\fR
+Enable or disable EDNS TCP Keepalive. Default is no.
+.TP
+.B edns-tcp-keepalive-timeout: \fI<msec>\fR
+The period Unbound will wait for a query on a TCP connection when
+EDNS TCP Keepalive is active. If this timeout expires Unbound closes
+the connection. If the client supports the EDNS TCP Keepalive option,
+Unbound sends the timeout value to the client to encourage it to
+close the connection before the server times out.
+This option defaults to 120000 milliseconds.
+When the number of free incoming TCP buffers falls below 50% of
+the total number configured, the advertised timeout is progressively
+reduced to 1% of the configured value, then to 0.2% of the configured
+value if the number of free buffers falls below 35% of the total number
+configured, and finally to 0 if the number of free buffers falls below
+20% of the total number configured.
+A minimum actual timeout of 200 milliseconds is observed regardless of the
+advertised timeout.
+.TP
 .B tcp\-upstream: \fI<yes or no>
 Enable or disable whether the upstream queries use TCP only for transport.
 Default is no.  Useful in tunneling scenarios.
@@ -403,7 +434,7 @@ Enabled or disable whether the upstream queries use TLS only for transport.
 Default is no.  Useful in tunneling scenarios.  The TLS contains plain DNS in
 TCP wireformat.  The other server must support this (see
 \fBtls\-service\-key\fR).
-If you enable this, also configure a tls\-cert\-bundle or use tls\-win\cert to
+If you enable this, also configure a tls\-cert\-bundle or use tls\-win\-cert to
 load CA certs, otherwise the connections cannot be authenticated.
 .TP
 .B ssl\-upstream: \fI<yes or no>
@@ -465,6 +496,11 @@ Default is no.
 Enable or disable whether the unbound server forks into the background as
 a daemon.  Set the value to \fIno\fR when unbound runs as systemd service.
 Default is yes.
+.TP
+.B tcp\-connection\-limit: \fI<IP netblock> <limit>
+Allow up to \fIlimit\R simultaneous TCP connections from the given netblock.
+When at the limit, further connections are accepted but closed immediately.
+This option is experimental at this time.
 .TP
 .B access\-control: \fI<IP netblock> <action>
 The netblock is given as an IP4 or IP6 address with /size appended for a
@@ -557,8 +593,9 @@ to chroot and dropping permissions. This allows the pidfile to be
 Additionally, unbound may need to access /dev/random (for entropy)
 from inside the chroot.
 .IP
-If given a chroot is done to the given directory. The default is
-"/var/unbound". If you give "" no chroot is performed.
+If given a chroot is done to the given directory. By default chroot is
+enabled and the default is "/var/unbound". If you give "" no
+chroot is performed.
 .TP
 .B username: \fI<name>
 If given, after binding the port the user privileges are dropped. Default is
@@ -617,6 +654,16 @@ name, type, class, return code, time to resolve, from cache and response size.
 Default is no.  Note that it takes time to print these
 lines which makes the server (significantly) slower.  Odd (nonprintable)
 characters in names are printed as '?'.
+.TP
+.B log\-local\-actions: \fI<yes or no>
+Print log lines to inform about local zone actions.  These lines are like the
+local\-zone type inform prints out, but they are also printed for the other
+types of local zones.
+.TP
+.B log\-servfail: \fI<yes or no>
+Print log lines that say why queries return SERVFAIL to clients.
+This is separate from the verbosity debug logs, much smaller, and printed
+at the error level, not the info level of debug info from verbosity.
 .TP
 .B pidfile: \fI<filename>
 The process id is written to the file. Default is "/var/unbound/unbound.pid".
@@ -700,7 +747,7 @@ noerror for empty nonterminals, hence this is possible.  Very old software
 might return nxdomain for empty nonterminals (that usually happen for reverse
 IP address lookups), and thus may be incompatible with this.  To try to avoid
 this only DNSSEC-secure nxdomains are used, because the old software does not
-have DNSSEC.  Default is off.
+have DNSSEC.  Default is on.
 The nxdomain must be secure, this means nsec3 with optout is insufficient.
 .TP
 .B harden\-referral\-path: \fI<yes or no>
@@ -814,9 +861,11 @@ from the query ID, for speed and thread safety).  Default is no.
 If yes, Unbound doesn't insert authority/additional sections into response
 messages when those sections are not required.  This reduces response
 size significantly, and may avoid TCP fallback for some responses.
-This may cause a slight speedup.  The default is no, because the DNS
+This may cause a slight speedup.  The default is yes, even though the DNS
 protocol RFCs mandate these sections, and the additional content could
-be of use and save roundtrips for clients.
+be of use and save roundtrips for clients.  Because they are not used,
+and the saved roundtrips are easier saved with prefetch, whilst this is
+faster.
 .TP
 .B disable-dnssec-lame-check: \fI<yes or no>
 If true, disables the DNSSEC lameness check in the iterator.  This check
@@ -964,6 +1013,17 @@ If enabled, unbound attempts to serve old responses from cache with a
 TTL of 0 in the response without waiting for the actual resolution to finish.
 The actual resolution answer ends up in the cache later on.  Default is "no".
 .TP
+.B serve\-expired\-ttl: \fI<seconds>
+Limit serving of expired responses to configured seconds after expiration. 0
+disables the limit. This option only applies when \fBserve\-expired\fR is
+enabled. The default is 0.
+.TP
+.B serve\-expired\-ttl\-reset: \fI<yes or no>
+Set the TTL of expired records to the \fBserve\-expired\-ttl\fR value after a
+failed attempt to retrieve the record from upstream. This makes sure that the
+expired records will be served as long as there are queries for it. Default is
+"no".
+.TP
 .B val\-nsec3\-keysize\-iterations: \fI<"list of values">
 List of keysize and iteration count values, separated by spaces, surrounded
 by quotes. Default is "1024 150 2048 500 4096 2500". This determines the
@@ -1012,7 +1072,7 @@ Number of bytes size of the aggressive negative cache. Default is 1 megabyte.
 A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes, megabytes
 or gigabytes (1024*1024 bytes in a megabyte).
 .TP
-.B unblock\-lan\-zones: \fI<yesno>
+.B unblock\-lan\-zones: \fI<yes or no>
 Default is disabled.  If enabled, then for private address space,
 the reverse lookups are no longer filtered.  This allows unbound when
 running as dns service on a host where it provides service for that host,
@@ -1023,7 +1083,7 @@ as a (DHCP-) DNS network resolver for a group of machines, where such
 lookups should be filtered (RFC compliance), this also stops potential
 data leakage about the local network to the upstream DNS servers.
 .TP
-.B insecure\-lan\-zones: \fI<yesno>
+.B insecure\-lan\-zones: \fI<yes or no>
 Default is disabled.  If enabled, then reverse lookups in private
 address space are not validated.  This is usually required whenever
 \fIunblock\-lan\-zones\fR is used.
@@ -1470,6 +1530,10 @@ Default is no.
 .TP
 .B stub\-ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBstub\-tls\-upstream\fR.
+.TP
+.B stub\-no\-cache: \fI<yes or no>
+Default is no.  If enabled, data inside the stub is not cached.  This is
+useful when you want immediate changes to be visible.
 .SS "Forward Zone Options"
 .LP
 There may be multiple
@@ -1504,6 +1568,7 @@ the '@' and '#', the '@' comes first.
 At high verbosity it logs the TLS certificate, with TLS enabled.
 If you leave out the '#' and auth name from the forward\-addr, any
 name is accepted.  The cert must also match a CA from the tls\-cert\-bundle.
+The cert name match code needs OpenSSL 1.1.0 or later to be enabled.
 .TP
 .B forward\-first: \fI<yes or no>
 If enabled, a query is attempted without the forward clause if it fails.
@@ -1514,11 +1579,15 @@ The default is no.
 .B forward\-tls\-upstream: \fI<yes or no>
 Enabled or disable whether the queries to this forwarder use TLS for transport.
 Default is no.
-If you enable this, also configure a tls\-cert\-bundle or use tls\-win\cert to
+If you enable this, also configure a tls\-cert\-bundle or use tls\-win\-cert to
 load CA certs, otherwise the connections cannot be authenticated.
 .TP
 .B forward\-ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBforward\-tls\-upstream\fR.
+.TP
+.B forward\-no\-cache: \fI<yes or no>
+Default is no.  If enabled, data inside the forward is not cached.  This is
+useful when you want immediate changes to be visible.
 .SS "Authority Zone Options"
 .LP
 Authority zones are configured with \fBauth\-zone:\fR, and each one must
@@ -1653,6 +1722,12 @@ It must be /96 or shorter.  The default prefix is 64:ff9b::/96.
 .B dns64\-synthall: \fI<yes or no>\fR
 Debug option, default no.  If enabled, synthesize all AAAA records
 despite the presence of actual AAAA records.
+.TP
+.B dns64\-ignore\-aaaa: \fI<name>\fR
+List domain for which the AAAA records are ignored and the A record is
+used by dns64 processing instead.  Can be entered multiple times, list a
+new domain for which it applies, one per line.  Applies also to names
+underneath the name given.
 .SS "DNSCrypt Options"
 .LP
 The

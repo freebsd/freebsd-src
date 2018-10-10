@@ -410,7 +410,7 @@ void log_err_addr(const char* str, const char* err,
 	if(verbosity >= 4)
 		log_err("%s: %s for %s port %d (len %d)", str, err, dest,
 			(int)port, (int)addrlen);
-	else	log_err("%s: %s for %s", str, err, dest);
+	else	log_err("%s: %s for %s port %d", str, err, dest, (int)port);
 }
 
 int

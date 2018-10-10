@@ -10,16 +10,16 @@ sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[7])
-m4_define([VERSION_MICRO],[3])
+m4_define([VERSION_MINOR],[8])
+m4_define([VERSION_MICRO],[0])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
-LIBUNBOUND_CURRENT=7
-LIBUNBOUND_REVISION=11
-LIBUNBOUND_AGE=5
+LIBUNBOUND_CURRENT=8
+LIBUNBOUND_REVISION=0
+LIBUNBOUND_AGE=0
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
 # 1.0.2 had 0:14:0
@@ -81,6 +81,7 @@ LIBUNBOUND_AGE=5
 # 1.7.1 had 7:9:5
 # 1.7.2 had 7:10:5
 # 1.7.3 had 7:11:5
+# 1.7.4 had 8:0:0 # changes the event callback function signature
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -323,11 +324,30 @@ AC_DEFUN([ACX_YYLEX_DESTROY], [
 	if echo %% | $LEX -t 2>&1 | grep yylex_destroy >/dev/null 2>&1; then
 		AC_DEFINE(LEX_HAS_YYLEX_DESTROY, 1, [if lex has yylex_destroy])
 		AC_MSG_RESULT(yes)
-	else AC_MSG_RESULT(no); fi
+	else AC_MSG_RESULT(no);
+		LEX=":"
+	fi
+])
+
+AC_DEFUN([ACX_YYLEX_OPTION], [
+	AC_MSG_CHECKING([for lex %option])
+	if cat <<EOF | $LEX -t 2>&1 | grep yy_delete_buffer >/dev/null 2>&1; then
+%option nounput
+%%
+EOF
+		AC_MSG_RESULT(yes)
+	else AC_MSG_RESULT(no);
+		LEX=":"
+	fi
 ])
 
 AC_PROG_LEX
+if test "$LEX" != "" -a "$LEX" != ":"; then
 ACX_YYLEX_DESTROY
+fi
+if test "$LEX" != "" -a "$LEX" != ":"; then
+ACX_YYLEX_OPTION
+fi
 AC_PROG_YACC
 AC_CHECK_PROG(doxygen, doxygen, doxygen)
 AC_CHECK_TOOL(STRIP, strip)
@@ -585,7 +605,10 @@ if test x_$ub_test_python != x_no; then
         CPPFLAGS="$PYTHON_CPPFLAGS"
       fi
       ub_have_python=yes
-      PC_PY_DEPENDENCY="python"
+      PKG_PROG_PKG_CONFIG
+      PKG_CHECK_EXISTS(["python${PY_MAJOR_VERSION}"],
+                       [PC_PY_DEPENDENCY="python${PY_MAJOR_VERSION}"],
+                       [PC_PY_DEPENDENCY="python"])
       AC_SUBST(PC_PY_DEPENDENCY)
 
       # Check for SWIG
@@ -1177,9 +1200,9 @@ AC_CHECK_DECLS([XML_StopParser], [], [], [AC_INCLUDES_DEFAULT
 AC_ARG_WITH(libhiredis, AC_HELP_STRING([--with-libhiredis=path],
     [specify explicit path for libhiredis.]),
     [ ],[ withval="no" ])
-AC_MSG_CHECKING(for libhiredis)
 found_libhiredis="no"
 if test x_$withval = x_yes -o x_$withval != x_no; then
+   AC_MSG_CHECKING(for libhiredis)
    if test x_$withval = x_ -o x_$withval = x_yes; then
             withval="/usr/local /opt/local /usr/lib /usr/pkg /usr/sfw /usr"
    fi

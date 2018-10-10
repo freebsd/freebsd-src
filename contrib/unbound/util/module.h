@@ -236,8 +236,8 @@ struct inplace_cb {
 
 /**
  * Inplace callback function called before replying.
- * Called as func(edns, qstate, opt_list_out, qinfo, reply_info, rcode,
- *                region, python_callback)
+ * Called as func(qinfo, qstate, rep, rcode, edns, opt_list_out, repinfo,
+ *                region, id, python_callback)
  * Where:
  *	qinfo: the query info.
  *	qstate: the module state. NULL when calling before the query reaches the
@@ -247,18 +247,23 @@ struct inplace_cb {
  *	edns: the edns_data of the reply. When qstate is NULL, it is also used as
  *		the edns input.
  *	opt_list_out: the edns options list for the reply.
+ *	repinfo: reply information for a communication point. NULL when calling
+ *		during the mesh states; the same could be found from
+ *		qstate->mesh_info->reply_list.
  *	region: region to store data.
+ *	id: module id.
  *	python_callback: only used for registering a python callback function.
  */
 typedef int inplace_cb_reply_func_type(struct query_info* qinfo,
 	struct module_qstate* qstate, struct reply_info* rep, int rcode,
-	struct edns_data* edns, struct edns_option** opt_list_out, 
-	struct regional* region, int id, void* callback);
+	struct edns_data* edns, struct edns_option** opt_list_out,
+	struct comm_reply* repinfo, struct regional* region, int id,
+	void* callback);
 
 /**
  * Inplace callback function called before sending the query to a nameserver.
  * Called as func(qinfo, flags, qstate, addr, addrlen, zone, zonelen, region,
- *                python_callback)
+ *                id, python_callback)
  * Where:
  *	qinfo: query info.
  *	flags: flags of the query.
@@ -270,6 +275,7 @@ typedef int inplace_cb_reply_func_type(struct query_info* qinfo,
  *		authoritative.
  *	zonelen: length of zone.
  *	region: region to store data.
+ *	id: module id.
  *	python_callback: only used for registering a python callback function.
  */
 typedef int inplace_cb_query_func_type(struct query_info* qinfo, uint16_t flags,
@@ -279,10 +285,10 @@ typedef int inplace_cb_query_func_type(struct query_info* qinfo, uint16_t flags,
 
 /**
  * Inplace callback function called after parsing edns on query reply.
- * Called as func(qstate, cb_args)
+ * Called as func(qstate, id, cb_args)
  * Where:
- *	qstate: the query state
- *	id: module id
+ *	qstate: the query state.
+ *	id: module id.
  *	cb_args: argument passed when registering callback.
  */
 typedef int inplace_cb_edns_back_parsed_func_type(struct module_qstate* qstate, 
@@ -290,11 +296,11 @@ typedef int inplace_cb_edns_back_parsed_func_type(struct module_qstate* qstate,
 
 /**
  * Inplace callback function called after parsing query response.
- * Called as func(qstate, id, cb_args)
+ * Called as func(qstate, response, id, cb_args)
  * Where:
- *	qstate: the query state
- *	response: query response
- *	id: module id
+ *	qstate: the query state.
+ *	response: query response.
+ *	id: module id.
  *	cb_args: argument passed when registering callback.
  */
 typedef int inplace_cb_query_response_func_type(struct module_qstate* qstate,
@@ -621,6 +627,8 @@ struct module_qstate {
 	int no_cache_store;
 	/** whether to refetch a fresh answer on finishing this state*/
 	int need_refetch;
+	/** whether the query (or a subquery) was ratelimited */
+	int was_ratelimited;
 
 	/**
 	 * Attributes of clients that share the qstate that may affect IP-based
@@ -818,5 +826,15 @@ int unique_mesh_state(struct edns_option* list, struct module_env* env);
  */
 void log_edns_known_options(enum verbosity_value level,
 	struct module_env* env);
+
+/**
+ * Copy state that may have happened in the subquery and is always relevant to
+ * the super.
+ * @param qstate: query state that finished.
+ * @param id: module id.
+ * @param super: the qstate to inform.
+ */
+void copy_state_to_super(struct module_qstate* qstate, int id,
+	struct module_qstate* super);
 
 #endif /* UTIL_MODULE_H */

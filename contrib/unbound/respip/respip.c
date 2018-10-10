@@ -611,8 +611,9 @@ make_new_reply_info(const struct reply_info* rep, struct regional* region,
 	 * EDNS0 OPT RR in the additional section appended on sending it out),
 	 * so the total number of RRsets is an_numrrsets. */
 	new_rep = construct_reply_info_base(region, rep->flags,
-		rep->qdcount, rep->ttl, rep->prefetch_ttl, an_numrrsets,
-		0, 0, an_numrrsets, sec_status_insecure);
+		rep->qdcount, rep->ttl, rep->prefetch_ttl,
+		rep->serve_expired_ttl, an_numrrsets, 0, 0, an_numrrsets,
+		sec_status_insecure);
 	if(!new_rep)
 		return NULL;
 	if(!reply_info_alloc_rrset_keys(new_rep, NULL, region))

@@ -1,14 +1,263 @@
+4 September 2018: Wouter
+	- Tag for 1.8.0rc1 release.
+
+31 August 2018: Wouter
+	- Disable minimal-responses in subnet unit tests.
+
+30 August 2018: Wouter
+	- Fix that a local-zone with a local-zone-type that is transparent
+	  in a view with view-first, makes queries check for answers from the
+	  local-zones defined outside of views.
+
+28 August 2018: Ralph
+	- Disable minimal-responses in ipsecmod unit tests.
+	- Added serve-expired-ttl and serve-expired-ttl-reset options.
+
+27 August 2018: Wouter
+	- Set defaults to yes for a number of options to increase speed and
+	  resilience of the server.  The so-reuseport, harden-below-nxdomain,
+	  and minimal-responses options are enabled by default.  They used
+	  to be disabled by default, waiting to make sure they worked.  They
+	  are enabled by default now, and can be disabled explicitly by
+	  setting them to "no" in the unbound.conf config file.  The reuseport
+	  and minimal options increases speed of the server, and should be
+	  otherwise harmless.  The harden-below-nxdomain option works well
+	  together with the recently default enabled qname minimisation, this
+	  causes more fetches to use information from the cache.
+	- next release is called 1.8.0.
+	- Fix lintflags for lint on FreeBSD.
+
+22 August 2018: George
+	- #4140: Expose repinfo (comm_reply) to the inplace_callbacks. This
+	  gives access to reply information for the client's communication
+	  point when the callback is called before the mesh state (modules).
+	  Changes to C and Python's inplace_callback signatures were also
+	  necessary.
+
+21 August 2018: Wouter
+	- log-local-actions: yes option for unbound.conf that logs all the
+	  local zone actions, a patch from Saksham Manchanda (Secure64).
+	- #4146: num.query.subnet and num.query.subnet_cache counters.
+	- Fix only misc failure from log-servfail when val-log-level is not
+	  enabled.
+
+17 August 2018: Ralph
+	- Fix classification for QTYPE=CNAME queries when QNAME minimisation is
+ 	  enabled.
+
+17 August 2018: Wouter
+	- Set libunbound to increase current, because the libunbound change
+	  to the event callback function signature.  That needs programs,
+	  that use it, to recompile against the new header definition.
+	- print servfail info to log as error.
+	- added more servfail printout statements, to the iterator.
+	- log-servfail: yes prints log lines that say why queries are
+	  returning SERVFAIL to clients.
+
+16 August 2018: Wouter
+	- Fix warning on compile without threads.
+	- Fix contrib/fastrpz.patch.
+
+15 August 2018: Wouter
+	- Fix segfault in auth-zone read and reorder of RRSIGs.
+
+14 August 2018: Wouter
+	- Fix that printout of error for cycle targets is a verbosity 4
+	  printout and does not wrongly print it is a memory error.
+	- Upgraded crosscompile script to include libunbound DLL in the
+	  zipfile.
+
+10 August 2018: Wouter
+	- Fix #4144: dns64 module caches wrong (negative) information.
+
+9 August 2018: Wouter
+	- unbound-checkconf checks if modules exist and prints if they are
+	  not compiled in the name of the wrong module.
+	- document --enable-subnet in doc/README.
+	- Patch for stub-no-cache and forward-no-cache options that disable
+	  caching for the contents of that stub or forward, for when you
+	  want immediate changes visible, from Bjoern A. Zeeb.
+
+7 August 2018: Ralph
+	- Make capsforid fallback QNAME minimisation aware.
+
+7 August 2018: Wouter
+	- Fix #4142: unbound.service.in: improvements and fixes.
+	  Add unit dependency ordering (based on systemd-resolved).
+	  Add 'CAP_SYS_RESOURCE' to 'CapabilityBoundingSet' (fixes warnings
+	  about missing privileges during startup). Add 'AF_INET6' to
+	  'RestrictAddressFamilies' (without it IPV6 can't work). From
+	  Guido Shanahan.
+	- Patch to implement tcp-connection-limit from Jim Hague (Sinodun).
+	  This limits the number of simultaneous TCP client connections
+	  from a nominated netblock.
+	- make depend, yacc, lex, doc, headers.  And log the limit exceeded
+	  message only on high verbosity, so as to not spam the logs when
+	  it is busy.
+
+6 August 2018: Wouter
+	- Fix for #4136: Fix to unconditionally call destroy in daemon.c.
+
+3 August 2018: George
+	- Expose if a query (or a subquery) was ratelimited (not src IP
+	  ratelimiting) to libunbound under 'ub_result.was_ratelimited'.
+	  This also introduces a change to 'ub_event_callback_type' in
+	  libunbound/unbound-event.h.
+	- Tidy pylib tests.
+
+3 August 2018: Wouter
+	- Revert previous change for #4136: because it introduces build
+	  problems.
+	- New fix for #4136: This one ignores lex without without
+	  yylex_destroy.
+
+1 August 2018: Wouter
+	- Fix to remove systemd sockaddr function check, that is not
+	  always present.  Make socket activation more lenient.  But not
+	  different when socket activation is not used.
+	- iana port list update.
+
+31 July 2018: Wouter
+	- Patches from Jim Hague (Sinodun) for EDNS KeepAlive.
+	- Sort out test runs when the build directory isn't the project
+	  root directory.
+	- Add config tcp-idle-timeout (default 30s). This applies to
+	  client connections only; the timeout on TCP connections upstream
+	  is unaffected.
+	- Error if EDNS Keepalive received over UDP.
+	- Add edns-tcp-keepalive and edns-tcp-keepalive timeout options
+	  and implement option in client responses.
+	- Correct and expand manual page entries for keepalive and idle timeout.
+	- Implement progressive backoff of TCP idle/keepalive timeout.
+	- Fix 'make depend' to work when build dir is not project root.
+	- Add delay parameter to streamtcp, -d secs.
+	  To be used when testing idle timeout.
+	- From Wouter: make depend, the dependencies in the patches did not
+	  apply cleanly.  Also remade yacc and lex.
+	- Fix mesh.c incompatible pointer pass.
+	- Please doxygen so it passes.
+	- Fix #4139: Fix unbound-host leaks memory on ANY.
+
+30 July 2018: Wouter
+	- Fix #4136: insufficiency from mismatch of FLEX capability between
+	  released tarball and build host.
+
+27 July 2018: Wouter
+	- Fix man page, say that chroot is enabled by default.
+
+26 July 2018: Wouter
+	- Fix #4135: 64-bit Windows Installer Creates Entries Under The
+	  Wrong Registry Key, reported by Brian White.
+
+23 July 2018: Wouter
+	- Fix use-systemd readiness signalling, only when use-systemd is yes
+	  and not in signal handler.
+
+20 July 2018: Wouter
+	- Fix #4130: print text describing -dd and unbound-checkconf on
+	  config file read error at startup, the errors may have been moved
+	  away by the startup process.
+	- Fix #4131: for solaris, error YY_CURRENT_BUFFER undeclared.
+
+19 July 2018: Wouter
+	- Fix #4129 unbound-control error message with wrong cert permissions
+	  is too cryptic.
+
+17 July 2018: Wouter
+	- Fix #4127 unbound -h does not list -p help.
+	- Print error if SSL name verification configured but not available
+	  in the ssl library.
+	- Fix that ratelimit and ip-ratelimit are applied after reload of
+	  changed config file.
+	- Resize ratelimit and ip-ratelimit caches if changed on reload.
+
+16 July 2018: Wouter
+	- Fix qname minimisation NXDOMAIN validation lookup failures causing
+	  error_supers assertion fails.
+	- Squelch can't bind socket errors with Permission denied unless
+	  verbosity is 4 or higher, for UDP outgoing sockets.
+
+12 July 2018: Wouter
+	- Fix to improve systemd socket activation code file descriptor
+	  assignment.
+	- Fix for 4126 that the #define for UNKNOWN_SERVER_NICENESS can be more
+	  easily changed to adjust default rtt assumptions.
+
+10 July 2018: Wouter
+	- Note in documentation that the cert name match code needs
+	  OpenSSL 1.1.0 or later to be enabled.
+
+6 July 2018: Wouter
+	- Fix documentation ambiguity for tls-win-cert in tls-upstream and
+	  forward-tls-upstream docs.
+	- iana port update.
+	- Note RFC8162 support.  SMIMEA record type can be read in by the
+	  zone record parser.
+	- Fix round robin for failed addresses with prefer-ip6: yes
+
+4 July 2018: Wouter
+	- Fix #4112: Fix that unbound-anchor -f /etc/resolv.conf will not pass
+	  if DNSSEC is not enabled.  New option -R allows fallback from
+	  resolv.conf to direct queries.
+
+3 July 2018: Wouter
+	- Better documentation for unblock-lan-zones and insecure-lan-zones
+	  config statements.
+	- Fix permission denied printed for auth zone probe random port nrs.
+
+2 July 2018: Wouter
+	- Fix checking for libhiredis printout in configure output.
+	- Fix typo on man page in ip-address description.
+	- Update libunbound/python/examples/dnssec_test.py example code to
+	  also set the 20326 trust anchor for the root in the example code.
+
+29 June 2018: Wouter
+	- dns64-ignore-aaaa: config option to list domain names for which the
+	  existing AAAA is ignored and dns64 processing is used on the A
+	  record.
+
+28 June 2018: Wouter
+	- num.queries.tls counter for queries over TLS.
+	- log port number with err_addr logs.
+
+27 June 2018: Wouter
+	- #4109: Fix that package config depends on python unconditionally.
+	- Patch, do not export python from pkg-config, from Petr Menšík.
+
+26 June 2018: Wouter
+	- Partial fix for permission denied on IPv6 address on FreeBSD.
+	- Fix that auth-zone master reply with current SOA serial does not
+	  stop scan of masters for an updated zone.
+	- Fix that auth-zone does not start the wait timer without checking
+	  if the wait timer has already been started.
+
+21 June 2018: Wouter
+	- #4108: systemd reload hang fix.
+	- Fix usage printout for unbound-host, hostname has to be last
+	  argument on BSDs and Windows.
+
 19 June 2018: Wouter
 	- Fix for unbound-control on Windows and set TCP socket parameters
 	  more closely.
+	  This fix is part of 1.7.3.
+	- Windows example service.conf edited with more windows specific
+	  configuration.
 	- Fix windows unbound-control no cert bad file descriptor error.
+	  This fix is part of 1.7.3.
 
 18 June 2018: Wouter
 	- Fix that control-use-cert: no works for 127.0.0.1 to disable certs.
+	  This fix is part of 1.7.3rc2.
 	- Fix unbound-checkconf for control-use-cert.
+	  This fix is part of 1.7.3.
 
 15 June 2018: Wouter
 	- tag for 1.7.3rc1.
+	- trunk has 1.7.4.
+	- unbound-control auth_zone_reload _zone_ option rereads the zonefile.
+	- unbound-control auth_zone_transfer _zone_ option starts the probe
+	  sequence for a master to transfer the zone from and transfers when
+	  a new zone version is available.
 
 14 June 2018: Wouter
 	- #4103: Fix that auth-zone does not insist on SOA record first in
