@@ -9,7 +9,7 @@
 #define SSH_VERSION_FREEBSD	"FreeBSD-20170903"
 
 #ifdef WITH_OPENSSL
-#define OPENSSL_VERSION	SSLeay_version(SSLEAY_VERSION)
+#define OPENSSL_VERSION_STRING	SSLeay_version(SSLEAY_VERSION)
 #else
-#define OPENSSL_VERSION	"without OpenSSL"
+#define OPENSSL_VERSION_STRING	"without OpenSSL"
 #endif
