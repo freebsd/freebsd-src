@@ -16,28 +16,27 @@ configure_args="
 
 set -e
 
-# make sure configure uses the correct compiler
+openssh=$(dirname $(realpath $0))
+cd $openssh
+
+# Run autotools before we drop LOCALBASE out of PATH
+(cd $openssh && libtoolize --copy && autoheader && autoconf)
+
+# Ensure we use the correct toolchain and clean our environment
 export CC=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCC)
 export CPP=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCPP)
-unset CFLAGS CPPFLAGS LDFLAGS LIBS
-
-# regenerate configure and config.h.in
-autoheader
-autoconf
-
-# reset PATH to avoid picking up the wrong libraries
+unset CFLAGS CPPFLAGS LDFLAGS LD_LIBRARY_PATH LIBS
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
-unset LD_LIBRARY_PATH
 
-# generate config.h with krb5 and stash it
+# Generate config.h with krb5 and stash it
 sh configure $configure_args --with-kerberos5=/usr
 mv config.log config.log.orig
 mv config.h config.h.orig
 
-# generate config.h without krb5
+# Generate config.h without krb5
 sh configure $configure_args --without-kerberos5
 
-# extract the difference
+# Extract the difference
 echo '/* $Free''BSD$ */' > krb5_config.h
 diff -u config.h.orig config.h |
 	sed -n '/^-#define/s/^-//p' |
