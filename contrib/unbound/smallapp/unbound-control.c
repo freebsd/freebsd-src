@@ -73,6 +73,10 @@
 #include <sys/un.h>
 #endif
 
+static void usage(void) ATTR_NORETURN;
+static void ssl_err(const char* s) ATTR_NORETURN;
+static void ssl_path_err(const char* s, const char *path) ATTR_NORETURN;
+
 /** Give unbound-control usage, and exit (1). */
 static void
 usage(void)

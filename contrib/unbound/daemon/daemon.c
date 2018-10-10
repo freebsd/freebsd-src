@@ -660,18 +660,15 @@ daemon_fork(struct daemon* daemon)
 
 	/* Start resolver service on main thread. */
 #ifdef HAVE_SYSTEMD
-	if(daemon->cfg->use_systemd)
-		sd_notify(0, "READY=1");
+	sd_notify(0, "READY=1");
 #endif
 	log_info("start of service (%s).", PACKAGE_STRING);
 	worker_work(daemon->workers[0]);
 #ifdef HAVE_SYSTEMD
-	if(daemon->cfg->use_systemd) {
-		if (daemon->workers[0]->need_to_exit)
-			sd_notify(0, "STOPPING=1");
-		else
-			sd_notify(0, "RELOADING=1");
-	}
+	if (daemon->workers[0]->need_to_exit)
+		sd_notify(0, "STOPPING=1");
+	else
+		sd_notify(0, "RELOADING=1");
 #endif
 	log_info("service stopped (%s).", PACKAGE_STRING);
 

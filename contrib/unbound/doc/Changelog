@@ -1,5 +1,80 @@
+8 October 2018: Wouter
+	- fastrpz.patch fix included.
+
+1 October 2018: Wouter
+	- tag for release 1.8.1rc1.
+
+27 September 2018: Wouter
+	- Fix #4188: IPv6 forwarders without ipv6 result in SERVFAIL, fixes
+	  qname minimisation with a forwarder when connectivity has issues
+	  from rejecting responses.
+
+25 September 2018: Wouter
+	- Perform TLS SNI indication of the host that is being contacted
+	  for DNS over TLS service.  It sets the configured tls auth name.
+	  This is useful for hosts that apart from the DNS over TLS services
+	  also provide other (web) services.
+	- Fix #4149: Add SSL cleanup for tcp timeout.
+
+17 September 2018: Wouter
+	- Fix compile on Mac for unbound, provide explicit_bzero when libc
+	  does not have it.
+	- Fix unbound for openssl in FIPS mode, it uses the digests with
+	  the EVP call contexts.
+	- Fix that with harden-below-nxdomain and qname minisation enabled
+	  some iterator states for nonresponsive domains can get into a
+	  state where they waited for an empty list.
+	- Stop UDP to TCP failover after timeouts that causes the ping count
+	  to be reset by the TCP time measurement (that exists for TLS),
+	  because that causes the UDP part to not be measured as timeout.
+	- Fix #4156: Fix systemd service manager state change notification.
+
+13 September 2018: Wouter
+	- Fix seed for random backup code to use explicit zero when wiped.
+	- exit log routine is annotated as noreturn function.
+	- free memory leaks in config strlist and str2list insert functions.
+	- do not move unused argv variable after getopt.
+	- Remove unused if clause in testcode.
+	- in testcode, free async ids, initialise array, and check for null
+	  pointer during test of the test.  And use exit for return to note
+	  irregular program stop.
+	- Free memory leak in config strlist append.
+	- make sure nsec3 comparison salt is initialized.
+	- unit test has clang analysis.
+	- remove unused variable assignment from iterator scrub routine.
+	- check for null in delegation point during iterator refetch
+	  in forward zone.
+	- neater pointer cast in libunbound context quit routine.
+	- initialize statistics totals for printout.
+	- in authzone check that node exists before adding rrset.
+	- in unbound-anchor, use readwrite memory BIO.
+	- assertion in autotrust that packed rrset is formed correctly.
+	- Fix memory leak when message parse fails partway through copy.
+	- remove unused udpsize assignment in message encode.
+	- nicer bio free code in unbound-anchor.
+	- annotate exit functions with noreturn in unbound-control.
+
+11 September 2018: Wouter
+	- Fixed unused return value warnings in contrib/fastrpz.patch for
+	  asprintf.
+	- Fix to squelch respip warning in unit test, it is printed at
+	  higher verbosity settings.
+	- Fix spelling errors.
+	- Fix initialisation in remote.c
+
+10 September 2018: Wouter
+	- 1.8.1 in svn trunk. (changes from 4,5,.. sep apply).
+	- iana port update.
+
+5 September 2018: Wouter
+	- Fix spelling error in header, from getdns commit by Andreas Gelmini.
+
+4 September 2018: Ralph
+	- More explicitly mention the type of ratelimit when applying
+	  ip-ratelimit.
+
 4 September 2018: Wouter
-	- Tag for 1.8.0rc1 release.
+	- Tag for 1.8.0rc1 release, became 1.8.0 release on 10 Sep 2018.
 
 31 August 2018: Wouter
 	- Disable minimal-responses in subnet unit tests.
@@ -1856,7 +1931,7 @@
 	  compatibility with cisco dns guard.  This lowers false positives.
 
 18 April 2016: Wouter
-	- Fix some malformed reponses to edns queries get fallback to nonedns.
+	- Fix some malformed responses to edns queries get fallback to nonedns.
 
 15 April 2016: Wouter
 	- cachedb module event handling design.

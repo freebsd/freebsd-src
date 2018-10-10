@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Sep 10, 2018" "NLnet Labs" "unbound 1.8.0"
+.TH "unbound.conf" "5" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -498,7 +498,7 @@ a daemon.  Set the value to \fIno\fR when unbound runs as systemd service.
 Default is yes.
 .TP
 .B tcp\-connection\-limit: \fI<IP netblock> <limit>
-Allow up to \fIlimit\R simultaneous TCP connections from the given netblock.
+Allow up to \fIlimit\fR simultaneous TCP connections from the given netblock.
 When at the limit, further connections are accepted but closed immediately.
 This option is experimental at this time.
 .TP

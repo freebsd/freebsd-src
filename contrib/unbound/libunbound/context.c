@@ -392,12 +392,12 @@ struct ctx_query* context_deserialize_cancel(struct ub_ctx* ctx,
 uint8_t* 
 context_serialize_quit(uint32_t* len)
 {
-	uint8_t* p = (uint8_t*)malloc(sizeof(uint32_t));
+	uint32_t* p = (uint32_t*)malloc(sizeof(uint32_t));
 	if(!p)
 		return NULL;
 	*len = sizeof(uint32_t);
 	sldns_write_uint32(p, UB_LIBCMD_QUIT);
-	return p;
+	return (uint8_t*)p;
 }
 
 enum ub_ctx_cmd context_serial_getcmd(uint8_t* p, uint32_t len)

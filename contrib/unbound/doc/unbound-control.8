@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Sep 10, 2018" "NLnet Labs" "unbound 1.8.0"
+.TH "unbound-control" "8" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -301,7 +301,7 @@ you set unbound to validate with for-upstream yes and that can be cleared
 with \fBflush_zone\fR \fIzone\fR.
 .TP
 .B auth_zone_transfer \fIzone\fR
-Tranfer the auth zone from master.  The auth zone probe sequence is started,
+Transfer the auth zone from master.  The auth zone probe sequence is started,
 where the masters are probed to see if they have an updated zone (with the SOA
 serial check).  And then the zone is transferred for a newer zone version.
 .TP
