@@ -274,10 +274,10 @@ Index: unbound-1.7.0~rc1/doc/unbound.conf.5.in
 ===================================================================
 --- unbound-1.7.0~rc1.orig/doc/unbound.conf.5.in
 +++ unbound-1.7.0~rc1/doc/unbound.conf.5.in
-@@ -1581,6 +1581,81 @@ It must be /96 or shorter.  The default
- .B dns64\-synthall: \fI<yes or no>\fR
- Debug option, default no.  If enabled, synthesize all AAAA records
- despite the presence of actual AAAA records.
+@@ -1705,6 +1705,81 @@ It must be /96 or shorter.  The default
+ used by dns64 processing instead.  Can be entered multiple times, list a
+ new domain for which it applies, one per line.  Applies also to names
+ underneath the name given.
 +.SS "Response Policy Zone Rewriting"
 +.LP
 +Response policy zone rewriting is controlled with the

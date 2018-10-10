@@ -135,7 +135,7 @@
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the `DSA_SIG_set0' function. */
-#define HAVE_DSA_SIG_SET0 1
+/* #undef HAVE_DSA_SIG_SET0 */
 
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
@@ -177,10 +177,10 @@
 /* #undef HAVE_EVP_DIGESTVERIFY */
 
 /* Define to 1 if you have the `EVP_dss1' function. */
-/* #undef HAVE_EVP_DSS1 */
+#define HAVE_EVP_DSS1 1
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
-#define HAVE_EVP_MD_CTX_NEW 1
+/* #undef HAVE_EVP_MD_CTX_NEW */
 
 /* Define to 1 if you have the `EVP_sha1' function. */
 #define HAVE_EVP_SHA1 1
@@ -631,7 +631,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.7.3"
+#define PACKAGE_STRING "unbound 1.8.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -640,7 +640,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.7.3"
+#define PACKAGE_VERSION "1.8.0"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -659,7 +659,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,7,3,0
+#define RSRC_PACKAGE_VERSION 1,8,0,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
