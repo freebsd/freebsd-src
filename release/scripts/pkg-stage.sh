@@ -16,6 +16,8 @@ _DVD_PACKAGES="archivers/unzip
 devel/subversion
 devel/subversion-static
 emulators/linux_base-c6
+graphics/drm-legacy-kmod
+graphics/drm-stable-kmod
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
