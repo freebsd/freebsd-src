@@ -47,12 +47,18 @@ show_options()
 	ALL_TARGETS=$(echo $(${make} targets | tail -n +2))
 	rm -f $t/settings
 	for target in ${ALL_TARGETS} ; do
+		prev_opt=
 		env -i ${make} showconfig \
 		    SRC_ENV_CONF=/dev/null SRCCONF=/dev/null \
 		    __MAKE_CONF=/dev/null \
 		    TARGET_ARCH=${target#*/} TARGET=${target%/*} |
 		while read var _ val ; do
 			opt=${var#MK_}
+			if [ $opt = "$prev_opt" ]; then
+				echo "$target: ignoring duplicate option $opt" >&2
+				continue
+			fi
+			prev_opt=$opt
 			case ${val} in
 			yes)
 				echo ${opt} ${target}
