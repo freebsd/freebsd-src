@@ -275,12 +275,13 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 	struct addrinfo hints;
 	struct addrinfo* res;
 	struct listen_port* n;
-	int noproto;
+	int noproto = 0;
 	int fd, r;
 	char port[15];
 	snprintf(port, sizeof(port), "%d", nr);
 	port[sizeof(port)-1]=0;
 	memset(&hints, 0, sizeof(hints));
+	log_assert(ip);
 
 	if(ip[0] == '/') {
 		/* This looks like a local socket */
@@ -1069,6 +1070,7 @@ do_stats(RES* ssl, struct daemon_remote* rc, int reset)
 	struct ub_stats_info total;
 	struct ub_stats_info s;
 	int i;
+	memset(&total, 0, sizeof(total));
 	log_assert(daemon->num > 0);
 	/* gather all thread statistics in one place */
 	for(i=0; i<daemon->num; i++) {
