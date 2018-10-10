@@ -15966,6 +15966,17 @@ fi
 done
 
 
+# check if we can use SO_REUSEPORT
+if echo "$host" | grep -i -e linux -e dragonfly >/dev/null; then
+
+$as_echo "#define REUSEPORT_DEFAULT 1" >>confdefs.h
+
+else
+
+$as_echo "#define REUSEPORT_DEFAULT 0" >>confdefs.h
+
+fi
+
 # set memory allocation checking if requested
 # Check whether --enable-alloc-checks was given.
 if test "${enable_alloc_checks+set}" = set; then :

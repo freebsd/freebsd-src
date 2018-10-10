@@ -461,6 +461,13 @@ ACX_CHECK_NONBLOCKING_BROKEN
 ACX_MKDIR_ONE_ARG
 AC_CHECK_FUNCS([strptime],[AC_CHECK_STRPTIME_WORKS],[AC_LIBOBJ([strptime])])
 
+# check if we can use SO_REUSEPORT
+if echo "$host" | grep -i -e linux -e dragonfly >/dev/null; then
+	AC_DEFINE(REUSEPORT_DEFAULT, 1, [if REUSEPORT is enabled by default])
+else
+	AC_DEFINE(REUSEPORT_DEFAULT, 0, [if REUSEPORT is enabled by default])
+fi
+
 # set memory allocation checking if requested
 AC_ARG_ENABLE(alloc-checks, AC_HELP_STRING([--enable-alloc-checks],
 	[ enable to memory allocation statistics, for debug purposes ]), 
