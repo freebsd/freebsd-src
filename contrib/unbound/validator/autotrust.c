@@ -718,6 +718,7 @@ packed_rrset_heap_data(int iter(struct autr_ta**, uint8_t**, size_t*,
 	list_i = list;
 	i = 0;
 	while(iter(&list_i, &rr, &rr_len, &dname_len)) {
+		log_assert(data->rr_data[i]);
 		memmove(data->rr_data[i],
 			sldns_wirerr_get_rdatawl(rr, rr_len, dname_len),
 			data->rr_len[i]);
