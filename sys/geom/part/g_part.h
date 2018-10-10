@@ -75,6 +75,7 @@ enum g_part_alias {
 	G_PART_ALIAS_MS_BASIC_DATA,	/* A Microsoft Data part. entry. */
 	G_PART_ALIAS_MS_FAT16,		/* A Microsoft FAT16 partition entry. */
 	G_PART_ALIAS_MS_FAT32,		/* A Microsoft FAT32 partition entry. */
+	G_PART_ALIAS_MS_FAT32LBA,	/* A Microsoft FAT32 LBA partition entry */
 	G_PART_ALIAS_MS_LDM_DATA,	/* A Microsoft LDM Data part. entry. */
 	G_PART_ALIAS_MS_LDM_METADATA,	/* A Microsoft LDM Metadata entry. */
 	G_PART_ALIAS_MS_NTFS,		/* A Microsoft NTFS partition entry */
