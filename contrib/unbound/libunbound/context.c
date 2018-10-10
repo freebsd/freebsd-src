@@ -71,9 +71,8 @@ context_finalize(struct ub_ctx* ctx)
 		return UB_INITFAIL;
 	if(!auth_zones_apply_cfg(ctx->env->auth_zones, cfg, 1))
 		return UB_INITFAIL;
-	if(!ctx->env->msg_cache ||
-	   cfg->msg_cache_size != slabhash_get_size(ctx->env->msg_cache) || 
-	   cfg->msg_cache_slabs != ctx->env->msg_cache->size) {
+	if(!slabhash_is_size(ctx->env->msg_cache, cfg->msg_cache_size,
+		cfg->msg_cache_slabs)) {
 		slabhash_delete(ctx->env->msg_cache);
 		ctx->env->msg_cache = slabhash_create(cfg->msg_cache_slabs,
 			HASH_DEFAULT_STARTARRAY, cfg->msg_cache_size,
@@ -294,26 +293,29 @@ context_serialize_answer(struct ctx_query* q, int err, sldns_buffer* pkt,
 	 * 	o uint32 id
 	 * 	o uint32 error_code
 	 * 	o uint32 msg_security
+	 * 	o uint32 was_ratelimited
 	 * 	o uint32 length of why_bogus string (+1 for eos); 0 absent.
 	 * 	o why_bogus_string
 	 * 	o the remainder is the answer msg from resolver lookup.
 	 * 	  remainder can be length 0.
 	 */
+	size_t size_of_uint32s = 6 * sizeof(uint32_t);
 	size_t pkt_len = pkt?sldns_buffer_remaining(pkt):0;
 	size_t wlen = (pkt&&q->res->why_bogus)?strlen(q->res->why_bogus)+1:0;
 	uint8_t* p;
-	*len = sizeof(uint32_t)*5 + pkt_len + wlen;
+	*len = size_of_uint32s + pkt_len + wlen;
 	p = (uint8_t*)malloc(*len);
 	if(!p) return NULL;
 	sldns_write_uint32(p, UB_LIBCMD_ANSWER);
 	sldns_write_uint32(p+sizeof(uint32_t), (uint32_t)q->querynum);
 	sldns_write_uint32(p+2*sizeof(uint32_t), (uint32_t)err);
 	sldns_write_uint32(p+3*sizeof(uint32_t), (uint32_t)q->msg_security);
-	sldns_write_uint32(p+4*sizeof(uint32_t), (uint32_t)wlen);
+	sldns_write_uint32(p+4*sizeof(uint32_t), (uint32_t)q->res->was_ratelimited);
+	sldns_write_uint32(p+5*sizeof(uint32_t), (uint32_t)wlen);
 	if(wlen > 0)
-		memmove(p+5*sizeof(uint32_t), q->res->why_bogus, wlen);
+		memmove(p+size_of_uint32s, q->res->why_bogus, wlen);
 	if(pkt_len > 0)
-		memmove(p+5*sizeof(uint32_t)+wlen, 
+		memmove(p+size_of_uint32s+wlen,
 			sldns_buffer_begin(pkt), pkt_len);
 	return p;
 }
@@ -322,21 +324,23 @@ struct ctx_query*
 context_deserialize_answer(struct ub_ctx* ctx,
         uint8_t* p, uint32_t len, int* err)
 {
+	size_t size_of_uint32s = 6 * sizeof(uint32_t);
 	struct ctx_query* q = NULL ;
 	int id;
 	size_t wlen;
-	if(len < 5*sizeof(uint32_t)) return NULL;
+	if(len < size_of_uint32s) return NULL;
 	log_assert( sldns_read_uint32(p) == UB_LIBCMD_ANSWER);
 	id = (int)sldns_read_uint32(p+sizeof(uint32_t));
 	q = (struct ctx_query*)rbtree_search(&ctx->queries, &id);
 	if(!q) return NULL; 
 	*err = (int)sldns_read_uint32(p+2*sizeof(uint32_t));
 	q->msg_security = sldns_read_uint32(p+3*sizeof(uint32_t));
-	wlen = (size_t)sldns_read_uint32(p+4*sizeof(uint32_t));
-	if(len > 5*sizeof(uint32_t) && wlen > 0) {
-		if(len >= 5*sizeof(uint32_t)+wlen)
+	q->res->was_ratelimited = (int)sldns_read_uint32(p+4*sizeof(uint32_t));
+	wlen = (size_t)sldns_read_uint32(p+5*sizeof(uint32_t));
+	if(len > size_of_uint32s && wlen > 0) {
+		if(len >= size_of_uint32s+wlen)
 			q->res->why_bogus = (char*)memdup(
-				p+5*sizeof(uint32_t), wlen);
+				p+size_of_uint32s, wlen);
 		if(!q->res->why_bogus) {
 			/* pass malloc failure to the user callback */
 			q->msg_len = 0;
@@ -345,9 +349,9 @@ context_deserialize_answer(struct ub_ctx* ctx,
 		}
 		q->res->why_bogus[wlen-1] = 0; /* zero terminated for sure */
 	}
-	if(len > 5*sizeof(uint32_t)+wlen) {
-		q->msg_len = len - 5*sizeof(uint32_t) - wlen;
-		q->msg = (uint8_t*)memdup(p+5*sizeof(uint32_t)+wlen, 
+	if(len > size_of_uint32s+wlen) {
+		q->msg_len = len - size_of_uint32s - wlen;
+		q->msg = (uint8_t*)memdup(p+size_of_uint32s+wlen,
 			q->msg_len);
 		if(!q->msg) {
 			/* pass malloc failure to the user callback */

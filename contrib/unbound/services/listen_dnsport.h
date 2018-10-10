@@ -47,6 +47,7 @@ struct listen_list;
 struct config_file;
 struct addrinfo;
 struct sldns_buffer;
+struct tcl_list;
 
 /**
  * Listening for queries structure.
@@ -137,6 +138,8 @@ void listening_ports_free(struct listen_port* list);
  * @param bufsize: size of datagram buffer.
  * @param tcp_accept_count: max number of simultaneous TCP connections 
  * 	from clients.
+ * @param tcp_idle_timeout: idle timeout for TCP connections in msec.
+ * @param tcp_conn_limit: TCP connection limit info.
  * @param sslctx: nonNULL if ssl context.
  * @param dtenv: nonNULL if dnstap enabled.
  * @param cb: callback function when a request arrives. It is passed
@@ -145,9 +148,10 @@ void listening_ports_free(struct listen_port* list);
  * @return: the malloced listening structure, ready for use. NULL on error.
  */
 struct listen_dnsport* listen_create(struct comm_base* base,
-	struct listen_port* ports, size_t bufsize, int tcp_accept_count,
-	void* sslctx, struct dt_env *dtenv, comm_point_callback_type* cb,
-	void* cb_arg);
+	struct listen_port* ports, size_t bufsize,
+	int tcp_accept_count, int tcp_idle_timeout,
+	struct tcl_list* tcp_conn_limit, void* sslctx,
+	struct dt_env *dtenv, comm_point_callback_type* cb, void* cb_arg);
 
 /**
  * delete the listening structure

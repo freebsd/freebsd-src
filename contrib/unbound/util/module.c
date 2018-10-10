@@ -236,3 +236,13 @@ log_edns_known_options(enum verbosity_value level, struct module_env* env)
 		}
 	}
 }
+
+void
+copy_state_to_super(struct module_qstate* qstate, int ATTR_UNUSED(id),
+	struct module_qstate* super)
+{
+	/* Overwrite super's was_ratelimited only when it was not set */
+	if(!super->was_ratelimited) {
+		super->was_ratelimited = qstate->was_ratelimited;
+	}
+}
