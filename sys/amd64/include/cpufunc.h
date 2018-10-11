@@ -730,6 +730,15 @@ lldt(u_short sel)
 	__asm __volatile("lldt %0" : : "r" (sel));
 }
 
+static __inline u_short
+sldt(void)
+{
+	u_short sel;
+
+	__asm __volatile("sldt %0" : "=r" (sel));
+	return (sel);
+}
+
 static __inline void
 ltr(u_short sel)
 {
