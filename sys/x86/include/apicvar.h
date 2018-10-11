@@ -123,12 +123,7 @@
 
 #define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
 #define	IPI_SUSPEND	(APIC_IPI_INTS + 7)	/* Suspend CPU until restarted. */
-#ifdef __i386__
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 8)	/* Lazy pmap release. */
-#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 9)
-#else
 #define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
-#endif
 #define	IPI_DYN_LAST	(253)			/* IPIs allocated at runtime */
 
 /*

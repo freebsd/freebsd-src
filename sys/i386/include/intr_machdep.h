@@ -73,10 +73,10 @@
  * - 1 ??? dummy counter.
  * - 2 counters for each I/O interrupt.
  * - 1 counter for each CPU for lapic timer.
- * - 9 counters for each CPU for IPI counters for SMP.
+ * - 8 counters for each CPU for IPI counters for SMP.
  */
 #ifdef SMP
-#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 9) * MAXCPU)
+#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 8) * MAXCPU)
 #else
 #define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + 1)
 #endif
