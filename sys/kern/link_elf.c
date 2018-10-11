@@ -1682,14 +1682,10 @@ link_elf_ireloc(caddr_t kmdp)
 {
 	struct elf_file eff;
 	elf_file_t ef;
-	volatile char *c;
-	size_t i;
 
 	ef = &eff;
 
-	/* Do not use bzero/memset before ireloc is done. */
-	for (c = (char *)ef, i = 0; i < sizeof(*ef); i++)
-		c[i] = 0;
+	bzero_early(ef, sizeof(*ef));
 
 	ef->modptr = kmdp;
 	ef->dynamic = (Elf_Dyn *)&_DYNAMIC;
