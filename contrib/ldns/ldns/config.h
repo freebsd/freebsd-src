@@ -362,7 +362,7 @@
 #define USE_DANE 1
 
 /* Define this to enable DANE-TA usage type support. */
-/* #undef USE_DANE_TA_USAGE */
+#define USE_DANE_TA_USAGE 1
 
 /* Define this to enable DANE verify support. */
 #define USE_DANE_VERIFY 1
@@ -380,7 +380,7 @@
 /* #undef USE_ED448 */
 
 /* Define this to enable GOST support. */
-#define USE_GOST 1
+/* #undef USE_GOST */
 
 /* Define this to enable SHA256 and SHA512 support. */
 #define USE_SHA2 1
