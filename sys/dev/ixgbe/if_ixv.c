@@ -143,8 +143,7 @@ static driver_t ixv_driver = {
 
 devclass_t ixv_devclass;
 DRIVER_MODULE(ixv, pci, ixv_driver, ixv_devclass, 0, 0);
-MODULE_PNP_INFO("U16:vendor;U16:device", pci, ixv, ixv_vendor_info_array,
-    nitems(ixv_vendor_info_array) - 1);
+IFLIB_PNP_INFO(pci, ixv_driver, ixv_vendor_info_array);
 MODULE_DEPEND(ixv, pci, 1, 1, 1);
 MODULE_DEPEND(ixv, ether, 1, 1, 1);
 #ifdef DEV_NETMAP
