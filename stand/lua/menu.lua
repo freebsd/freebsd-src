@@ -29,7 +29,7 @@
 -- $FreeBSD$
 --
 
-
+local cli = require("cli")
 local core = require("core")
 local color = require("color")
 local config = require("config")
@@ -464,6 +464,11 @@ function menu.autoboot(delay)
 
 	local cmd = loader.getenv("menu_timeout_command") or "boot"
 	cli_execute_unparsed(cmd)
+end
+
+-- CLI commands
+function cli.menu(...)
+	menu.run()
 end
 
 return menu
