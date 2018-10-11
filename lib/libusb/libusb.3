@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2016
+.Dd October 11, 2018
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -330,7 +330,7 @@ and a LIBUSB_ERROR code on error.
 .Ft int
 .Fn libusb_get_config_descriptor "libusb_device *dev" "uint8_t config_index" "libusb_config_descriptor **config"
 Get a USB configuration descriptor based on its index
-.Fa idx.
+.Fa idx .
 Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if the configuration does not exist
 and a LIBUSB_ERROR code on error.
 .Pp
@@ -581,7 +581,9 @@ are no threads currently handling events.
 Acquire the event_waiters lock.
 This lock is designed to be obtained in the
 situation where you want to be aware when events are completed, but some other
-thread is event handling so calling libusb_handle_events() is not allowed.
+thread is event handling so calling
+.Fn libusb_handle_events
+is not allowed.
 .Pp
 .Ft void
 .Fn libusb_unlock_event_waiters "libusb_context *ctx"
@@ -591,10 +593,12 @@ Release the event_waiters lock.
 .Fn libusb_wait_for_event "libusb_context *ctx" "struct timeval *tv"
 Wait for another thread to signal completion of an event.
 Must be called
-with the event waiters lock held, see libusb_lock_event_waiters().
+with the event waiters lock held, see
+.Fn libusb_lock_event_waiters .
 This will
 block until the timeout expires or a transfer completes or a thread releases
-the event handling lock through libusb_unlock_events().
+the event handling lock through
+.Fn libusb_unlock_events .
 Returns 0 after a
 transfer completes or another thread stops event handling, and 1 if the
 timeout expired.
@@ -662,7 +666,7 @@ that libusb uses as an event source.
 .Pp
 .Ft const struct libusb_pollfd **
 .Fn libusb_get_pollfds "libusb_context *ctx"
-Retrive a list of file descriptors that should be polled by your main loop as
+Retrieve a list of file descriptors that should be polled by your main loop as
 libusb event sources.
 Returns a NULL-terminated list on success or NULL on failure.
 .Pp
@@ -747,7 +751,7 @@ The library is also compliant with LibUSB version 0.1.12.
 .Xr usbconfig 8 ,
 .Xr usbdump 8
 .Pp
-.Pa http://libusb.sourceforge.net/
+.Lk https://libusb.info/
 .Sh HISTORY
 .Nm
 support first appeared in
