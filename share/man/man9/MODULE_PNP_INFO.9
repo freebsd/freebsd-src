@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2018
+.Dd October 5, 2018
 .Dt MODULE_PNP_INFO 9
 .Os
 .Sh NAME
@@ -38,7 +38,6 @@
 .Fa "bus"
 .Fa "module"
 .Fa "void *table"
-.Fa "size_t entry_len"
 .Fa "size_t num_entries"
 .Fc
 .\"
@@ -143,11 +142,6 @@ parameter points to the device matching data with entries matching the
 .Fa descriptor_string .
 .Pp
 The
-.Fa entry_len
-parameter is the size of each table entry, i.e.,
-.Ql sizeof(table[0]) .
-.Pp
-The
 .Fa num_entries
 parameter is the number of entries in the table, i.e.,
 .Ql nitems(table) .
@@ -178,7 +172,7 @@ static struct my_pciids {
 };
 
 MODULE_PNP_INFO("W32:vendor/device;D:#", pci, my_driver, my_ids,
-    sizeof(my_ids[0]), nitems(my_ids));
+    nitems(my_ids));
 .Ed
 .It Sy Example 2\&: No Using T for common vendor value
 .Pp
@@ -198,7 +192,7 @@ static struct my_pciids {
 };
 
 MODULE_PNP_INFO("U16:device;D:#;T:vendor=0x1234", pci, my_driver,
-    my_ids, sizeof(my_ids[0]), nitems(my_ids));
+    my_ids, nitems(my_ids));
 .Ed
 .El
 .\"
