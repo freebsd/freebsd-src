@@ -353,15 +353,12 @@ BROKEN_OPTIONS+=LOADER_OFW
 .if ${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_UBOOT
 .endif
-# GELI and Lua in loader currently cause boot failures on sparc64.
-# Further debugging is required.
-.if ${__T} == "sparc64"
+# GELI and Lua in loader currently cause boot failures on sparc64 and powerpc.
+# Further debugging is required -- probably they are just broken on big
+# endian systems generically (they jump to null pointers or try to read
+# crazy high addresses, which is typical of endianness problems).
+.if ${__T} == "sparc64" || ${__T:Mpowerpc*}
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
-.endif
-# Lua in loader currently cause boot failures on powerpc.
-# Further debugging is required.
-.if ${__T} == "powerpc" || ${__T} == "powerpc64"
-BROKEN_OPTIONS+=LOADER_LUA
 .endif
 
 .if ${__T:Mmips64*}
