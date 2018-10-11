@@ -2960,6 +2960,8 @@ dsl_scan_need_resilver(spa_t *spa, const dva_t *dva, size_t psize,
 {
 	vdev_t *vd;
 
+	vd = vdev_lookup_top(spa, DVA_GET_VDEV(dva));
+
 	if (vd->vdev_ops == &vdev_indirect_ops) {
 		/*
 		 * The indirect vdev can point to multiple
@@ -2970,6 +2972,7 @@ dsl_scan_need_resilver(spa_t *spa, const dva_t *dva, size_t psize,
 		 */
 		return (B_TRUE);
 	}
+
 	if (DVA_GET_GANG(dva)) {
 		/*
 		 * Gang members may be spread across multiple
@@ -2981,8 +2984,6 @@ dsl_scan_need_resilver(spa_t *spa, const dva_t *dva, size_t psize,
 		 */
 		return (B_TRUE);
 	}
-
-	vd = vdev_lookup_top(spa, DVA_GET_VDEV(dva));
 
 	/*
 	 * Check if the txg falls within the range which must be
