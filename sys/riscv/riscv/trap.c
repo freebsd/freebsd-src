@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
+#ifdef FPE
+#include <machine/fpe.h>
+#endif
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
@@ -363,7 +366,9 @@ do_trap_user(struct trapframe *frame)
 			 * May be a FPE trap. Enable FPE usage
 			 * for this thread and try again.
 			 */
-			frame->tf_sstatus |= SSTATUS_FS_INITIAL;
+			fpe_state_clear();
+			frame->tf_sstatus &= ~SSTATUS_FS_MASK;
+			frame->tf_sstatus |= SSTATUS_FS_CLEAN;
 			pcb->pcb_fpflags |= PCB_FP_STARTED;
 			break;
 		}

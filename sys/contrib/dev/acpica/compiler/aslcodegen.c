@@ -203,10 +203,10 @@ CgGenerateAmlOutput (
     /* Generate the AML output file */
 
     FlSeekFile (ASL_FILE_SOURCE_OUTPUT, 0);
-    Gbl_SourceLine = 0;
-    Gbl_NextError = Gbl_ErrorLog;
+    AslGbl_SourceLine = 0;
+    AslGbl_NextError = AslGbl_ErrorLog;
 
-    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         CgAmlWriteWalk, NULL, NULL);
 
     DbgPrint (ASL_TREE_OUTPUT, ASL_PARSE_TREE_HEADER2);
@@ -237,7 +237,7 @@ CgAmlWriteWalk (
 
     CgWriteNode (Op);
 
-    if (!Gbl_DebugFlag)
+    if (!AslGbl_DebugFlag)
     {
         return (AE_OK);
     }
@@ -556,46 +556,46 @@ CgWriteTableHeader (
         Child->Asl.Value.String = ACPI_SIG_XXXX;
     }
 
-    strncpy (TableHeader.Signature, Child->Asl.Value.String, ACPI_NAME_SIZE);
+    strncpy (AslGbl_TableHeader.Signature, Child->Asl.Value.String, ACPI_NAME_SIZE);
 
     /* Revision */
 
     Child = Child->Asl.Next;
-    TableHeader.Revision = (UINT8) Child->Asl.Value.Integer;
+    AslGbl_TableHeader.Revision = (UINT8) Child->Asl.Value.Integer;
 
     /* Command-line Revision override */
 
-    if (Gbl_RevisionOverride)
+    if (AslGbl_RevisionOverride)
     {
-        TableHeader.Revision = Gbl_RevisionOverride;
+        AslGbl_TableHeader.Revision = AslGbl_RevisionOverride;
     }
 
     /* OEMID */
 
     Child = Child->Asl.Next;
-    strncpy (TableHeader.OemId, Child->Asl.Value.String, ACPI_OEM_ID_SIZE);
+    strncpy (AslGbl_TableHeader.OemId, Child->Asl.Value.String, ACPI_OEM_ID_SIZE);
 
     /* OEM TableID */
 
     Child = Child->Asl.Next;
-    strncpy (TableHeader.OemTableId, Child->Asl.Value.String, ACPI_OEM_TABLE_ID_SIZE);
+    strncpy (AslGbl_TableHeader.OemTableId, Child->Asl.Value.String, ACPI_OEM_TABLE_ID_SIZE);
 
     /* OEM Revision */
 
     Child = Child->Asl.Next;
-    TableHeader.OemRevision = (UINT32) Child->Asl.Value.Integer;
+    AslGbl_TableHeader.OemRevision = (UINT32) Child->Asl.Value.Integer;
 
     /* Compiler ID */
 
-    ACPI_MOVE_NAME (TableHeader.AslCompilerId, ASL_CREATOR_ID);
+    ACPI_MOVE_NAME (AslGbl_TableHeader.AslCompilerId, ASL_CREATOR_ID);
 
     /* Compiler version */
 
-    TableHeader.AslCompilerRevision = ACPI_CA_VERSION;
+    AslGbl_TableHeader.AslCompilerRevision = ACPI_CA_VERSION;
 
     /* Table length. Checksum zero for now, will rewrite later */
 
-    TableHeader.Length = sizeof (ACPI_TABLE_HEADER) +
+    AslGbl_TableHeader.Length = sizeof (ACPI_TABLE_HEADER) +
         Op->Asl.AmlSubtreeLength;
 
     /* Calculate the comment lengths for this definition block parseOp */
@@ -609,12 +609,14 @@ CgWriteTableHeader (
          * Take the filename without extensions, add 3 for the new extension
          * and another 3 for the a908 bytecode and null terminator.
          */
-        TableHeader.Length += strrchr (Gbl_ParseTreeRoot->Asl.Filename, '.')
-            - Gbl_ParseTreeRoot->Asl.Filename + 1 + 3 + 3;
+        AslGbl_TableHeader.Length += strrchr (AslGbl_ParseTreeRoot->Asl.Filename, '.')
+            - AslGbl_ParseTreeRoot->Asl.Filename + 1 + 3 + 3;
+
         Op->Asl.AmlSubtreeLength +=
-            strlen (Gbl_ParseTreeRoot->Asl.Filename) + 3;
-    CvDbgPrint ("     Length: %lu\n",
-            strlen (Gbl_ParseTreeRoot->Asl.Filename) + 3);
+            strlen (AslGbl_ParseTreeRoot->Asl.Filename) + 3;
+
+        CvDbgPrint ("     Length: %lu\n",
+            strlen (AslGbl_ParseTreeRoot->Asl.Filename) + 3);
 
         if (Op->Asl.CommentList)
         {
@@ -624,10 +626,10 @@ CgWriteTableHeader (
                 CommentLength = strlen (Current->Comment)+3;
                 CvDbgPrint ("Length of standard comment): %d\n", CommentLength);
                 CvDbgPrint ("    Comment string: %s\n\n", Current->Comment);
-                TableHeader.Length += CommentLength;
+                AslGbl_TableHeader.Length += CommentLength;
                 Op->Asl.AmlSubtreeLength += CommentLength;
                 Current = Current->Next;
-            CvDbgPrint ("    Length: %u\n", CommentLength);
+                CvDbgPrint ("    Length: %u\n", CommentLength);
             }
         }
         if (Op->Asl.CloseBraceComment)
@@ -635,20 +637,19 @@ CgWriteTableHeader (
             CommentLength = strlen (Op->Asl.CloseBraceComment)+3;
             CvDbgPrint ("Length of inline comment +3: %d\n", CommentLength);
             CvDbgPrint ("    Comment string: %s\n\n", Op->Asl.CloseBraceComment);
-            TableHeader.Length += CommentLength;
+            AslGbl_TableHeader.Length += CommentLength;
             Op->Asl.AmlSubtreeLength += CommentLength;
-        CvDbgPrint ("    Length: %u\n", CommentLength);
+            CvDbgPrint ("    Length: %u\n", CommentLength);
         }
     }
 
-    TableHeader.Checksum = 0;
-
-    Op->Asl.FinalAmlOffset = ftell (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+    AslGbl_TableHeader.Checksum = 0;
+    Op->Asl.FinalAmlOffset = ftell (AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle);
 
     /* Write entire header and clear the table header global */
 
-    CgLocalWriteAmlData (Op, &TableHeader, sizeof (ACPI_TABLE_HEADER));
-    memset (&TableHeader, 0, sizeof (ACPI_TABLE_HEADER));
+    CgLocalWriteAmlData (Op, &AslGbl_TableHeader, sizeof (ACPI_TABLE_HEADER));
+    memset (&AslGbl_TableHeader, 0, sizeof (ACPI_TABLE_HEADER));
 }
 
 
@@ -727,7 +728,7 @@ CgCloseTable (
 
     /* Process all definition blocks */
 
-    Op = Gbl_ParseTreeRoot->Asl.Child;
+    Op = AslGbl_ParseTreeRoot->Asl.Child;
     while (Op)
     {
         CgUpdateHeader (Op);
@@ -773,7 +774,7 @@ CgWriteNode (
     }
 
     if ((Op->Asl.ParseOpcode == PARSEOP_EXTERNAL) &&
-        Gbl_DoExternals == FALSE)
+        AslGbl_DoExternals == FALSE)
     {
         return;
     }

@@ -368,8 +368,7 @@ dmar_flush_transl_to_ram(struct dmar_unit *unit, void *dst, size_t sz)
 	 * If DMAR does not snoop paging structures accesses, flush
 	 * CPU cache to memory.
 	 */
-	pmap_invalidate_cache_range((uintptr_t)dst, (uintptr_t)dst + sz,
-	    TRUE);
+	pmap_force_invalidate_cache_range((uintptr_t)dst, (uintptr_t)dst + sz);
 }
 
 void

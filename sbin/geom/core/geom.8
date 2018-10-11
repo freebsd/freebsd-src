@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2018
+.Dd September 14, 2018
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -55,6 +55,8 @@
 .Nm
 .Fl p
 .Ar provider-name
+.Nm
+.Fl t
 .Sh DESCRIPTION
 The
 .Nm
@@ -111,6 +113,8 @@ Additional options include:
 .It Fl p Ar provider-name
 Print detailed information about the geom which provides
 .Ar provider-name .
+.It Fl t
+Display geoms hierarchy as a tree.
 .El
 .Pp
 Class-specific commands are implemented as shared libraries which

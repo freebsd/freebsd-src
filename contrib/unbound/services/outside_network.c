@@ -48,6 +48,7 @@
 #include "services/outside_network.h"
 #include "services/listen_dnsport.h"
 #include "services/cache/infra.h"
+#include "iterator/iterator.h"
 #include "util/data/msgparse.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgencode.h"
@@ -364,6 +365,11 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 		comm_point_tcp_win_bio_cb(pend->c, pend->c->ssl);
 #endif
 		pend->c->ssl_shake_state = comm_ssl_shake_write;
+		if(w->tls_auth_name) {
+#ifdef HAVE_SSL
+			(void)SSL_set_tlsext_host_name(pend->c->ssl, w->tls_auth_name);
+#endif
+		}
 #ifdef HAVE_SSL_SET1_HOST
 		if(w->tls_auth_name) {
 			SSL_set_verify(pend->c->ssl, SSL_VERIFY_PEER, NULL);
@@ -373,6 +379,8 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
                         if(!SSL_set1_host(pend->c->ssl, w->tls_auth_name)) {
                                 log_err("SSL_set1_host failed");
 				pend->c->fd = s;
+				SSL_free(pend->c->ssl);
+				pend->c->ssl = NULL;
 				comm_point_close(pend->c);
 				return 0;
 			}
@@ -1036,6 +1044,8 @@ udp_sockport(struct sockaddr_storage* addr, socklen_t addrlen, int pfxlen,
 		int freebind = 0;
 		struct sockaddr_in6 sa = *(struct sockaddr_in6*)addr;
 		sa.sin6_port = (in_port_t)htons((uint16_t)port);
+		sa.sin6_flowinfo = 0;
+		sa.sin6_scope_id = 0;
 		if(pfxlen != 0) {
 			freebind = 1;
 			sai6_putrandom(&sa, pfxlen, rnd);
@@ -1258,6 +1268,13 @@ outnet_tcptimer(void* arg)
 	} else {
 		/* it was in use */
 		struct pending_tcp* pend=(struct pending_tcp*)w->next_waiting;
+		if(pend->c->ssl) {
+#ifdef HAVE_SSL
+			SSL_shutdown(pend->c->ssl);
+			SSL_free(pend->c->ssl);
+			pend->c->ssl = NULL;
+#endif
+		}
 		comm_point_close(pend->c);
 		pend->query = NULL;
 		pend->next_free = outnet->tcp_free;
@@ -1882,7 +1899,7 @@ serviced_tcp_send(struct serviced_query* sq, sldns_buffer* buff)
 	sq->last_sent_time = *sq->outnet->now_tv;
 	if(sq->tcp_upstream || sq->ssl_upstream) {
 		timeout = rtt;
-		if(rtt >= 376 && rtt < TCP_AUTH_QUERY_TIMEOUT)
+		if(rtt >= UNKNOWN_SERVER_NICENESS && rtt < TCP_AUTH_QUERY_TIMEOUT)
 			timeout = TCP_AUTH_QUERY_TIMEOUT;
 	} else {
 		timeout = TCP_AUTH_QUERY_TIMEOUT;
@@ -1976,7 +1993,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 			return 0;
 		}
 		if(rto >= RTT_MAX_TIMEOUT) {
-			fallback_tcp = 1;
+			/* fallback_tcp = 1; */
 			/* UDP does not work, fallback to TCP below */
 		} else {
 			serviced_callbacks(sq, NETEVENT_TIMEOUT, c, rep);
@@ -2190,39 +2207,48 @@ fd_for_dest(struct outside_network* outnet, struct sockaddr_storage* to_addr,
 {
 	struct sockaddr_storage* addr;
 	socklen_t addrlen;
-	int i;
-	int try;
-
-	/* select interface */
-	if(addr_is_ip6(to_addr, to_addrlen)) {
-		if(outnet->num_ip6 == 0) {
-			char to[64];
-			addr_to_str(to_addr, to_addrlen, to, sizeof(to));
-			verbose(VERB_QUERY, "need ipv6 to send, but no ipv6 outgoing interfaces, for %s", to);
-			return -1;
-		}
-		i = ub_random_max(outnet->rnd, outnet->num_ip6);
-		addr = &outnet->ip6_ifs[i].addr;
-		addrlen = outnet->ip6_ifs[i].addrlen;
-	} else {
-		if(outnet->num_ip4 == 0) {
-			char to[64];
-			addr_to_str(to_addr, to_addrlen, to, sizeof(to));
-			verbose(VERB_QUERY, "need ipv4 to send, but no ipv4 outgoing interfaces, for %s", to);
-			return -1;
-		}
-		i = ub_random_max(outnet->rnd, outnet->num_ip4);
-		addr = &outnet->ip4_ifs[i].addr;
-		addrlen = outnet->ip4_ifs[i].addrlen;
-	}
+	int i, try, pnum;
+	struct port_if* pif;
 
 	/* create fd */
 	for(try = 0; try<1000; try++) {
+		int port = 0;
 		int freebind = 0;
 		int noproto = 0;
 		int inuse = 0;
-		int port = ub_random(outnet->rnd)&0xffff;
 		int fd = -1;
+
+		/* select interface */
+		if(addr_is_ip6(to_addr, to_addrlen)) {
+			if(outnet->num_ip6 == 0) {
+				char to[64];
+				addr_to_str(to_addr, to_addrlen, to, sizeof(to));
+				verbose(VERB_QUERY, "need ipv6 to send, but no ipv6 outgoing interfaces, for %s", to);
+				return -1;
+			}
+			i = ub_random_max(outnet->rnd, outnet->num_ip6);
+			pif = &outnet->ip6_ifs[i];
+		} else {
+			if(outnet->num_ip4 == 0) {
+				char to[64];
+				addr_to_str(to_addr, to_addrlen, to, sizeof(to));
+				verbose(VERB_QUERY, "need ipv4 to send, but no ipv4 outgoing interfaces, for %s", to);
+				return -1;
+			}
+			i = ub_random_max(outnet->rnd, outnet->num_ip4);
+			pif = &outnet->ip4_ifs[i];
+		}
+		addr = &pif->addr;
+		addrlen = pif->addrlen;
+		pnum = ub_random_max(outnet->rnd, pif->avail_total);
+		if(pnum < pif->inuse) {
+			/* port already open */
+			port = pif->out[pnum]->number;
+		} else {
+			/* unused ports in start part of array */
+			port = pif->avail_ports[pnum - pif->inuse];
+		}
+
 		if(addr_is_ip6(to_addr, to_addrlen)) {
 			struct sockaddr_in6 sa = *(struct sockaddr_in6*)addr;
 			sa.sin6_port = (in_port_t)htons((uint16_t)port);

@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
@@ -2469,9 +2470,11 @@ zalloc_start:
 	if (bucket != NULL)
 		bucket_free(zone, bucket, udata);
 
-	if (zone->uz_flags & UMA_ZONE_NUMA)
+	if (zone->uz_flags & UMA_ZONE_NUMA) {
 		domain = PCPU_GET(domain);
-	else
+		if (VM_DOMAIN_EMPTY(domain))
+			domain = UMA_ANYDOMAIN;
+	} else
 		domain = UMA_ANYDOMAIN;
 
 	/* Short-circuit for zones without buckets and low memory. */
@@ -2647,7 +2650,11 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int rdomain, int flags)
 		rdomain = 0;
 	rr = rdomain == UMA_ANYDOMAIN;
 	if (rr) {
-		keg->uk_cursor = (keg->uk_cursor + 1) % vm_ndomains;
+		start = keg->uk_cursor;
+		do {
+			keg->uk_cursor = (keg->uk_cursor + 1) % vm_ndomains;
+			domain = keg->uk_cursor;
+		} while (VM_DOMAIN_EMPTY(domain) && domain != start);
 		domain = start = keg->uk_cursor;
 		/* Only block on the second pass. */
 		if ((flags & (M_WAITOK | M_NOVM)) == M_WAITOK)
@@ -2699,8 +2706,9 @@ again:
 			return (slab);
 		}
 		if (rr) {
-			keg->uk_cursor = (keg->uk_cursor + 1) % vm_ndomains;
-			domain = keg->uk_cursor;
+			do {
+				domain = (domain + 1) % vm_ndomains;
+			} while (VM_DOMAIN_EMPTY(domain) && domain != start);
 		}
 	} while (domain != start);
 
@@ -2905,6 +2913,8 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 	uma_bucket_t bucket;
 	int max;
 
+	CTR1(KTR_UMA, "zone_alloc:_bucket domain %d)", domain);
+
 	/* Don't wait for buckets, preserve caller's NOVM setting. */
 	bucket = bucket_alloc(zone, udata, M_NOWAIT | (flags & M_NOVM));
 	if (bucket == NULL)
@@ -2972,6 +2982,11 @@ zone_alloc_item(uma_zone_t zone, void *udata, int domain, int flags)
 
 	item = NULL;
 
+	if (domain != UMA_ANYDOMAIN) {
+		/* avoid allocs targeting empty domains */
+		if (VM_DOMAIN_EMPTY(domain))
+			domain = UMA_ANYDOMAIN;
+	}
 	if (zone->uz_import(zone->uz_arg, &item, 1, domain, flags) != 1)
 		goto fail;
 	atomic_add_long(&zone->uz_allocs, 1);
@@ -3141,9 +3156,11 @@ zfree_start:
 	/* We are no longer associated with this CPU. */
 	critical_exit();
 
-	if ((zone->uz_flags & UMA_ZONE_NUMA) != 0)
+	if ((zone->uz_flags & UMA_ZONE_NUMA) != 0) {
 		domain = PCPU_GET(domain);
-	else 
+		if (VM_DOMAIN_EMPTY(domain))
+			domain = UMA_ANYDOMAIN;
+	} else
 		domain = 0;
 	zdom = &zone->uz_domain[0];
 
@@ -3590,7 +3607,9 @@ uma_prealloc(uma_zone_t zone, int items)
 		dom = &keg->uk_domain[slab->us_domain];
 		LIST_INSERT_HEAD(&dom->ud_free_slab, slab, us_link);
 		slabs--;
-		domain = (domain + 1) % vm_ndomains;
+		do {
+			domain = (domain + 1) % vm_ndomains;
+		} while (VM_DOMAIN_EMPTY(domain));
 	}
 	KEG_UNLOCK(keg);
 }
@@ -3680,6 +3699,11 @@ uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 	vm_offset_t addr;
 	uma_slab_t slab;
 
+	if (domain != UMA_ANYDOMAIN) {
+		/* avoid allocs targeting empty domains */
+		if (VM_DOMAIN_EMPTY(domain))
+			domain = UMA_ANYDOMAIN;
+	}
 	slab = zone_alloc_item(slabzone, NULL, domain, wait);
 	if (slab == NULL)
 		return (NULL);

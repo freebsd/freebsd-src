@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1999-2005 Apple Inc.
- * Copyright (c) 2006-2007, 2016-2017 Robert N. M. Watson
+ * Copyright (c) 2006-2007, 2016-2018 Robert N. M. Watson
  * All rights reserved.
  *
  * Portions of this software were developed by BAE Systems, the University of
@@ -98,8 +98,12 @@ static SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
  *
  * Define the audit control flags.
  */
-int __read_frequently	audit_enabled;
-int			audit_suspended;
+int			audit_trail_enabled;
+int			audit_trail_suspended;
+#ifdef KDTRACE_HOOKS
+u_int			audit_dtrace_enabled;
+#endif
+int __read_frequently	audit_syscalls_enabled;
 
 /*
  * Flags controlling behavior in low storage situations.  Should we panic if
@@ -197,6 +201,33 @@ static struct rwlock		audit_kinfo_lock;
 #define	KINFO_WLOCK()		rw_wlock(&audit_kinfo_lock)
 #define	KINFO_RUNLOCK()		rw_runlock(&audit_kinfo_lock)
 #define	KINFO_WUNLOCK()		rw_wunlock(&audit_kinfo_lock)
+
+/*
+ * Check various policies to see if we should enable system-call audit hooks.
+ * Note that despite the mutex being held, we want to assign a value exactly
+ * once, as checks of the flag are performed lock-free for performance
+ * reasons.  The mutex is used to get a consistent snapshot of policy state --
+ * e.g., safely accessing the two audit_trail flags.
+ */
+void
+audit_syscalls_enabled_update(void)
+{
+
+	mtx_lock(&audit_mtx);
+#ifdef KDTRACE_HOOKS
+	if (audit_dtrace_enabled)
+		audit_syscalls_enabled = 1;
+	else {
+#endif
+		if (audit_trail_enabled && !audit_trail_suspended)
+			audit_syscalls_enabled = 1;
+		else
+			audit_syscalls_enabled = 0;
+#ifdef KDTRACE_HOOKS
+	}
+#endif
+	mtx_unlock(&audit_mtx);
+}
 
 void
 audit_set_kinfo(struct auditinfo_addr *ak)
@@ -303,8 +334,9 @@ static void
 audit_init(void)
 {
 
-	audit_enabled = 0;
-	audit_suspended = 0;
+	audit_trail_enabled = 0;
+	audit_trail_suspended = 0;
+	audit_syscalls_enabled = 0;
 	audit_panic_on_write_fail = 0;
 	audit_fail_stop = 0;
 	audit_in_failure = 0;
@@ -336,6 +368,9 @@ audit_init(void)
 	audit_record_zone = uma_zcreate("audit_record",
 	    sizeof(struct kaudit_record), audit_record_ctor,
 	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
+
+	/* First initialisation of audit_syscalls_enabled. */
+	audit_syscalls_enabled_update();
 
 	/* Initialize the BSM audit subsystem. */
 	kau_init();
@@ -378,10 +413,6 @@ currecord(void)
 }
 
 /*
- * XXXAUDIT: There are a number of races present in the code below due to
- * release and re-grab of the mutex.  The code should be revised to become
- * slightly less racy.
- *
  * XXXAUDIT: Shouldn't there be logic here to sleep waiting on available
  * pre_q space, suspending the system call until there is room?
  */
@@ -389,13 +420,6 @@ struct kaudit_record *
 audit_new(int event, struct thread *td)
 {
 	struct kaudit_record *ar;
-	int no_record;
-
-	mtx_lock(&audit_mtx);
-	no_record = (audit_suspended || !audit_enabled);
-	mtx_unlock(&audit_mtx);
-	if (no_record)
-		return (NULL);
 
 	/*
 	 * Note: the number of outstanding uncommitted audit records is
@@ -529,9 +553,13 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	/*
 	 * Note: it could be that some records initiated while audit was
 	 * enabled should still be committed?
+	 *
+	 * NB: The check here is not for audit_syscalls because any
+	 * DTrace-related obligations have been fulfilled above -- we're just
+	 * down to the trail and pipes now.
 	 */
 	mtx_lock(&audit_mtx);
-	if (audit_suspended || !audit_enabled) {
+	if (audit_trail_suspended || !audit_trail_enabled) {
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
 		audit_free(ar);
@@ -557,6 +585,10 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
  * responsible for deciding whether or not to audit the call (preselection),
  * and if so, allocating a per-thread audit record.  audit_new() will fill in
  * basic thread/credential properties.
+ *
+ * This function will be entered only if audit_syscalls_enabled was set in the
+ * macro wrapper for this function.  It could be cleared by the time this
+ * function runs, but that is an acceptable race.
  */
 void
 audit_syscall_enter(unsigned short code, struct thread *td)

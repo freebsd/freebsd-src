@@ -85,6 +85,7 @@ COMPAT=	arc4random.o \
 	getrrsetbyname-ldns.o \
 	kludge-fd_set.o \
 	openssl-compat.o \
+	libressl-api-compat.o \
 	xcrypt.o
 
 PORTS=	port-aix.o \

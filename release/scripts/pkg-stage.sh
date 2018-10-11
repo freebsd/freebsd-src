@@ -16,6 +16,8 @@ _DVD_PACKAGES="archivers/unzip
 devel/subversion
 devel/subversion-static
 emulators/linux_base-c6
+graphics/drm-legacy-kmod
+graphics/drm-stable-kmod
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
@@ -30,7 +32,7 @@ www/firefox
 www/links
 x11-drivers/xf86-video-vmware
 x11/gnome3
-x11/kde4
+x11/kde5
 x11/xorg"
 
 # If NOPORTS is set for the release, do not attempt to build pkg(8).

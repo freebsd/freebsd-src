@@ -58,7 +58,8 @@ struct ucode_intel_extsig_table {
 	} entries[0];
 };
 
-int	ucode_intel_load(void *data, bool unsafe);
+int	ucode_intel_load(void *data, bool unsafe,
+	    uint64_t *nrevp, uint64_t *orevp);
 size_t	ucode_load_bsp(uintptr_t free);
 void	ucode_load_ap(int cpu);
 void	ucode_reload(void);

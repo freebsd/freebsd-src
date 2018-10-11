@@ -223,10 +223,11 @@ struct mesh_reply {
 
 /** 
  * Mesh result callback func.
- * called as func(cb_arg, rcode, buffer_with_reply, security, why_bogus);
+ * called as func(cb_arg, rcode, buffer_with_reply, security, why_bogus,
+ *		was_ratelimited);
  */
-typedef void (*mesh_cb_func_type)(void*, int, struct sldns_buffer*, enum sec_status, 
-	char*);
+typedef void (*mesh_cb_func_type)(void* cb_arg, int rcode, struct sldns_buffer*,
+	enum sec_status, char* why_bogus, int was_ratelimited);
 
 /**
  * Callback to result routine
@@ -242,9 +243,8 @@ struct mesh_cb {
 	uint16_t qflags;
 	/** buffer for reply */
 	struct sldns_buffer* buf;
-
 	/** callback routine for results. if rcode != 0 buf has message.
-	 * called as cb(cb_arg, rcode, buf, sec_state);
+	 * called as cb(cb_arg, rcode, buf, sec_state, why_bogus, was_ratelimited);
 	 */
 	mesh_cb_func_type cb;
 	/** user arg for callback */

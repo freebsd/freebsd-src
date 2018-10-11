@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "RAND_cleanup 3"
-.TH RAND_cleanup 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "RAND_CLEANUP 3"
+.TH RAND_CLEANUP 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,17 +141,31 @@ RAND_cleanup \- erase the PRNG state
 .Vb 1
 \& #include <openssl/rand.h>
 \&
-\& void RAND_cleanup(void);
+\& #if OPENSSL_API_COMPAT < 0x10100000L
+\& void RAND_cleanup(void)
+\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIRAND_cleanup()\fR erases the memory used by the \s-1PRNG.\s0
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
+Prior to OpenSSL 1.1.0, \fIRAND_cleanup()\fR released all resources used by
+the \s-1PRNG.\s0  As of version 1.1.0, it does nothing and should not be called,
+since no explicit initialisation or de-initialisation is necessary. See
+\&\fIOPENSSL_init_crypto\fR\|(3).
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
 \&\fIRAND_cleanup()\fR returns no value.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\fIrand\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIRAND_cleanup()\fR is available in all versions of SSLeay and OpenSSL.
+\&\fIRAND_cleanup()\fR was deprecated in OpenSSL 1.1.0; do not use it.
+See \fIOPENSSL_init_crypto\fR\|(3)
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\s-1\fIRAND\s0\fR\|(7)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

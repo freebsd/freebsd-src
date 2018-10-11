@@ -434,8 +434,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				INP_RUNLOCK(last);
 		} else
 			INP_RUNLOCK(last);
-		INP_INFO_RUNLOCK_ET(pcbinfo, et);
 	inp_lost:
+		INP_INFO_RUNLOCK_ET(pcbinfo, et);
 		return (IPPROTO_DONE);
 	}
 	/*
@@ -698,7 +698,7 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 	u_int32_t ulen, plen;
 	uint16_t cscov;
 	u_short fport;
-	uint8_t nxt, unlock_udbinfo;
+	uint8_t nxt, unlock_inp, unlock_udbinfo;
 
 	/* addr6 has been validated in udp6_send(). */
 	sin6 = (struct sockaddr_in6 *)addr6;
@@ -734,7 +734,22 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("%s: inp == NULL", __func__));
-	INP_RLOCK(inp);
+	/*
+	 * In the following cases we want a write lock on the inp for either
+	 * local operations or for possible route cache updates in the IPv6
+	 * output path:
+	 * - on connected sockets (sin6 is NULL) for route cache updates,
+	 * - when we are not bound to an address and source port (it is
+	 *   in6_pcbsetport() which will require the write lock).
+	 */
+	if (sin6 == NULL || (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
+	    inp->inp_lport == 0)) {
+		INP_WLOCK(inp);
+		unlock_inp = UH_WLOCKED;
+	} else {
+		INP_RLOCK(inp);
+		unlock_inp = UH_RLOCKED;
+	}
 	nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
 	    IPPROTO_UDP : IPPROTO_UDPLITE;
 
@@ -758,7 +773,10 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 			 * potential race in which the factors causing us to
 			 * select the UDPv4 output routine are invalidated?
 			 */
-			INP_RUNLOCK(inp);
+			if (unlock_inp == UH_WLOCKED)
+				INP_WUNLOCK(inp);
+			else
+				INP_RUNLOCK(inp);
 			if (sin6)
 				in6_sin6_2_sin_in_sock((struct sockaddr *)sin6);
 			pru = inetsw[ip_protox[nxt]].pr_usrreqs;
@@ -766,13 +784,28 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 			return ((*pru->pru_send)(so, flags_arg, m,
 			    (struct sockaddr *)sin6, control, td));
 		}
-	}
+	} else
 #endif
+	if (sin6 && IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+		/*
+		 * Given this is either an IPv6-only socket or no INET is
+		 * supported we will fail the send if the given destination
+		 * address is a v4mapped address.
+		 */
+		if (unlock_inp == UH_WLOCKED)
+			INP_WUNLOCK(inp);
+		else
+			INP_RUNLOCK(inp);
+		return (EINVAL);
+	}
 
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
 		    inp->in6p_outputopts, td->td_ucred, nxt)) != 0) {
-			INP_RUNLOCK(inp);
+			if (unlock_inp == UH_WLOCKED)
+				INP_WUNLOCK(inp);
+			else
+				INP_RUNLOCK(inp);
 			ip6_clearpktopts(&opt, -1);
 			if (control)
 				m_freem(control);
@@ -786,12 +819,6 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	if (sin6 != NULL &&
 	    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) && inp->inp_lport == 0) {
-		INP_RUNLOCK(inp);
-		/*
-		 * XXX there is a short window here which could lead to a race;
-		 * should we re-check that what got us here is still valid?
-		 */
-		INP_WLOCK(inp);
 		INP_HASH_WLOCK(pcbinfo);
 		unlock_udbinfo = UH_WLOCKED;
 	} else if (sin6 != NULL &&
@@ -972,9 +999,10 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 		UDPLITE_PROBE(send, NULL, inp, ip6, inp, udp6);
 	else
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
-	error = ip6_output(m, optp, &inp->inp_route6, flags,
+	error = ip6_output(m, optp,
+	    (unlock_inp == UH_WLOCKED) ? &inp->inp_route6 : NULL, flags,
 	    inp->in6p_moptions, NULL, inp);
-	if (unlock_udbinfo == UH_WLOCKED)
+	if (unlock_inp == UH_WLOCKED)
 		INP_WUNLOCK(inp);
 	else
 		INP_RUNLOCK(inp);
@@ -987,12 +1015,20 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 
 release:
 	if (unlock_udbinfo == UH_WLOCKED) {
+		KASSERT(unlock_inp == UH_WLOCKED, ("%s: excl udbinfo lock, "
+		    "non-excl inp lock: pcbinfo %p %#x inp %p %#x",
+		    __func__, pcbinfo, unlock_udbinfo, inp, unlock_inp));
 		INP_HASH_WUNLOCK(pcbinfo);
 		INP_WUNLOCK(inp);
 	} else if (unlock_udbinfo == UH_RLOCKED) {
+		KASSERT(unlock_inp == UH_RLOCKED, ("%s: non-excl udbinfo lock, "
+		    "excl inp lock: pcbinfo %p %#x inp %p %#x",
+		    __func__, pcbinfo, unlock_udbinfo, inp, unlock_inp));
 		INP_HASH_RUNLOCK_ET(pcbinfo, et);
 		INP_RUNLOCK(inp);
-	} else
+	} else if (unlock_inp == UH_WLOCKED)
+		INP_WUNLOCK(inp);
+	else
 		INP_RUNLOCK(inp);
 	if (control) {
 		ip6_clearpktopts(&opt, -1);

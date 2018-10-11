@@ -388,6 +388,14 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	if(qtype == LDNS_RR_TYPE_DLV)
 		valrec = 0;
 	else valrec = 1;
+
+	fptr_ok(fptr_whitelist_modenv_detect_cycle(qstate->env->detect_cycle));
+	if((*qstate->env->detect_cycle)(qstate, &ask,
+		(uint16_t)(BIT_RD|flags), 0, valrec)) {
+		verbose(VERB_ALGO, "Could not generate request: cycle detected");
+		return 0;
+	}
+
 	if(detached) {
 		struct mesh_state* sub = NULL;
 		fptr_ok(fptr_whitelist_modenv_add_sub(
@@ -467,7 +475,7 @@ generate_keytag_query(struct module_qstate* qstate, int id,
 		LDNS_RR_TYPE_NULL, ta->dclass);
 	if(!generate_request(qstate, id, keytagdname, dnamebuf_len,
 		LDNS_RR_TYPE_NULL, ta->dclass, 0, &newq, 1)) {
-		log_err("failed to generate key tag signaling request");
+		verbose(VERB_ALGO, "failed to generate key tag signaling request");
 		return 0;
 	}
 
@@ -524,12 +532,12 @@ prime_trust_anchor(struct module_qstate* qstate, struct val_qstate* vq,
 
 	if(newq && qstate->env->cfg->trust_anchor_signaling &&
 		!generate_keytag_query(qstate, id, toprime)) {
-		log_err("keytag signaling query failed");
+		verbose(VERB_ALGO, "keytag signaling query failed");
 		return 0;
 	}
 
 	if(!ret) {
-		log_err("Could not prime trust anchor: out of memory");
+		verbose(VERB_ALGO, "Could not prime trust anchor");
 		return 0;
 	}
 	/* ignore newq; validator does not need state created for that
@@ -1673,7 +1681,7 @@ processFindKey(struct module_qstate* qstate, struct val_qstate* vq, int id)
 		if(!generate_request(qstate, id, vq->ds_rrset->rk.dname, 
 			vq->ds_rrset->rk.dname_len, LDNS_RR_TYPE_DNSKEY, 
 			vq->qchase.qclass, BIT_CD, &newq, 0)) {
-			log_err("mem error generating DNSKEY request");
+			verbose(VERB_ALGO, "error generating DNSKEY request");
 			return val_error(qstate, id);
 		}
 		return 0;
@@ -1745,7 +1753,7 @@ processFindKey(struct module_qstate* qstate, struct val_qstate* vq, int id)
 		if(!generate_request(qstate, id, vq->ds_rrset->rk.dname, 
 			vq->ds_rrset->rk.dname_len, LDNS_RR_TYPE_DNSKEY, 
 			vq->qchase.qclass, BIT_CD, &newq, 0)) {
-			log_err("mem error generating DNSKEY request");
+			verbose(VERB_ALGO, "error generating DNSKEY request");
 			return val_error(qstate, id);
 		}
 		return 0;
@@ -1774,7 +1782,7 @@ processFindKey(struct module_qstate* qstate, struct val_qstate* vq, int id)
 		if(!generate_request(qstate, id, target_key_name, 
 			target_key_len, LDNS_RR_TYPE_DS, vq->qchase.qclass,
 			BIT_CD, &newq, 0)) {
-			log_err("mem error generating DS request");
+			verbose(VERB_ALGO, "error generating DS request");
 			return val_error(qstate, id);
 		}
 		return 0;
@@ -1784,7 +1792,7 @@ processFindKey(struct module_qstate* qstate, struct val_qstate* vq, int id)
 	if(!generate_request(qstate, id, vq->ds_rrset->rk.dname, 
 		vq->ds_rrset->rk.dname_len, LDNS_RR_TYPE_DNSKEY, 
 		vq->qchase.qclass, BIT_CD, &newq, 0)) {
-		log_err("mem error generating DNSKEY request");
+		verbose(VERB_ALGO, "error generating DNSKEY request");
 		return val_error(qstate, id);
 	}
 
@@ -2227,13 +2235,17 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		vq->orig_msg->rep->ttl = ve->bogus_ttl;
 		vq->orig_msg->rep->prefetch_ttl = 
 			PREFETCH_TTL_CALC(vq->orig_msg->rep->ttl);
-		if(qstate->env->cfg->val_log_level >= 1 &&
+		vq->orig_msg->rep->serve_expired_ttl = 
+			vq->orig_msg->rep->ttl + qstate->env->cfg->serve_expired_ttl;
+		if((qstate->env->cfg->val_log_level >= 1 ||
+			qstate->env->cfg->log_servfail) &&
 			!qstate->env->cfg->val_log_squelch) {
-			if(qstate->env->cfg->val_log_level < 2)
+			if(qstate->env->cfg->val_log_level < 2 &&
+				!qstate->env->cfg->log_servfail)
 				log_query_info(0, "validation failure",
 					&qstate->qinfo);
 			else {
-				char* err = errinf_to_str(qstate);
+				char* err = errinf_to_str_bogus(qstate);
 				if(err) log_info("%s", err);
 				free(err);
 			}
@@ -2332,6 +2344,7 @@ processDLVLookup(struct module_qstate* qstate, struct val_qstate* vq,
 
 	if(vq->dlv_status == dlv_error) {
 		verbose(VERB_QUERY, "failed DLV lookup");
+		errinf(qstate, "failed DLV lookup");
 		return val_error(qstate, id);
 	} else if(vq->dlv_status == dlv_success) {
 		uint8_t* nm;
@@ -2367,7 +2380,7 @@ processDLVLookup(struct module_qstate* qstate, struct val_qstate* vq,
 		if(!generate_request(qstate, id, vq->ds_rrset->rk.dname, 
 			vq->ds_rrset->rk.dname_len, LDNS_RR_TYPE_DNSKEY, 
 			vq->qchase.qclass, BIT_CD, &newq, 0)) {
-			log_err("mem error generating DNSKEY request");
+			verbose(VERB_ALGO, "error generating DNSKEY request");
 			return val_error(qstate, id);
 		}
 		return 0;

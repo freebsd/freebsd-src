@@ -130,7 +130,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, functions_inherit_listen_socket_stack,
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
-static int	 syncache_respond(struct syncache *, struct syncache_head *, int,
+static int	 syncache_respond(struct syncache *, struct syncache_head *,
 		    const struct mbuf *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
@@ -489,7 +489,7 @@ syncache_timer(void *xsch)
 			free(s, M_TCPLOG);
 		}
 
-		syncache_respond(sc, sch, 1, NULL);
+		syncache_respond(sc, sch, NULL);
 		TCPSTAT_INC(tcps_sc_retransmitted);
 		syncache_timeout(sc, sch, 0);
 	}
@@ -1413,7 +1413,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (syncache_respond(sc, sch, 1, m) == 0) {
+		if (syncache_respond(sc, sch, m) == 0) {
 			sc->sc_rxmits = 0;
 			syncache_timeout(sc, sch, 1);
 			TCPSTAT_INC(tcps_sndacks);
@@ -1577,7 +1577,7 @@ skip_alloc:
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc, sch, 0, m) == 0) {
+	if (syncache_respond(sc, sch, m) == 0) {
 		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
@@ -1622,7 +1622,7 @@ tfo_expanded:
  * i.e. m0 != NULL, or upon 3WHS ACK timeout, i.e. m0 == NULL.
  */
 static int
-syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
+syncache_respond(struct syncache *sc, struct syncache_head *sch,
     const struct mbuf *m0)
 {
 	struct ip *ip = NULL;

@@ -176,6 +176,14 @@ int	sshbuf_put_u32(struct sshbuf *buf, u_int32_t val);
 int	sshbuf_put_u16(struct sshbuf *buf, u_int16_t val);
 int	sshbuf_put_u8(struct sshbuf *buf, u_char val);
 
+#if defined(__FreeBSD__) && defined(__i386__)
+#define sshbuf_get_time(b, vp) sshbuf_get_u32((b), (u_int32_t *)(vp))
+#define sshbuf_put_time(b, v) sshbuf_put_u32((b), (u_int32_t)(v))
+#else
+#define sshbuf_get_time(b, vp) sshbuf_get_u64((b), (u_int64_t *)(vp))
+#define sshbuf_put_time(b, v) sshbuf_put_u64((b), (u_int64_t)(v))
+#endif
+
 /*
  * Functions to extract or store SSH wire encoded strings (u32 len || data)
  * The "cstring" variants admit no \0 characters in the string contents.
@@ -245,6 +253,21 @@ int	sshbuf_b64tod(struct sshbuf *buf, const char *b64);
  * nul character.
  */
 char *sshbuf_dup_string(struct sshbuf *buf);
+
+/*
+ * store struct pwd
+ */
+int sshbuf_put_passwd(struct sshbuf *buf, const struct passwd *pwent);
+
+/*
+ * extract struct pwd
+ */
+struct passwd *sshbuf_get_passwd(struct sshbuf *buf);
+
+/*
+ * free struct passwd obtained from sshbuf_get_passwd.
+ */
+void sshbuf_free_passwd(struct passwd *pwent);
 
 /* Macros for decoding/encoding integers */
 #define PEEK_U64(p) \

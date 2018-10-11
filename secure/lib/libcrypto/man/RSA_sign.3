@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "RSA_sign 3"
-.TH RSA_sign 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "RSA_SIGN 3"
+.TH RSA_SIGN 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,25 +142,25 @@ RSA_sign, RSA_verify \- RSA signatures
 \& #include <openssl/rsa.h>
 \&
 \& int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
-\&    unsigned char *sigret, unsigned int *siglen, RSA *rsa);
+\&              unsigned char *sigret, unsigned int *siglen, RSA *rsa);
 \&
 \& int RSA_verify(int type, const unsigned char *m, unsigned int m_len,
-\&    unsigned char *sigbuf, unsigned int siglen, RSA *rsa);
+\&                unsigned char *sigbuf, unsigned int siglen, RSA *rsa);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fIRSA_sign()\fR signs the message digest \fBm\fR of size \fBm_len\fR using the
-private key \fBrsa\fR as specified in \s-1PKCS\s0 #1 v2.0. It stores the
-signature in \fBsigret\fR and the signature size in \fBsiglen\fR. \fBsigret\fR
-must point to RSA_size(\fBrsa\fR) bytes of memory.
+private key \fBrsa\fR using RSASSA\-PKCS1\-v1_5 as specified in \s-1RFC 3447.\s0 It
+stores the signature in \fBsigret\fR and the signature size in \fBsiglen\fR.
+\&\fBsigret\fR must point to RSA_size(\fBrsa\fR) bytes of memory.
 Note that \s-1PKCS\s0 #1 adds meta-data, placing limits on the size of the
 key that can be used.
 See \fIRSA_private_encrypt\fR\|(3) for lower-level
 operations.
 .PP
 \&\fBtype\fR denotes the message digest algorithm that was used to generate
-\&\fBm\fR. It usually is one of \fBNID_sha1\fR, \fBNID_ripemd160\fR and \fBNID_md5\fR;
-see \fIobjects\fR\|(3) for details. If \fBtype\fR is \fBNID_md5_sha1\fR,
+\&\fBm\fR.
+If \fBtype\fR is \fBNID_md5_sha1\fR,
 an \s-1SSL\s0 signature (\s-1MD5\s0 and \s-1SHA1\s0 message digests with \s-1PKCS\s0 #1 padding
 and no algorithm identifier) is created.
 .PP
@@ -170,23 +170,23 @@ the message digest algorithm that was used to generate the signature.
 \&\fBrsa\fR is the signer's public key.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIRSA_sign()\fR returns 1 on success, 0 otherwise.  \fIRSA_verify()\fR returns 1
-on successful verification, 0 otherwise.
+\&\fIRSA_sign()\fR returns 1 on success.
+\&\fIRSA_verify()\fR returns 1 on successful verification.
 .PP
 The error codes can be obtained by \fIERR_get_error\fR\|(3).
-.SH "BUGS"
-.IX Header "BUGS"
-Certain signatures with an improper algorithm identifier are accepted
-for compatibility with SSLeay 0.4.5 :\-)
 .SH "CONFORMING TO"
 .IX Header "CONFORMING TO"
 \&\s-1SSL, PKCS\s0 #1 v2.0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIERR_get_error\fR\|(3), \fIobjects\fR\|(3),
-\&\fIrsa\fR\|(3), \fIRSA_private_encrypt\fR\|(3),
+\&\fIERR_get_error\fR\|(3),
+\&\fIRSA_private_encrypt\fR\|(3),
 \&\fIRSA_public_decrypt\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIRSA_sign()\fR and \fIRSA_verify()\fR are available in all versions of SSLeay
-and OpenSSL.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

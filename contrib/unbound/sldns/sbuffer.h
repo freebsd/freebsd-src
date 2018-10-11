@@ -130,7 +130,7 @@ struct sldns_buffer
 	/** If the buffer is fixed it cannot be resized */
 	unsigned _fixed : 1;
 
-	/** If the buffer is vfixed, no more than capacity bytes willl be
+	/** If the buffer is vfixed, no more than capacity bytes will be
 	 * written to _data, however the _position counter will be updated
 	 * with the amount that would have been written in consecutive
 	 * writes.  This allows for a modus operandi in which a sequence is
@@ -160,7 +160,7 @@ sldns_buffer_invariant(sldns_buffer *buffer)
 	assert(buffer != NULL);
 	assert(buffer->_position <= buffer->_limit || buffer->_vfixed);
 	assert(buffer->_limit <= buffer->_capacity);
-	assert(buffer->_data != NULL || (buffer->_vfixed && buffer->_capacity == 0));
+	assert(buffer->_data != NULL || (buffer->_vfixed && buffer->_capacity == 0 && buffer->_limit == 0));
 }
 #endif
 

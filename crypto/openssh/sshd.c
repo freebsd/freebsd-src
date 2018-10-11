@@ -514,8 +514,8 @@ demote_sensitive_data(void)
 
 	for (i = 0; i < options.num_host_key_files; i++) {
 		if (sensitive_data.host_keys[i]) {
-			if ((r = sshkey_demote(sensitive_data.host_keys[i],
-			    &tmp)) != 0)
+			if ((r = sshkey_from_private(
+			    sensitive_data.host_keys[i], &tmp)) != 0)
 				fatal("could not demote host %s key: %s",
 				    sshkey_type(sensitive_data.host_keys[i]),
 				    ssh_err(r));
@@ -939,10 +939,10 @@ usage(void)
 	if (options.version_addendum && *options.version_addendum != '\0')
 		fprintf(stderr, "%s %s, %s\n",
 		    SSH_RELEASE,
-		    options.version_addendum, OPENSSL_VERSION);
+		    options.version_addendum, OPENSSL_VERSION_STRING);
 	else
 		fprintf(stderr, "%s, %s\n",
-		    SSH_RELEASE, OPENSSL_VERSION);
+		    SSH_RELEASE, OPENSSL_VERSION_STRING);
 	fprintf(stderr,
 "usage: sshd [-46DdeiqTt] [-C connection_spec] [-c host_cert_file]\n"
 "            [-E log_file] [-f config_file] [-g login_grace_time]\n"
@@ -1798,7 +1798,7 @@ main(int ac, char **av)
 			error("Error loading host key \"%s\": %s",
 			    options.host_key_files[i], ssh_err(r));
 		if (pubkey == NULL && key != NULL)
-			if ((r = sshkey_demote(key, &pubkey)) != 0)
+			if ((r = sshkey_from_private(key, &pubkey)) != 0)
 				fatal("Could not demote key: \"%s\": %s",
 				    options.host_key_files[i], ssh_err(r));
 		sensitive_data.host_keys[i] = key;
@@ -2142,6 +2142,11 @@ main(int ac, char **av)
 	 * the socket goes away.
 	 */
 	remote_ip = ssh_remote_ipaddr(ssh);
+
+#ifdef HAVE_LOGIN_CAP
+	/* Also caches remote hostname for sandboxed child. */
+	auth_get_canonical_hostname(ssh, options.use_dns);
+#endif
 
 #ifdef SSH_AUDIT_EVENTS
 	audit_connection_from(remote_ip, remote_port);

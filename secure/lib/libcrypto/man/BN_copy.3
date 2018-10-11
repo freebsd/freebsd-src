@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_copy 3"
-.TH BN_copy 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_COPY 3"
+.TH BN_COPY 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_copy, BN_dup \- copy BIGNUMs
+BN_copy, BN_dup, BN_with_flags \- copy BIGNUMs
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -144,11 +144,31 @@ BN_copy, BN_dup \- copy BIGNUMs
 \& BIGNUM *BN_copy(BIGNUM *to, const BIGNUM *from);
 \&
 \& BIGNUM *BN_dup(const BIGNUM *from);
+\&
+\& void BN_with_flags(BIGNUM *dest, const BIGNUM *b, int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fIBN_copy()\fR copies \fBfrom\fR to \fBto\fR. \fIBN_dup()\fR creates a new \fB\s-1BIGNUM\s0\fR
 containing the value \fBfrom\fR.
+.PP
+BN_with_flags creates a \fBtemporary\fR shallow copy of \fBb\fR in \fBdest\fR. It places
+significant restrictions on the copied data. Applications that do no adhere to
+these restrictions may encounter unexpected side effects or crashes. For that
+reason use of this function is discouraged. Any flags provided in \fBflags\fR will
+be set in \fBdest\fR in addition to any flags already set in \fBb\fR. For example this
+might commonly be used to create a temporary copy of a \s-1BIGNUM\s0 with the
+\&\fB\s-1BN_FLG_CONSTTIME\s0\fR flag set for constant time operations. The temporary copy in
+\&\fBdest\fR will share some internal state with \fBb\fR. For this reason the following
+restrictions apply to the use of \fBdest\fR:
+.IP "\(bu" 2
+\&\fBdest\fR should be a newly allocated \s-1BIGNUM\s0 obtained via a call to \fIBN_new()\fR. It
+should not have been used for other purposes or initialised in any way.
+.IP "\(bu" 2
+\&\fBdest\fR must only be used in \*(L"read-only\*(R" operations, i.e. typically those
+functions where the relevant parameter is declared \*(L"const\*(R".
+.IP "\(bu" 2
+\&\fBdest\fR must be used and freed before any further subsequent use of \fBb\fR
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBN_copy()\fR returns \fBto\fR on success, \s-1NULL\s0 on error. \fIBN_dup()\fR returns
@@ -156,7 +176,12 @@ the new \fB\s-1BIGNUM\s0\fR, and \s-1NULL\s0 on error. The error codes can be ob
 by \fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIERR_get_error\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIBN_copy()\fR and \fIBN_dup()\fR are available in all versions of SSLeay and OpenSSL.
+\&\fIERR_get_error\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

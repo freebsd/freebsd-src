@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "PKCS7_decrypt 3"
-.TH PKCS7_decrypt 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "PKCS7_DECRYPT 3"
+.TH PKCS7_DECRYPT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -151,9 +151,6 @@ recipients certificate, \fBdata\fR is a \s-1BIO\s0 to write the content to and
 \&\fBflags\fR is an optional set of flags.
 .SH "NOTES"
 .IX Header "NOTES"
-\&\fIOpenSSL_add_all_algorithms()\fR (or equivalent) should be called before using this
-function or errors about unknown algorithms will occur.
-.PP
 Although the recipients certificate is not needed to decrypt the data it is needed
 to locate the appropriate (of possible several) recipients in the PKCS#7 structure.
 .PP
@@ -176,6 +173,11 @@ mentioned in \fIPKCS7_sign()\fR also applies to \fIPKCS7_verify()\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIERR_get_error\fR\|(3), \fIPKCS7_encrypt\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIPKCS7_decrypt()\fR was added to OpenSSL 0.9.5
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

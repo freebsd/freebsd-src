@@ -3244,11 +3244,27 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
+static void
+pmap_sync_icache_one(void *arg __unused)
+{
+
+	__asm __volatile("fence.i");
+}
+
 void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
 
-	panic("RISCVTODO: pmap_sync_icache");
+	/*
+	 * From the RISC-V User-Level ISA V2.2:
+	 *
+	 * "To make a store to instruction memory visible to all
+	 * RISC-V harts, the writing hart has to execute a data FENCE
+	 * before requesting that all remote RISC-V harts execute a
+	 * FENCE.I."
+	 */
+	__asm __volatile("fence");
+	smp_rendezvous(NULL, pmap_sync_icache_one, NULL, NULL);
 }
 
 /*

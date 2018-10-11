@@ -439,6 +439,7 @@ contrib/dev/acpica/components/executer/exregion.c	optional acpi
 contrib/dev/acpica/components/executer/exresnte.c	optional acpi
 contrib/dev/acpica/components/executer/exresolv.c	optional acpi
 contrib/dev/acpica/components/executer/exresop.c	optional acpi
+contrib/dev/acpica/components/executer/exserial.c	optional acpi
 contrib/dev/acpica/components/executer/exstore.c	optional acpi
 contrib/dev/acpica/components/executer/exstoren.c	optional acpi
 contrib/dev/acpica/components/executer/exstorob.c	optional acpi
@@ -4041,7 +4042,6 @@ libkern/murmur3_32.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
 libkern/memchr.c		standard
-libkern/memcmp.c		standard
 libkern/memmem.c		optional gdb
 libkern/qsort.c			standard
 libkern/qsort_r.c		standard

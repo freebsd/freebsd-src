@@ -928,8 +928,9 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
-	uint64_t pool_guid;
 	nvlist_t *config, *vdevs;
+	uint64_t pool_guid;
+	zfs_handle_t *zhp;
 	int err;
 
 	be_root_concat(lbh, bootenv, be_path);
@@ -961,14 +962,19 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 	} else {
 		/* Obtain bootenv zpool */
 		err = zpool_set_prop(lbh->active_phandle, "bootfs", be_path);
-
-		switch (err) {
-		case 0:
-			return (BE_ERR_SUCCESS);
-
-		default:
-			/* XXX TODO correct errors */
+		if (err)
 			return (-1);
-		}
+
+		zhp = zfs_open(lbh->lzh, be_path, ZFS_TYPE_FILESYSTEM);
+		if (zhp == NULL)
+			return (-1);
+
+		err = zfs_promote(zhp);
+		zfs_close(zhp);
+
+		if (err)
+			return (-1);
 	}
+
+	return (BE_ERR_SUCCESS);
 }

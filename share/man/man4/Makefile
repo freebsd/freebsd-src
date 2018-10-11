@@ -202,6 +202,7 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	if_ipsec.4 \
+	iflib.4 \
 	ifmib.4 \
 	ig4.4 \
 	igmp.4 \

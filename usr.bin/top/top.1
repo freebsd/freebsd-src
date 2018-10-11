@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd June 9, 2018
+.Dd October 2, 2018
 .Dt TOP 1
 .Os
 .Sh NAME
@@ -359,22 +359,67 @@ the state column will report the name of the event or lock on which the
 process is waiting.
 Lock names are prefixed with an asterisk \*(lq*\*(rq while sleep events
 are not.
-.Sh AUTHORS
-.An William LeFebvre, EECS Department, Northwestern University
-.Sh BUGS
-The command name for swapped processes should be tracked down, but this
-would make the program run slower.
+.Sh DESCRIPTION OF MEMORY
+.Bd -literal
+Mem: 61M Active, 86M Inact, 368K Laundry, 22G Wired, 102G Free
+ARC: 15G Total, 9303M MFU, 6155M MRU, 1464K Anon, 98M Header, 35M Other
+     15G Compressed, 27G Uncompressed, 1.75:1 Ratio, 174M Overhead
+Swap: 4096M Total, 532M Free, 13% Inuse, 80K In, 104K Out
+.Ed
+.Ss Physical Memory Stats
+.Bl -tag -width "Uncompressed" -compact
+.It Em Active
+number of bytes active
+.It Em Inact
+number of clean bytes inactive
+.It Em Laundry
+number of dirty bytes queued for laundering
+.It Em Wired
+number of bytes wired down, including IO-level cached file data pages
+.It Em Buf
+number of bytes used for IO-level disk caching
+.It Em Free
+number of bytes free
+.El
+.Ss ZFS ARC Stats
+These stats are only displayed when the ARC is in use.
 .Pp
-As with
-.Xr ps 1 ,
-things can change while
-.Nm
-is collecting information for an update.
-The picture it gives is only a
-close approximation to reality.
+.Bl -tag -width "Uncompressed" -compact
+.It Em Total
+number of wired bytes used for the ZFS ARC
+.It Em MRU
+number of ARC bytes holding most recently used data
+.It Em MFU
+number of ARC bytes holding most frequently used data
+.It Em Anon
+number of ARC bytes holding in flight data
+.It Em Header
+number of ARC bytes holding headers
+.It Em Other
+miscellaneous ARC bytes
+.It Em Compressed
+bytes of memory used by ARC caches
+.It Em Uncompressed
+bytes of data stored in ARC caches before compression
+.It Em Ratio
+compression ratio of data cached in the ARC
+.El
+.Ss Swap Stats
+.Bl -tag -width "Uncompressed" -compact
+.It Em Total
+total available swap usage
+.It Em Free
+total free swap usage
+.It Em Inuse
+swap usage
+.It Em \&In
+bytes paged in from swap devices (last interval)
+.It Em Out
+bytes paged out to swap devices (last interval)
+.El
 .Sh ENVIRONMENT
-.Bl -tag -width TOP -compact
-.It Pa TOP
+.Bl -tag -width "Uncompressed"
+.It Ev TOP
 Default set of arguments to
 .Nm .
 .El
@@ -386,54 +431,15 @@ Default set of arguments to
 .Xr humanize_number 3 ,
 .Xr mem 4 ,
 .Xr renice 8
-.Sh DESCRIPTION OF MEMORY
-Mem: 61M Active, 86M Inact, 368K Laundry, 22G Wired, 102G Free
-ARC: 15G Total, 9303M MFU, 6155M MRU, 1464K Anon, 98M Header, 35M Other
-     15G Compressed, 27G Uncompressed, 1.75:1 Ratio, 174M Overhead
-Swap: 4096M Total, 532M Free, 13% Inuse, 80K In, 104K Out
-.Sh Physical Memory Stats
-.Bl -tag -width indent
-.It Active:
-number of bytes active
-.It Inact:
-number of clean bytes inactive
-.It Laundry:
-number of dirty bytes queued for laundering
-.It Wired:
-number of bytes wired down, including IO-level cached file data pages
-.It Buf:
-number of bytes used for IO-level disk caching
-.It Free:
-number of bytes free
-.It ZFS ARC Stats
-These stats are only displayed when the ARC is in use.
-.It Total:
-number of wired bytes used for the ZFS ARC
-.It MRU:
-number of ARC bytes holding most recently used data
-.It MFU:
-number of ARC bytes holding most frequently used data
-.It Anon:
-number of ARC bytes holding in flight data
-.It Header:
-number of ARC bytes holding headers
-.It Other:
-miscellaneous ARC bytes
-.It Compressed:
-bytes of memory used by ARC caches
-.It Uncompressed:
-bytes of data stored in ARC caches before compression
-.It Ratio:
-compression ratio of data cached in the ARC
-.It Swap Stats
-.It Total:
-total available swap usage
-.It Free:
-total free swap usage
-.It Inuse:
-swap usage
-.It In:
-bytes paged in from swap devices (last interval)
-.It Out:
-bytes paged out to swap devices (last interval)
-.El
+.Sh AUTHORS
+.An William LeFebvre, EECS Department, Northwestern University
+.Sh BUGS
+The command name for swapped processes should be tracked down, but this
+would make the program run slower.
+.Pp
+As with
+.Xr ps 1 ,
+things can change while
+.Nm
+is collecting information for an update.
+The picture it gives is only a close approximation to reality.

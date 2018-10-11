@@ -111,7 +111,6 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     HAST \
     HTML \
-    HYPERV \
     ICONV \
     INET \
     INET6 \
@@ -354,9 +353,11 @@ BROKEN_OPTIONS+=LOADER_OFW
 .if ${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_UBOOT
 .endif
-# GELI and Lua in loader currently cause boot failures on sparc64.
-# Further debugging is required.
-.if ${__T} == "sparc64"
+# GELI and Lua in loader currently cause boot failures on sparc64 and powerpc.
+# Further debugging is required -- probably they are just broken on big
+# endian systems generically (they jump to null pointers or try to read
+# crazy high addresses, which is typical of endianness problems).
+.if ${__T} == "sparc64" || ${__T:Mpowerpc*}
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
 
@@ -371,6 +372,13 @@ __DEFAULT_YES_OPTIONS+=MLX5TOOL
 .else
 __DEFAULT_NO_OPTIONS+=CXGBETOOL
 __DEFAULT_NO_OPTIONS+=MLX5TOOL
+.endif
+
+# HyperV is currently x86-only
+.if ${__T} == "amd64" || ${__T} == "i386"
+__DEFAULT_YES_OPTIONS+=HYPERV
+.else
+__DEFAULT_NO_OPTIONS+=HYPERV
 .endif
 
 # NVME is only x86 and powerpc64

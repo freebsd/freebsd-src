@@ -128,22 +128,22 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CMS_sign_receipt 3"
-.TH CMS_sign_receipt 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "CMS_SIGN_RECEIPT 3"
+.TH CMS_SIGN_RECEIPT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-.Vb 1
-\& CMS_sign_receipt \- create a CMS signed receipt
-.Ve
+CMS_sign_receipt \- create a CMS signed receipt
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
-\& CMS_ContentInfo *CMS_sign_receipt(CMS_SignerInfo *si, X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs, unsigned int flags);
+\& CMS_ContentInfo *CMS_sign_receipt(CMS_SignerInfo *si, X509 *signcert,
+\&                                   EVP_PKEY *pkey, STACK_OF(X509) *certs,
+\&                                   unsigned int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -169,6 +169,11 @@ an error occurred.  The error can be obtained from \fIERR_get_error\fR\|(3).
 \&\fIERR_get_error\fR\|(3),
 \&\fICMS_verify_receipt\fR\|(3),
 \&\fICMS_sign\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fICMS_sign_receipt()\fR was added to OpenSSL 0.9.8
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.
