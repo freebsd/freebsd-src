@@ -905,28 +905,6 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 			priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;
 		}
 
-		/* Update unicast list */
-		mlx4_en_cache_uclist(dev);
-
-		update_addr_list_flags(priv, &priv->curr_uc_list, &priv->uc_list);
-
-		list_for_each_entry_safe(addr_list, tmp, &priv->curr_uc_list, list) {
-			if (addr_list->action == MLX4_ADDR_LIST_REM) {
-				mlx4_en_uc_steer_release(priv, addr_list->addr,
-							       priv->rss_map.indir_qp.qpn,
-							       addr_list->reg_id);
-				/* remove from list */
-				list_del(&addr_list->list);
-				kfree(addr_list);
-			} else if (addr_list->action == MLX4_ADDR_LIST_ADD) {
-				err = mlx4_en_uc_steer_add(priv, addr_list->addr,
-							   &priv->rss_map.indir_qp.qpn,
-							   &addr_list->reg_id);
-				if (err)
-					en_err(priv, "Fail to add unicast address\n");
-			}
-		}
-
 		err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
 					  0, MLX4_MCAST_DISABLE);
 		if (err)
@@ -996,6 +974,36 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 	}
 }
 
+static void mlx4_en_do_unicast(struct mlx4_en_priv *priv,
+			       struct net_device *dev,
+			       struct mlx4_en_dev *mdev)
+{
+	struct mlx4_en_addr_list *addr_list, *tmp;
+	int err;
+
+	/* Update unicast list */
+	mlx4_en_cache_uclist(dev);
+
+	update_addr_list_flags(priv, &priv->curr_uc_list, &priv->uc_list);
+
+	list_for_each_entry_safe(addr_list, tmp, &priv->curr_uc_list, list) {
+		if (addr_list->action == MLX4_ADDR_LIST_REM) {
+			mlx4_en_uc_steer_release(priv, addr_list->addr,
+						 priv->rss_map.indir_qp.qpn,
+						 addr_list->reg_id);
+			/* remove from list */
+			list_del(&addr_list->list);
+			kfree(addr_list);
+		} else if (addr_list->action == MLX4_ADDR_LIST_ADD) {
+			err = mlx4_en_uc_steer_add(priv, addr_list->addr,
+						   &priv->rss_map.indir_qp.qpn,
+						   &addr_list->reg_id);
+			if (err)
+				en_err(priv, "Fail to add unicast address\n");
+		}
+	}
+}
+
 static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 {
 	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
@@ -1026,17 +1034,19 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 		}
 	}
 
+	/* Set unicast rules */
+	mlx4_en_do_unicast(priv, dev, mdev);
+
 	/* Promsicuous mode: disable all filters */
 	if ((dev->if_flags & IFF_PROMISC) ||
 	    (priv->flags & MLX4_EN_FLAG_FORCE_PROMISC)) {
 		mlx4_en_set_promisc_mode(priv, mdev);
-		goto out;
+	} else if (priv->flags & MLX4_EN_FLAG_PROMISC) {
+		/* Not in promiscuous mode */
+		mlx4_en_clear_promisc_mode(priv, mdev);
 	}
 
-	/* Not in promiscuous mode */
-	if (priv->flags & MLX4_EN_FLAG_PROMISC)
-		mlx4_en_clear_promisc_mode(priv, mdev);
-
+	/* Set multicast rules */
 	mlx4_en_do_multicast(priv, dev, mdev);
 out:
 	mutex_unlock(&mdev->state_lock);
