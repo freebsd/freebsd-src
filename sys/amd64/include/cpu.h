@@ -92,6 +92,10 @@ get_cyclecount(void)
 	return (rdtsc());
 }
 
+#define MEMSET_EARLY_FUNC       memset_std
+#define MEMCPY_EARLY_FUNC       memcpy_std
+#define MEMMOVE_EARLY_FUNC      memmove_std
+
 #endif
 
 #endif /* !_MACHINE_CPU_H_ */
