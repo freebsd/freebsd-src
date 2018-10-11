@@ -24,7 +24,7 @@ unset CFLAGS CPPFLAGS LDFLAGS LD_LIBRARY_PATH LIBS
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 cd $ldns
-./configure --prefix= --exec-prefix=/usr --disable-dane-ta-usage
+./configure --prefix= --exec-prefix=/usr
 
 cd $ldns/drill
 ./configure --prefix= --exec-prefix=/usr
