@@ -2,23 +2,37 @@
 
 To generate the locales:
 
-Tools needed: java, perl, devel/p5-Tie-IxHash, converters/p5-Text-Iconv and
-textproc/p5-XML-Parser
+Tools needed:
+	java (openjdk >= 8)
+	perl
+	converters/p5-Text-Iconv
+	devel/p5-Tie-IxHash
+	textproc/p5-XML-Parser
 
-fetch cldr data from: http://cldr.unicode.org
-extract in a directory ~/unicode/cldr/v30.0.3 for example
-fetch unidata from http://www.unicode.org/Public/zipped/ (latest version)
-extract in a directory ~/unicode/UNIDATA/9.0.0 for example
+Fetch CLDR data from: http://unicode.org/Public/cldr/.  You need all of the
+core.zip, keyboards.zip, and tools.zip.
 
-Note that the prebuilt cldr tools are not working on freebsd, it needs to
-be rebuilt:
-cd $CLDRDIR/tools/java
-ant build
+Extract:
+	mkdir -p ~/unicode/cldr/v33.0
+	cd ~/unicode/cldr/v33.0
+	unzip ~/core.zip ~/keyboards.zip ~/tools.zip
 
-either modify tools/tools/locales/etc/unicode.conf or export variables:
-CLDRDIR="~/unicode/cldr/v30.0.3"
-UNIDATADIR="~/unicode/UNIDATA/9.0.0"
+Fetch unidata (UCD.zip) from http://www.unicode.org/Public/zipped/latest.
 
-run:
-make POSIX
-make install
+Extract:
+	mkdir -p ~/unicode/UNIDATA/11.0.0
+	cd ~/unicode/UNIDATA/11.0.0
+	unzip ~/UCD.zip
+
+Either modify tools/tools/locales/etc/unicode.conf or export variables:
+	CLDRDIR=~/unicode/cldr/v33.0; export CLDRDIR
+	UNIDATADIR=~/unicode/UNIDATA/9.0.0; export UNIDATADIR
+
+Build the CLDR tools:
+	cd $CLDRDIR/tools/java
+	ant jar
+
+Run:
+	make POSIX
+	make
+	make install
