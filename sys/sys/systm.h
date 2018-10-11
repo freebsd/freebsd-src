@@ -324,6 +324,12 @@ void	*memmove(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 int	memcmp(const void *b1, const void *b2, size_t len);
 #define memcmp(b1, b2, len) __builtin_memcmp((b1), (b2), (len))
 
+void	*memset_early(void * _Nonnull buf, int c, size_t len);
+#define bzero_early(buf, len) memset_early((buf), 0, (len))
+void	*memcpy_early(void * _Nonnull to, const void * _Nonnull from, size_t len);
+void	*memmove_early(void * _Nonnull dest, const void * _Nonnull src, size_t n);
+#define bcopy_early(from, to, len) memmove_early((to), (from), (len))
+
 int	copystr(const void * _Nonnull __restrict kfaddr,
 	    void * _Nonnull __restrict kdaddr, size_t len,
 	    size_t * __restrict lencopied);
