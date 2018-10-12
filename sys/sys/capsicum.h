@@ -465,7 +465,13 @@ u_char	cap_rights_to_vmprot(const cap_rights_t *havep);
 /*
  * For the purposes of procstat(1) and similar tools, allow kern_descrip.c to
  * extract the rights from a capability.
+ *
+ * Dereferencing fdep requires filedesc.h, but including it would cause
+ * significant pollution. Instead add a macro for consumers which want it,
+ * most notably kern_descrip.c.
  */
+#define cap_rights_fde_inline(fdep)	(&(fdep)->fde_rights)
+
 const cap_rights_t	*cap_rights_fde(const struct filedescent *fde);
 const cap_rights_t	*cap_rights(struct filedesc *fdp, int fd);
 
