@@ -993,6 +993,23 @@ main(int argc, CHAR16 *argv[])
 	return (EFI_SUCCESS);		/* keep compiler happy */
 }
 
+COMMAND_SET(poweroff, "poweroff", "power off the system", command_poweroff);
+
+static int
+command_poweroff(int argc __unused, char *argv[] __unused)
+{
+	int i;
+
+	for (i = 0; devsw[i] != NULL; ++i)
+		if (devsw[i]->dv_cleanup != NULL)
+			(devsw[i]->dv_cleanup)();
+
+	RS->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL);
+
+	/* NOTREACHED */
+	return (CMD_ERROR);
+}
+
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 
 static int
