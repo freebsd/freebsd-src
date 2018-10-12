@@ -576,14 +576,27 @@ END(fillw)
 .endif
 .endm
 
+.macro COPYINOUT_BEGIN
+.endm
+
+.macro COPYINOUT_END
+	movq	%rax,PCB_ONFAULT(%r11)
+	POP_FRAME_POINTER
+.endm
+
+.macro COPYINOUT_SMAP_END
+	SMAP_ENABLE smap=1
+	COPYINOUT_END
+.endm
+
 /*
  * copyout(from_kernel, to_user, len)
  *         %rdi,        %rsi,    %rdx
  */
 .macro	COPYOUT smap erms
 	PUSH_FRAME_POINTER
-	movq	PCPU(CURPCB),%r9
-	movq	$copy_fault,PCB_ONFAULT(%r9)
+	movq	PCPU(CURPCB),%r11
+	movq	$copy_fault,PCB_ONFAULT(%r11)
 
 	/*
 	 * Check explicitly for non-user addresses.  If 486 write protection
@@ -609,43 +622,27 @@ END(fillw)
 	ja	copy_fault
 
 	/*
-	 * Set up arguments for rep movs*.
+	 * Set return value to zero. Remaining failure mode goes through
+	 * copy_fault.
+	 */
+	xorl	%eax,%eax
+
+	/*
+	 * Set up arguments for MEMMOVE.
 	 */
 	movq	%rdi,%r8
 	movq	%rsi,%rdi
 	movq	%r8,%rsi
 	movq	%rdx,%rcx
 
-	/*
-	 * Set return value to zero. Remaining failure mode goes through
-	 * copy_fault.
-	 */
-	xorl	%eax,%eax
 
 	SMAP_DISABLE \smap
-.if	\erms == 0
-	cmpq	$15,%rcx
-	jbe	1f
-	shrq	$3,%rcx
-	rep
-	movsq
-	movb	%dl,%cl
-	andb	$7,%cl
-	jne	1f
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
-	ALIGN_TEXT
-1:
+.if	\smap == 1
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_SMAP_END
+.else
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_END
 .endif
-	rep
-	movsb
-
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
+	/* NOTREACHED */
 .endm
 
 ENTRY(copyout_nosmap_std)
@@ -670,8 +667,8 @@ END(copyout_smap_erms)
  */
 .macro	COPYIN smap erms
 	PUSH_FRAME_POINTER
-	movq	PCPU(CURPCB),%r9
-	movq	$copy_fault,PCB_ONFAULT(%r9)
+	movq	PCPU(CURPCB),%r11
+	movq	$copy_fault,PCB_ONFAULT(%r11)
 
 	/*
 	 * make sure address is valid
@@ -683,37 +680,20 @@ END(copyout_smap_erms)
 	cmpq	%rcx,%rax
 	ja	copy_fault
 
+	xorl	%eax,%eax
+
 	movq	%rdi,%r8
 	movq	%rsi,%rdi
 	movq	%r8,%rsi
 	movq	%rdx,%rcx
 
-	xorl	%eax,%eax
-
 	SMAP_DISABLE \smap
-.if \erms == 0
-	cmpq	$15,%rcx
-	jbe	1f
-	shrq	$3,%rcx				/* copy longword-wise */
-	rep
-	movsq
-	movb	%dl,%cl
-	andb	$7,%cl				/* copy remaining bytes */
-	jne	1f
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
-	ALIGN_TEXT
-1:
+.if	\smap == 1
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_SMAP_END
+.else
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_END
 .endif
-	rep
-	movsb
-
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
+	/* NOTREACHED */
 .endm
 
 ENTRY(copyin_nosmap_std)
@@ -735,7 +715,7 @@ END(copyin_smap_erms)
 	ALIGN_TEXT
 	/* Trap entry clears PSL.AC */
 copy_fault:
-	movq	$0,PCB_ONFAULT(%r9)
+	movq	$0,PCB_ONFAULT(%r11)
 	movl	$EFAULT,%eax
 	POP_FRAME_POINTER
 	ret
