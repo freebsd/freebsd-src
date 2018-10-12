@@ -171,8 +171,15 @@ uint_t dbuf_cache_lowater_pct = 10;
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_QUAD(_vfs_zfs, OID_AUTO, dbuf_cache_max_bytes, CTLFLAG_RWTUN,
     &dbuf_cache_max_bytes, 0, "dbuf cache size in bytes");
+SYSCTL_QUAD(_vfs_zfs, OID_AUTO, dbuf_metadata_cache_max_bytes, CTLFLAG_RWTUN,
+    &dbuf_metadata_cache_max_bytes, 0, "dbuf metadata cache size in bytes");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, dbuf_cache_shift, CTLFLAG_RDTUN,
     &dbuf_cache_shift, 0, "dbuf cache size as log2 fraction of ARC");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, dbuf_metadata_cache_shift, CTLFLAG_RDTUN,
+    &dbuf_metadata_cache_shift, 0,
+    "dbuf metadata cache size as log2 fraction of ARC");
+SYSCTL_QUAD(_vfs_zfs, OID_AUTO, dbuf_metadata_cache_overflow, CTLFLAG_RD,
+    &dbuf_metadata_cache_overflow, 0, "dbuf metadata cache overflow");
 SYSCTL_UINT(_vfs_zfs, OID_AUTO, dbuf_cache_hiwater_pct, CTLFLAG_RWTUN,
     &dbuf_cache_hiwater_pct, 0, "max percents above the dbuf cache size");
 SYSCTL_UINT(_vfs_zfs, OID_AUTO, dbuf_cache_lowater_pct, CTLFLAG_RWTUN,
