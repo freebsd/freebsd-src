@@ -45,19 +45,19 @@
 /* Public functions */
 
 /*
- * These three are DEVMETHODs required for SR-IOV PF support.
+ * These three are DEVMETHODs required for SR-IOV PF support in iflib.
  */
-int		ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params);
-void		ixl_iov_uninit(device_t dev);
-int		ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params);
+int		ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params);
+void		ixl_if_iov_uninit(if_ctx_t ctx);
+int		ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params);
 
 /*
- * The standard PF driver needs to call these during normal execution when
+ * The base PF driver needs to call these during normal execution when
  * SR-IOV mode is active.
  */
 void		ixl_initialize_sriov(struct ixl_pf *pf);
 void		ixl_handle_vf_msg(struct ixl_pf *pf, struct i40e_arq_event_info *event);
-void		ixl_handle_vflr(void *arg, int pending);
+void		ixl_handle_vflr(struct ixl_pf *pf);
 void		ixl_broadcast_link_state(struct ixl_pf *pf);
 
 #endif /* _IXL_PF_IOV_H_ */

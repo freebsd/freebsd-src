@@ -77,14 +77,21 @@ static void	ixl_vf_del_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 static void	ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg, uint16_t msg_size);
 static void	ixl_vf_get_stats_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg, uint16_t msg_size);
 static int	ixl_vf_reserve_queues(struct ixl_pf *pf, struct ixl_vf *vf, int num_queues);
+static int	ixl_config_pf_vsi_loopback(struct ixl_pf *pf, bool enable);
 
 static int	ixl_adminq_err_to_errno(enum i40e_admin_queue_err err);
 
+/*
+ * TODO: Move pieces of this into iflib and call the rest in a handler?
+ *
+ * e.g. ixl_if_iov_set_schema
+ *
+ * It's odd to do pci_iov_detach() there while doing pci_iov_attach()
+ * in the driver.
+ */
 void
 ixl_initialize_sriov(struct ixl_pf *pf)
 {
-	return;
-#if 0
 	device_t dev = pf->dev;
 	struct i40e_hw *hw = &pf->hw;
 	nvlist_t	*pf_schema, *vf_schema;
@@ -101,7 +108,7 @@ ixl_initialize_sriov(struct ixl_pf *pf)
 	    IOV_SCHEMA_HASDEFAULT, FALSE);
 	pci_iov_schema_add_uint16(vf_schema, "num-queues",
 	    IOV_SCHEMA_HASDEFAULT,
-	    max(1, hw->func_caps.num_msix_vectors_vf - 1) % IXLV_MAX_QUEUES);
+	    max(1, min(hw->func_caps.num_msix_vectors_vf - 1, IXLV_MAX_QUEUES)));
 
 	iov_error = pci_iov_attach(dev, pf_schema, vf_schema);
 	if (iov_error != 0) {
@@ -110,9 +117,6 @@ ixl_initialize_sriov(struct ixl_pf *pf)
 		    iov_error);
 	} else
 		device_printf(dev, "SR-IOV ready\n");
-
-	pf->vc_debug_lvl = 1;
-#endif
 }
 
 
@@ -142,7 +146,9 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	bzero(&vsi_ctx.info, sizeof(vsi_ctx.info));
 
 	vsi_ctx.info.valid_sections = htole16(I40E_AQ_VSI_PROP_SWITCH_VALID);
-	vsi_ctx.info.switch_id = htole16(0);
+	if (pf->enable_vf_loopback)
+		vsi_ctx.info.switch_id =
+		   htole16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 
 	vsi_ctx.info.valid_sections |= htole16(I40E_AQ_VSI_PROP_SECURITY_VALID);
 	vsi_ctx.info.sec_flags = 0;
@@ -157,7 +163,7 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	    htole16(I40E_AQ_VSI_PROP_QUEUE_MAP_VALID);
 	vsi_ctx.info.mapping_flags = htole16(I40E_AQ_VSI_QUE_MAP_NONCONTIG);
 
-	/* ERJ: Only scattered allocation is supported for VFs right now */
+	/* XXX: Only scattered allocation is supported for VFs right now */
 	for (i = 0; i < vf->qtag.num_active; i++)
 		vsi_ctx.info.queue_mapping[i] = vf->qtag.qidx[i];
 	for (; i < nitems(vsi_ctx.info.queue_mapping); i++)
@@ -172,8 +178,6 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 		return (ixl_adminq_err_to_errno(hw->aq.asq_last_status));
 	vf->vsi.seid = vsi_ctx.seid;
 	vf->vsi.vsi_num = vsi_ctx.vsi_number;
-	// TODO: How to deal with num tx queues / num rx queues split?
-	// I don't think just assigning this variable is going to work
 	vf->vsi.num_rx_queues = vf->qtag.num_active;
 	vf->vsi.num_tx_queues = vf->qtag.num_active;
 
@@ -204,10 +208,15 @@ ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	if (error != 0)
 		return (error);
 
+	/* Let VF receive broadcast Ethernet frames */
+	error = i40e_aq_set_vsi_broadcast(hw, vf->vsi.seid, TRUE, NULL);
+	if (error)
+		device_printf(pf->dev, "Error configuring VF VSI for broadcast promiscuous\n");
+	/* Re-add VF's MAC/VLAN filters to its VSI */
+	ixl_reconfigure_filters(&vf->vsi);
+	/* Reset stats? */
 	vf->vsi.hw_filters_add = 0;
 	vf->vsi.hw_filters_del = 0;
-	// ixl_add_filter(&vf->vsi, ixl_bcast_addr, IXL_VLAN_ANY);
-	ixl_reconfigure_filters(&vf->vsi);
 
 	return (0);
 }
@@ -372,12 +381,16 @@ ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 
 	hw = &pf->hw;
 
+	ixl_dbg_iov(pf, "Resetting VF-%d\n", vf->vf_num);
+
 	vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
 	vfrtrig |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
 	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
 	ixl_flush(hw);
 
 	ixl_reinit_vf(pf, vf);
+
+	ixl_dbg_iov(pf, "Resetting VF-%d done.\n", vf->vf_num);
 }
 
 static void
@@ -413,7 +426,8 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
 
 	if (vf->vsi.seid != 0)
-		ixl_disable_rings(&vf->vsi);
+		ixl_disable_rings(pf, &vf->vsi, &vf->qtag);
+	ixl_pf_qmgr_clear_queue_flags(&vf->qtag);
 
 	ixl_vf_release_resources(pf, vf);
 	ixl_vf_setup_vsi(pf, vf);
@@ -649,7 +663,7 @@ ixl_vf_config_rx_queue(struct ixl_pf *pf, struct ixl_vf *vf,
 	rxq.tphwdesc_ena = 1;
 	rxq.tphdata_ena = 1;
 	rxq.tphhead_ena = 1;
-	rxq.lrxqthresh = 2;
+	rxq.lrxqthresh = 1;
 	rxq.prefena = 1;
 
 	status = i40e_set_lan_rx_queue_context(hw, global_queue_num, &rxq);
@@ -924,7 +938,7 @@ ixl_vf_enable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 				continue;
 			/* Warn if this queue is already marked as enabled */
 			if (ixl_pf_qmgr_is_queue_enabled(&vf->qtag, i, true))
-				device_printf(pf->dev, "VF %d: TX ring %d is already enabled!\n",
+				ixl_dbg_iov(pf, "VF %d: TX ring %d is already enabled!\n",
 				    vf->vf_num, i);
 
 			error = ixl_enable_tx_ring(pf, &vf->qtag, i);
@@ -949,7 +963,7 @@ ixl_vf_enable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 				continue;
 			/* Warn if this queue is already marked as enabled */
 			if (ixl_pf_qmgr_is_queue_enabled(&vf->qtag, i, false))
-				device_printf(pf->dev, "VF %d: RX ring %d is already enabled!\n",
+				ixl_dbg_iov(pf, "VF %d: RX ring %d is already enabled!\n",
 				    vf->vf_num, i);
 			error = ixl_enable_rx_ring(pf, &vf->qtag, i);
 			if (error)
@@ -1003,7 +1017,7 @@ ixl_vf_disable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf,
 				continue;
 			/* Warn if this queue is already marked as disabled */
 			if (!ixl_pf_qmgr_is_queue_enabled(&vf->qtag, i, true)) {
-				device_printf(pf->dev, "VF %d: TX ring %d is already disabled!\n",
+				ixl_dbg_iov(pf, "VF %d: TX ring %d is already disabled!\n",
 				    vf->vf_num, i);
 				continue;
 			}
@@ -1029,7 +1043,7 @@ ixl_vf_disable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf,
 				continue;
 			/* Warn if this queue is already marked as disabled */
 			if (!ixl_pf_qmgr_is_queue_enabled(&vf->qtag, i, false)) {
-				device_printf(pf->dev, "VF %d: RX ring %d is already disabled!\n",
+				ixl_dbg_iov(pf, "VF %d: RX ring %d is already disabled!\n",
 				    vf->vf_num, i);
 				continue;
 			}
@@ -1292,6 +1306,7 @@ ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf,
     void *msg, uint16_t msg_size)
 {
 	struct virtchnl_promisc_info *info;
+	struct i40e_hw *hw = &pf->hw;
 	enum i40e_status_code code;
 
 	if (msg_size != sizeof(*info)) {
@@ -1301,8 +1316,11 @@ ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf,
 	}
 
 	if (!(vf->vf_flags & VF_FLAG_PROMISC_CAP)) {
-		i40e_send_vf_nack(pf, vf,
-		    VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE, I40E_ERR_PARAM);
+		/*
+		 * Do the same thing as the Linux PF driver -- lie to the VF
+		 */
+		ixl_send_vf_ack(pf, vf,
+		    VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE);
 		return;
 	}
 
@@ -1313,19 +1331,25 @@ ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf,
 		return;
 	}
 
-	code = i40e_aq_set_vsi_unicast_promiscuous(&pf->hw, info->vsi_id,
+	code = i40e_aq_set_vsi_unicast_promiscuous(hw, vf->vsi.seid,
 	    info->flags & FLAG_VF_UNICAST_PROMISC, NULL, TRUE);
 	if (code != I40E_SUCCESS) {
+		device_printf(pf->dev, "i40e_aq_set_vsi_unicast_promiscuous (seid %d) failed: status %s,"
+		    " error %s\n", vf->vsi.seid, i40e_stat_str(hw, code),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
 		i40e_send_vf_nack(pf, vf,
-		    VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE, code);
+		    VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE, I40E_ERR_PARAM);
 		return;
 	}
 
-	code = i40e_aq_set_vsi_multicast_promiscuous(&pf->hw, info->vsi_id,
+	code = i40e_aq_set_vsi_multicast_promiscuous(hw, vf->vsi.seid,
 	    info->flags & FLAG_VF_MULTICAST_PROMISC, NULL);
 	if (code != I40E_SUCCESS) {
+		device_printf(pf->dev, "i40e_aq_set_vsi_multicast_promiscuous (seid %d) failed: status %s,"
+		    " error %s\n", vf->vsi.seid, i40e_stat_str(hw, code),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
 		i40e_send_vf_nack(pf, vf,
-		    VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE, code);
+		    VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE, I40E_ERR_PARAM);
 		return;
 	}
 
@@ -1627,19 +1651,25 @@ ixl_handle_vf_msg(struct ixl_pf *pf, struct i40e_arq_event_info *event)
 
 /* Handle any VFs that have reset themselves via a Function Level Reset(FLR). */
 void
-ixl_handle_vflr(void *arg, int pending)
+ixl_handle_vflr(struct ixl_pf *pf)
 {
-	struct ixl_pf *pf;
 	struct ixl_vf *vf;
 	struct i40e_hw *hw;
 	uint16_t global_vf_num;
 	uint32_t vflrstat_index, vflrstat_mask, vflrstat, icr0;
 	int i;
 
-	pf = arg;
 	hw = &pf->hw;
 
-	/* TODO: May need to lock this */
+	ixl_dbg_iov(pf, "%s: begin\n", __func__);
+
+	/* Re-enable VFLR interrupt cause so driver doesn't miss a
+	 * reset interrupt for another VF */
+	icr0 = rd32(hw, I40E_PFINT_ICR0_ENA);
+	icr0 |= I40E_PFINT_ICR0_ENA_VFLR_MASK;
+	wr32(hw, I40E_PFINT_ICR0_ENA, icr0);
+	ixl_flush(hw);
+
 	for (i = 0; i < pf->num_vfs; i++) {
 		global_vf_num = hw->func_caps.vf_base_id + i;
 
@@ -1654,17 +1684,12 @@ ixl_handle_vflr(void *arg, int pending)
 			wr32(hw, I40E_GLGEN_VFLRSTAT(vflrstat_index),
 			    vflrstat_mask);
 
+			ixl_dbg_iov(pf, "Reinitializing VF-%d\n", i);
 			ixl_reinit_vf(pf, vf);
+			ixl_dbg_iov(pf, "Reinitializing VF-%d done\n", i);
 		}
 	}
 
-	atomic_clear_32(&pf->state, IXL_PF_STATE_VF_RESET_REQ);
-	icr0 = rd32(hw, I40E_PFINT_ICR0_ENA);
-	icr0 |= I40E_PFINT_ICR0_ENA_VFLR_MASK;
-	wr32(hw, I40E_PFINT_ICR0_ENA, icr0);
-	ixl_flush(hw);
-
-	// IXL_PF_UNLOCK()
 }
 
 static int
@@ -1721,23 +1746,52 @@ ixl_adminq_err_to_errno(enum i40e_admin_queue_err err)
 	}
 }
 
-int
-ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
+static int
+ixl_config_pf_vsi_loopback(struct ixl_pf *pf, bool enable)
 {
-	struct ixl_pf *pf;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_vsi_context	ctxt;
+	int error;
+
+	memset(&ctxt, 0, sizeof(ctxt));
+
+	ctxt.seid = vsi->seid;
+	if (pf->veb_seid != 0)
+		ctxt.uplink_seid = pf->veb_seid;
+	ctxt.pf_num = hw->pf_id;
+	ctxt.connection_type = IXL_VSI_DATA_PORT;
+
+	ctxt.info.valid_sections = htole16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+	ctxt.info.switch_id = (enable) ?
+	    htole16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB) : 0;
+
+	/* error is set to 0 on success */
+	error = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
+	if (error) {
+		device_printf(dev, "i40e_aq_update_vsi_params() failed, error %d,"
+		    " aq_error %d\n", error, hw->aq.asq_last_status);
+	}
+
+	return (error);
+}
+
+int
+ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
+{
+	struct ixl_pf *pf = iflib_get_softc(ctx);
+	device_t dev = iflib_get_dev(ctx);
 	struct i40e_hw *hw;
 	struct ixl_vsi *pf_vsi;
 	enum i40e_status_code ret;
 	int i, error;
 
-	pf = device_get_softc(dev);
 	hw = &pf->hw;
 	pf_vsi = &pf->vsi;
 
-	//IXL_PF_LOCK(pf);
 	pf->vfs = malloc(sizeof(struct ixl_vf) * num_vfs, M_IXL, M_NOWAIT |
 	    M_ZERO);
-
 	if (pf->vfs == NULL) {
 		error = ENOMEM;
 		goto fail;
@@ -1746,65 +1800,77 @@ ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 	for (i = 0; i < num_vfs; i++)
 		sysctl_ctx_init(&pf->vfs[i].ctx);
 
+	/*
+	 * Add the VEB and ...
+	 * - do nothing: VEPA mode
+	 * - enable loopback mode on connected VSIs: VEB mode
+	 */
 	ret = i40e_aq_add_veb(hw, pf_vsi->uplink_seid, pf_vsi->seid,
 	    1, FALSE, &pf->veb_seid, FALSE, NULL);
 	if (ret != I40E_SUCCESS) {
-		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
-		device_printf(dev, "add_veb failed; code=%d error=%d", ret,
-		    error);
+		error = hw->aq.asq_last_status;
+		device_printf(dev, "i40e_aq_add_veb failed; status %s error %s",
+		    i40e_stat_str(hw, ret), i40e_aq_str(hw, error));
 		goto fail;
 	}
+	if (pf->enable_vf_loopback)
+		ixl_config_pf_vsi_loopback(pf, true);
+
+	/*
+	 * Adding a VEB brings back the default MAC filter(s). Remove them,
+	 * and let the driver add the proper filters back.
+	 */
+	ixl_del_default_hw_filters(pf_vsi);
+	ixl_reconfigure_filters(pf_vsi);
 
 	pf->num_vfs = num_vfs;
-	//IXL_PF_UNLOCK(pf);
 	return (0);
 
 fail:
 	free(pf->vfs, M_IXL);
 	pf->vfs = NULL;
-	//IXL_PF_UNLOCK(pf);
 	return (error);
 }
 
 void
-ixl_iov_uninit(device_t dev)
+ixl_if_iov_uninit(if_ctx_t ctx)
 {
-	struct ixl_pf *pf;
+	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct i40e_hw *hw;
 	struct ixl_vsi *vsi;
 	struct ifnet *ifp;
 	struct ixl_vf *vfs;
 	int i, num_vfs;
 
-	pf = device_get_softc(dev);
 	hw = &pf->hw;
 	vsi = &pf->vsi;
 	ifp = vsi->ifp;
 
-	//IXL_PF_LOCK(pf);
 	for (i = 0; i < pf->num_vfs; i++) {
 		if (pf->vfs[i].vsi.seid != 0)
 			i40e_aq_delete_element(hw, pf->vfs[i].vsi.seid, NULL);
 		ixl_pf_qmgr_release(&pf->qmgr, &pf->vfs[i].qtag);
 		ixl_free_mac_filters(&pf->vfs[i].vsi);
-		DDPRINTF(dev, "VF %d: %d released\n",
+		ixl_dbg_iov(pf, "VF %d: %d released\n",
 		    i, pf->vfs[i].qtag.num_allocated);
-		DDPRINTF(dev, "Unallocated total: %d\n", ixl_pf_qmgr_get_num_free(&pf->qmgr));
+		ixl_dbg_iov(pf, "Unallocated total: %d\n", ixl_pf_qmgr_get_num_free(&pf->qmgr));
 	}
 
 	if (pf->veb_seid != 0) {
 		i40e_aq_delete_element(hw, pf->veb_seid, NULL);
 		pf->veb_seid = 0;
 	}
+	/* Reset PF VSI loopback mode */
+	if (pf->enable_vf_loopback)
+		ixl_config_pf_vsi_loopback(pf, false);
 
 	vfs = pf->vfs;
 	num_vfs = pf->num_vfs;
 
 	pf->vfs = NULL;
 	pf->num_vfs = 0;
-	//IXL_PF_UNLOCK(pf);
 
-	/* Do this after the unlock as sysctl_ctx_free might sleep. */
+	/* sysctl_ctx_free might sleep, but this func is called w/ an sx lock */
 	for (i = 0; i < num_vfs; i++)
 		sysctl_ctx_free(&vfs[i].ctx);
 	free(vfs, M_IXL);
@@ -1823,9 +1889,9 @@ ixl_vf_reserve_queues(struct ixl_pf *pf, struct ixl_vf *vf, int num_queues)
 	if (num_queues < 1) {
 		device_printf(dev, "Setting VF %d num-queues to 1\n", vf->vf_num);
 		num_queues = 1;
-	} else if (num_queues > 16) {
-		device_printf(dev, "Setting VF %d num-queues to 16\n", vf->vf_num);
-		num_queues = 16;
+	} else if (num_queues > IXLV_MAX_QUEUES) {
+		device_printf(dev, "Setting VF %d num-queues to %d\n", vf->vf_num, IXLV_MAX_QUEUES);
+		num_queues = IXLV_MAX_QUEUES;
 	}
 	error = ixl_pf_qmgr_alloc_scattered(&pf->qmgr, num_queues, &vf->qtag);
 	if (error) {
@@ -1834,30 +1900,27 @@ ixl_vf_reserve_queues(struct ixl_pf *pf, struct ixl_vf *vf, int num_queues)
 		return (ENOSPC);
 	}
 
-	DDPRINTF(dev, "VF %d: %d allocated, %d active",
+	ixl_dbg_iov(pf, "VF %d: %d allocated, %d active\n",
 	    vf->vf_num, vf->qtag.num_allocated, vf->qtag.num_active);
-	DDPRINTF(dev, "Unallocated total: %d", ixl_pf_qmgr_get_num_free(&pf->qmgr));
+	ixl_dbg_iov(pf, "Unallocated total: %d\n", ixl_pf_qmgr_get_num_free(&pf->qmgr));
 
 	return (0);
 }
 
 int
-ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
+ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 {
+	struct ixl_pf *pf = iflib_get_softc(ctx);
+	device_t dev = pf->dev;
 	char sysctl_name[QUEUE_NAME_LEN];
-	struct ixl_pf *pf;
 	struct ixl_vf *vf;
 	const void *mac;
 	size_t size;
 	int error;
 	int vf_num_queues;
 
-	pf = device_get_softc(dev);
 	vf = &pf->vfs[vfnum];
-
-	//IXL_PF_LOCK(pf);
 	vf->vf_num = vfnum;
-
 	vf->vsi.back = pf;
 	vf->vf_flags = VF_FLAG_ENABLED;
 	SLIST_INIT(&vf->vsi.ftl);
@@ -1893,12 +1956,12 @@ ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 
 	vf->vf_flags |= VF_FLAG_VLAN_CAP;
 
+	/* VF needs to be reset before it can be used */
 	ixl_reset_vf(pf, vf);
 out:
-	//IXL_PF_UNLOCK(pf);
 	if (error == 0) {
 		snprintf(sysctl_name, sizeof(sysctl_name), "vf%d", vfnum);
-		ixl_add_vsi_sysctls(pf, &vf->vsi, &vf->ctx, sysctl_name);
+		ixl_add_vsi_sysctls(dev, &vf->vsi, &vf->ctx, sysctl_name);
 	}
 
 	return (error);
