@@ -240,9 +240,8 @@ device		de			# DEC/Intel DC21x4x (``Tulip'')
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
 device		ix			# Intel PRO/10GbE PCIE PF Ethernet
 device		ixv			# Intel PRO/10GbE PCIE VF Ethernet
-device		ixl			# Intel XL710 40Gbe PCIE Ethernet
-#options		IXL_IW			# Enable iWARP Client Interface in ixl(4)
-#device		ixlv			# Intel XL710 40Gbe VF PCIE Ethernet
+device		ixl			# Intel 700 Series Physical Function
+device		iavf			# Intel Adaptive Virtual Function
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti			# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp			# 3Com 3cR990 (``Typhoon'')

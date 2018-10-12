@@ -101,6 +101,10 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/busdma_dmar.h>
 #endif
 
+#ifdef PCI_IOV
+#include <dev/pci/pci_iov.h>
+#endif
+
 #include <sys/bitstring.h>
 /*
  * enable accounting of every mbuf as it comes in to and goes out of
@@ -157,9 +161,9 @@ typedef struct iflib_filter_info {
 
 struct iflib_ctx {
 	KOBJ_FIELDS;
-   /*
-   * Pointer to hardware driver's softc
-   */
+	/*
+	 * Pointer to hardware driver's softc
+	 */
 	void *ifc_softc;
 	device_t ifc_dev;
 	if_t ifc_ifp;
@@ -178,7 +182,6 @@ struct iflib_ctx {
 	uint32_t ifc_if_flags;
 	uint32_t ifc_flags;
 	uint32_t ifc_max_fl_buf_size;
-	int ifc_in_detach;
 
 	int ifc_link_state;
 	int ifc_link_irq;
@@ -251,12 +254,6 @@ uint32_t
 iflib_get_flags(if_ctx_t ctx)
 {
 	return (ctx->ifc_flags);
-}
-
-void
-iflib_set_detach(if_ctx_t ctx)
-{
-	ctx->ifc_in_detach = 1;
 }
 
 void
@@ -571,6 +568,13 @@ rxd_info_zero(if_rxd_info_t ri)
 #define CALLOUT_LOCK(txq)	mtx_lock(&txq->ift_mtx)
 #define CALLOUT_UNLOCK(txq) 	mtx_unlock(&txq->ift_mtx)
 
+void
+iflib_set_detach(if_ctx_t ctx)
+{
+	STATE_LOCK(ctx);
+	ctx->ifc_flags |= IFC_IN_DETACH;
+	STATE_UNLOCK(ctx);
+}
 
 /* Our boot-time initialization hook */
 static int	iflib_module_event_handler(module_t, int, void *);
@@ -738,6 +742,7 @@ static void iflib_add_device_sysctl_post(if_ctx_t ctx);
 static void iflib_ifmp_purge(iflib_txq_t txq);
 static void _iflib_pre_assert(if_softc_ctx_t scctx);
 static void iflib_if_init_locked(if_ctx_t ctx);
+static void iflib_free_intr_mem(if_ctx_t ctx);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf * iflib_fixup_rx(struct mbuf *m);
 #endif
@@ -2072,6 +2077,16 @@ __iflib_fl_refill_lt(if_ctx_t ctx, iflib_fl_t fl, int max)
 		_iflib_fl_refill(ctx, fl, min(max, reclaimable));
 }
 
+uint8_t
+iflib_in_detach(if_ctx_t ctx)
+{
+	bool in_detach;
+	STATE_LOCK(ctx);
+	in_detach = !!(ctx->ifc_flags & IFC_IN_DETACH);
+	STATE_UNLOCK(ctx);
+	return (in_detach);
+}
+
 static void
 iflib_fl_bufs_free(iflib_fl_t fl)
 {
@@ -2087,7 +2102,8 @@ iflib_fl_bufs_free(iflib_fl_t fl)
 			if (fl->ifl_sds.ifsd_map != NULL) {
 				bus_dmamap_t sd_map = fl->ifl_sds.ifsd_map[i];
 				bus_dmamap_unload(fl->ifl_desc_tag, sd_map);
-				if (fl->ifl_rxq->ifr_ctx->ifc_in_detach)
+				// XXX: Should this get moved out?
+				if (iflib_in_detach(fl->ifl_rxq->ifr_ctx))
 					bus_dmamap_destroy(fl->ifl_desc_tag, sd_map);
 			}
 			if (*sd_m != NULL) {
@@ -3842,7 +3858,7 @@ _task_fn_admin(void *context)
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 	iflib_txq_t txq;
 	int i;
-	bool oactive, running, do_reset, do_watchdog;
+	bool oactive, running, do_reset, do_watchdog, in_detach;
 	uint32_t reset_on = hz / 2;
 
 	STATE_LOCK(ctx);
@@ -3850,11 +3866,13 @@ _task_fn_admin(void *context)
 	oactive = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE);
 	do_reset = (ctx->ifc_flags & IFC_DO_RESET);
 	do_watchdog = (ctx->ifc_flags & IFC_DO_WATCHDOG);
+	in_detach = (ctx->ifc_flags & IFC_IN_DETACH);
 	ctx->ifc_flags &= ~(IFC_DO_RESET|IFC_DO_WATCHDOG);
 	STATE_UNLOCK(ctx);
 
-	if ((!running & !oactive) &&
-	    !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
+	if ((!running && !oactive) && !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
+		return;
+	if (in_detach)
 		return;
 
 	CTX_LOCK(ctx);
@@ -3893,7 +3911,8 @@ _task_fn_iov(void *context)
 {
 	if_ctx_t ctx = context;
 
-	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) &&
+	    !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
 		return;
 
 	CTX_LOCK(ctx);
@@ -4680,17 +4699,18 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	ctx->ifc_flags |= IFC_INIT_DONE;
 	CTX_UNLOCK(ctx);
 	return (0);
+
 fail_detach:
 	ether_ifdetach(ctx->ifc_ifp);
 fail_intr_free:
-	if (scctx->isc_intr == IFLIB_INTR_MSIX || scctx->isc_intr == IFLIB_INTR_MSI)
-		pci_release_msi(ctx->ifc_dev);
 fail_queues:
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
 fail:
+	iflib_free_intr_mem(ctx);
 	IFDI_DETACH(ctx);
 	CTX_UNLOCK(ctx);
+
 	return (err);
 }
 
@@ -4975,12 +4995,21 @@ iflib_device_deregister(if_ctx_t ctx)
 
 	/* Make sure VLANS are not using driver */
 	if (if_vlantrunkinuse(ifp)) {
-		device_printf(dev,"Vlan in use, detach first\n");
+		device_printf(dev, "Vlan in use, detach first\n");
 		return (EBUSY);
 	}
+#ifdef PCI_IOV
+	if (!CTX_IS_VF(ctx) && pci_iov_detach(dev) != 0) {
+		device_printf(dev, "SR-IOV in use; detach first.\n");
+		return (EBUSY);
+	}
+#endif
+
+	STATE_LOCK(ctx);
+	ctx->ifc_flags |= IFC_IN_DETACH;
+	STATE_UNLOCK(ctx);
 
 	CTX_LOCK(ctx);
-	ctx->ifc_in_detach = 1;
 	iflib_stop(ctx);
 	CTX_UNLOCK(ctx);
 
@@ -5021,8 +5050,26 @@ iflib_device_deregister(if_ctx_t ctx)
 	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
 	CTX_LOCK_DESTROY(ctx);
 	device_set_softc(ctx->ifc_dev, NULL);
+	iflib_free_intr_mem(ctx);
+
+	bus_generic_detach(dev);
+	if_free(ifp);
+
+	iflib_tx_structures_free(ctx);
+	iflib_rx_structures_free(ctx);
+	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
+		free(ctx->ifc_softc, M_IFLIB);
+	STATE_LOCK_DESTROY(ctx);
+	free(ctx, M_IFLIB);
+	return (0);
+}
+
+static void
+iflib_free_intr_mem(if_ctx_t ctx)
+{
+
 	if (ctx->ifc_softc_ctx.isc_intr != IFLIB_INTR_LEGACY) {
-		pci_release_msi(dev);
+		pci_release_msi(ctx->ifc_dev);
 	}
 	if (ctx->ifc_softc_ctx.isc_intr != IFLIB_INTR_MSIX) {
 		iflib_irq_free(ctx, &ctx->ifc_legacy_irq);
@@ -5032,18 +5079,7 @@ iflib_device_deregister(if_ctx_t ctx)
 			ctx->ifc_softc_ctx.isc_msix_bar, ctx->ifc_msix_mem);
 		ctx->ifc_msix_mem = NULL;
 	}
-
-	bus_generic_detach(dev);
-	if_free(ifp);
-
-	iflib_tx_structures_free(ctx);
-	iflib_rx_structures_free(ctx);
-	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
-		free(ctx->ifc_softc, M_IFLIB);
-	free(ctx, M_IFLIB);
-	return (0);
 }
-
 
 int
 iflib_device_detach(device_t dev)
@@ -5215,7 +5251,7 @@ iflib_register(if_ctx_t ctx)
 
 	CTX_LOCK_INIT(ctx);
 	STATE_LOCK_INIT(ctx, device_get_nameunit(ctx->ifc_dev));
-	ifp = ctx->ifc_ifp = if_gethandle(IFT_ETHER);
+	ifp = ctx->ifc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not allocate ifnet structure\n");
 		return (ENOMEM);
@@ -5399,7 +5435,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 			fl[j].ifl_ifdi = &rxq->ifr_ifdi[j + rxq->ifr_fl_offset];
 			fl[j].ifl_rxd_size = scctx->isc_rxd_size[j];
 		}
-        /* Allocate receive buffers for the ring*/
+		/* Allocate receive buffers for the ring */
 		if (iflib_rxsd_alloc(rxq)) {
 			device_printf(dev,
 			    "Critical Failure setting up receive buffers\n");
@@ -5554,6 +5590,8 @@ iflib_rx_structures_free(if_ctx_t ctx)
 	for (int i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
 		iflib_rx_sds_free(rxq);
 	}
+	free(ctx->ifc_rxqs, M_IFLIB);
+	ctx->ifc_rxqs = NULL;
 }
 
 static int
@@ -5814,7 +5852,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 }
 
 void
-iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,  void *arg, int qid, const char *name)
+iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, void *arg, int qid, const char *name)
 {
 	struct grouptask *gtask;
 	struct taskqgroup *tqg;
@@ -6132,8 +6170,9 @@ iflib_msix_init(if_ctx_t ctx)
 	if (ctx->ifc_sysctl_qs_eq_override == 0) {
 #ifdef INVARIANTS
 		if (tx_queues != rx_queues)
-			device_printf(dev, "queue equality override not set, capping rx_queues at %d and tx_queues at %d\n",
-				      min(rx_queues, tx_queues), min(rx_queues, tx_queues));
+			device_printf(dev,
+			    "queue equality override not set, capping rx_queues at %d and tx_queues at %d\n",
+			    min(rx_queues, tx_queues), min(rx_queues, tx_queues));
 #endif
 		tx_queues = min(rx_queues, tx_queues);
 		rx_queues = min(rx_queues, tx_queues);
@@ -6143,8 +6182,7 @@ iflib_msix_init(if_ctx_t ctx)
 
 	vectors = rx_queues + admincnt;
 	if ((err = pci_alloc_msix(dev, &vectors)) == 0) {
-		device_printf(dev,
-					  "Using MSIX interrupts with %d vectors\n", vectors);
+		device_printf(dev, "Using MSIX interrupts with %d vectors\n", vectors);
 		scctx->isc_vectors = vectors;
 		scctx->isc_nrxqsets = rx_queues;
 		scctx->isc_ntxqsets = tx_queues;
@@ -6152,7 +6190,8 @@ iflib_msix_init(if_ctx_t ctx)
 
 		return (vectors);
 	} else {
-		device_printf(dev, "failed to allocate %d msix vectors, err: %d - using MSI\n", vectors, err);
+		device_printf(dev,
+		    "failed to allocate %d msix vectors, err: %d - using MSI\n", vectors, err);
 		bus_release_resource(dev, SYS_RES_MEMORY, bar,
 		    ctx->ifc_msix_mem);
 		ctx->ifc_msix_mem = NULL;
@@ -6461,6 +6500,15 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 		}
 	}
 
+}
+
+void
+iflib_request_reset(if_ctx_t ctx)
+{
+
+	STATE_LOCK(ctx);
+	ctx->ifc_flags |= IFC_DO_RESET;
+	STATE_UNLOCK(ctx);
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
