@@ -505,17 +505,24 @@ vdev_compact_children(vdev_t *pvd)
 
 	ASSERT(spa_config_held(pvd->vdev_spa, SCL_ALL, RW_WRITER) == SCL_ALL);
 
+	if (oldc == 0)
+		return;
+
 	for (int c = newc = 0; c < oldc; c++)
 		if (pvd->vdev_child[c])
 			newc++;
 
-	newchild = kmem_alloc(newc * sizeof (vdev_t *), KM_SLEEP);
+	if (newc > 0) {
+		newchild = kmem_alloc(newc * sizeof (vdev_t *), KM_SLEEP);
 
-	for (int c = newc = 0; c < oldc; c++) {
-		if ((cvd = pvd->vdev_child[c]) != NULL) {
-			newchild[newc] = cvd;
-			cvd->vdev_id = newc++;
+		for (int c = newc = 0; c < oldc; c++) {
+			if ((cvd = pvd->vdev_child[c]) != NULL) {
+				newchild[newc] = cvd;
+				cvd->vdev_id = newc++;
+			}
 		}
+	} else {
+		newchild = NULL;
 	}
 
 	kmem_free(pvd->vdev_child, oldc * sizeof (vdev_t *));
