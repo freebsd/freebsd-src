@@ -218,6 +218,7 @@ plic_attach(device_t dev)
 		if (error != 0)
 			return (error);
 
+		WR4(sc, PLIC_PRIORITY(irq), 0);
 		WR4(sc, PLIC_ENABLE(irq, cpu), 0);
 	}
 	WR4(sc, PLIC_THRESHOLD(cpu), 0);
