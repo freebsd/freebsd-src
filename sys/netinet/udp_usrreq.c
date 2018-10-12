@@ -551,6 +551,11 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 
 			INP_RLOCK(inp);
 
+			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+				INP_RUNLOCK(inp);
+				continue;
+			}
+
 			/*
 			 * XXXRW: Because we weren't holding either the inpcb
 			 * or the hash lock when we checked for a match
