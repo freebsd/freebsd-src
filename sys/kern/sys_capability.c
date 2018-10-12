@@ -208,7 +208,7 @@ const cap_rights_t *
 cap_rights_fde(const struct filedescent *fdep)
 {
 
-	return (&fdep->fde_rights);
+	return (cap_rights_fde_inline(fdep));
 }
 
 const cap_rights_t *
