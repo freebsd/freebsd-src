@@ -5354,6 +5354,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				}
 			}
 		}
+
+		free(csio->data_ptr, M_SCSIDA);
+
 		daprobedone(periph, done_ccb);
 		return;
 	}
