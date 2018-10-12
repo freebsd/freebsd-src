@@ -196,6 +196,7 @@ MAN=	aac.4 \
 	${_hv_vmbus.4} \
 	${_hv_vss.4} \
 	hwpmc.4 \
+	iavf.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
 	icmp.4 \
@@ -240,7 +241,6 @@ MAN=	aac.4 \
 	iwnfw.4 \
 	ixgbe.4 \
 	ixl.4 \
-	ixlv.4 \
 	jedec_dimm.4 \
 	jme.4 \
 	joy.4 \
@@ -669,7 +669,7 @@ MLINKS+=ixgbe.4 ix.4
 MLINKS+=ixgbe.4 if_ix.4
 MLINKS+=ixgbe.4 if_ixgbe.4
 MLINKS+=ixl.4 if_ixl.4
-MLINKS+=ixlv.4 if_ixlv.4
+MLINKS+=iavf.4 if_iavf.4
 MLINKS+=jme.4 if_jme.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lagg.4 trunk.4
