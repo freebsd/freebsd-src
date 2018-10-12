@@ -1,4 +1,4 @@
-.\" Copyright (c) 2013-2015, Intel Corporation
+.\" Copyright (c) 2013-2018, Intel Corporation
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2015
-.Dt IXLV 4
+.Dd October 5, 2018
+.Dt IAVF 4
 .Os
 .Sh NAME
-.Nm ixlv
-.Nd "Intel XL710 Ethernet 40Gb VF driver"
+.Nm iavf
+.Nd "Intel Adaptive Virtual Function driver"
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
+To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device ixlv"
+.Cd "device iavf"
 .Ed
 .Pp
-To load the driver as a
-module at boot time, place the following lines in
+To load the driver as a module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-if_ixlv_load="YES"
+if_iavf_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides virtualization support for PCI Express adapters
-or LOMs in the XL710 Family of ethernet devices.
+driver provides support for the PCI Virtual Functions from the 700 Series of
+ethernet devices and newer product families.
 The driver supports Jumbo Frames, TX/RX checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
 tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
@@ -78,10 +76,10 @@ For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
 .Em NOTE :
-The
+This
 .Nm
-driver is only used by means of SRIOV, normally in a VM on a
-hosting server with the
+driver is only for Virtual Functions.
+For 700 series Physical Functions, use the
 .Xr ixl 4
 driver.
 .Sh LOADER TUNABLES
@@ -90,24 +88,17 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
-.It Va hw.ixlv.ringsz
-Set the number of descriptors in the rings, note that this
-changes BOTH the TX and RX rings, they cannot be set independently.
-.It Va hw.ixlv.max_queues
-Set the number of queues (each a TX/RX pair) for the port, this
-allows one to override the autocalculation if it is set to 0.
-.It Va hw.ixlv.txbrsz
-Set the size of the buff ring used by the transmit side of the
-stack, we have found that it is necessary to have it quite large
-in order to get UDP to perform well.
-.It Va hw.ixlv.dynamic_rx_itr
-The dynamic RX interrupt control, set to 1 to enable, off by default.
-.It Va hw.ixlv.dynamic_tx_itr
-The dynamic TX interrupt control, set to 1 to enable, off by default.
-.It Va hw.ixlv.rx_itr
-The RX interrupt rate value, set to 8K by default.
-.It Va hw.ixlv.tx_itr
-The TX interrupt rate value, set to 4K by default.
+.It Va hw.iavf.rx_itr
+The RX interrupt rate value, set to 62 (124 usec) by default.
+.It Va hw.iavf.tx_itr
+The TX interrupt rate value, set to 122 (244 usec) by default.
+.It Va hw.iavf.enable_head_writeback
+When the driver is finding the last TX descriptor processed by the hardware,
+use a value written to memory by the hardware instead of scanning the
+descriptor ring for completed descriptors.
+Disabled by default; this mimics the "legacy" TX behavior found in
+.Xr ixgbe 4 .
+to ensure compatibility with future, non-700 series VF devices.
 .El
 .Sh SUPPORT
 For general information and support,
@@ -116,24 +107,32 @@ go to the Intel support website at:
 .Pp
 If an issue is identified with this driver with a supported adapter,
 email all the specific information related to the issue to
-.Aq freebsd@intel.com .
+.Mt freebsd@intel.com .
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr ixl 4 ,
 .Xr netintro 4 ,
-.Xr ng_ether 4 ,
 .Xr vlan 4 ,
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr iflib 9
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
 .Fx 10.1 .
+under the name "ixlv"
+It was converted to use
+.Xr iflib 9
+and changed to its current name in
+.Fx 12 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
-.An Jack Vogel Aq Mt jfv@FreeBSD.org
+.An Jack Vogel Aq Mt jfv@freebsd.org
 and
-.An Eric Joyner Aq Mt ricera10@gmail.com .
+.An Eric Joyner Aq Mt erj@freebsd.org .
+.Sh CAVEATS
+This driver is supposed to function on VFs spawned from future network devices by Intel,
+but at the time of this writing, has only been tested on the 700 series VFs.
