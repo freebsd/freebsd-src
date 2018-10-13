@@ -31,13 +31,13 @@
  * $FreeBSD$
  */
 
-#include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/param.h>
+#include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
