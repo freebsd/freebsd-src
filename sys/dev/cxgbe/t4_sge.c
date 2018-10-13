@@ -1245,15 +1245,16 @@ t4_setup_vi_queues(struct vi_info *vi)
 
 		snprintf(name, sizeof(name), "%s ofld_txq%d",
 		    device_get_nameunit(vi->dev), i);
-#ifdef TCP_OFFLOAD
-		iqidx = vi->first_ofld_rxq + (i % vi->nofldrxq);
-		init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
-		    sc->sge.ofld_rxq[iqidx].iq.cntxt_id, name);
-#else
-		iqidx = vi->first_rxq + (i % vi->nrxq);
-		init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
-		    sc->sge.rxq[iqidx].iq.cntxt_id, name);
-#endif
+		if (vi->nofldrxq > 0) {
+			iqidx = vi->first_ofld_rxq + (i % vi->nofldrxq);
+			init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq,
+			    pi->tx_chan, sc->sge.ofld_rxq[iqidx].iq.cntxt_id,
+			    name);
+		} else {
+			iqidx = vi->first_rxq + (i % vi->nrxq);
+			init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq,
+			    pi->tx_chan, sc->sge.rxq[iqidx].iq.cntxt_id, name);
+		}
 
 		snprintf(name, sizeof(name), "%d", i);
 		oid2 = SYSCTL_ADD_NODE(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
