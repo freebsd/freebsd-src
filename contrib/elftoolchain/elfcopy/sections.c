@@ -39,7 +39,6 @@ ELFTC_VCSID("$Id: sections.c 3443 2016-04-15 18:57:54Z kaiwang27 $");
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
 static void	check_section_rename(struct elfcopy *ecp, struct section *s);
-static void	filter_reloc(struct elfcopy *ecp, struct section *s);
 static int	get_section_flags(struct elfcopy *ecp, const char *name);
 static void	insert_sections(struct elfcopy *ecp);
 static void	insert_to_strtab(struct section *t, const char *s);
@@ -574,14 +573,6 @@ copy_content(struct elfcopy *ecp)
 			continue;
 
 		/*
-		 * If strip action is STRIP_ALL, relocation info need
-		 * to be stripped. Skip filtering otherwisw.
-		 */
-		if (ecp->strip == STRIP_ALL &&
-		    (s->type == SHT_REL || s->type == SHT_RELA))
-			filter_reloc(ecp, s);
-
-		/*
 		 * The section indices in the SHT_GROUP section needs
 		 * to be updated since we might have stripped some
 		 * sections and changed section numbering.
@@ -670,125 +661,6 @@ update_section_group(struct elfcopy *ecp, struct section *s)
 			s->sz -= 4;
 	}
 
-	s->nocopy = 1;
-}
-
-/*
- * Filter relocation entries, only keep those entries whose
- * symbol is in the keep list.
- */
-static void
-filter_reloc(struct elfcopy *ecp, struct section *s)
-{
-	const char	*name;
-	GElf_Shdr	 ish;
-	GElf_Rel	 rel;
-	GElf_Rela	 rela;
-	Elf32_Rel	*rel32;
-	Elf64_Rel	*rel64;
-	Elf32_Rela	*rela32;
-	Elf64_Rela	*rela64;
-	Elf_Data	*id;
-	uint64_t	 cap, n, nrels;
-	int		 elferr, i;
-
-	if (gelf_getshdr(s->is, &ish) == NULL)
-		errx(EXIT_FAILURE, "gelf_getehdr() failed: %s",
-		    elf_errmsg(-1));
-
-	/* We don't want to touch relocation info for dynamic symbols. */
-	if ((ecp->flags & SYMTAB_EXIST) == 0) {
-		if (ish.sh_link == 0 || ecp->secndx[ish.sh_link] == 0) {
-			/*
-			 * This reloc section applies to the symbol table
-			 * that was stripped, so discard whole section.
-			 */
-			s->nocopy = 1;
-			s->sz = 0;
-		}
-		return;
-	} else {
-		/* Symbol table exist, check if index equals. */
-		if (ish.sh_link != elf_ndxscn(ecp->symtab->is))
-			return;
-	}
-
-#define	COPYREL(REL, SZ) do {					\
-	if (nrels == 0) {					\
-		if ((REL##SZ = malloc(cap *			\
-		    sizeof(*REL##SZ))) == NULL)			\
-			err(EXIT_FAILURE, "malloc failed");	\
-	}							\
-	if (nrels >= cap) {					\
-		cap *= 2;					\
-		if ((REL##SZ = realloc(REL##SZ, cap *		\
-		    sizeof(*REL##SZ))) == NULL)			\
-			err(EXIT_FAILURE, "realloc failed");	\
-	}							\
-	REL##SZ[nrels].r_offset = REL.r_offset;			\
-	REL##SZ[nrels].r_info	= REL.r_info;			\
-	if (s->type == SHT_RELA)				\
-		rela##SZ[nrels].r_addend = rela.r_addend;	\
-	nrels++;						\
-} while (0)
-
-	nrels = 0;
-	cap = 4;		/* keep list is usually small. */
-	rel32 = NULL;
-	rel64 = NULL;
-	rela32 = NULL;
-	rela64 = NULL;
-	if ((id = elf_getdata(s->is, NULL)) == NULL)
-		errx(EXIT_FAILURE, "elf_getdata() failed: %s",
-		    elf_errmsg(-1));
-	n = ish.sh_size / ish.sh_entsize;
-	for(i = 0; (uint64_t)i < n; i++) {
-		if (s->type == SHT_REL) {
-			if (gelf_getrel(id, i, &rel) != &rel)
-				errx(EXIT_FAILURE, "gelf_getrel failed: %s",
-				    elf_errmsg(-1));
-		} else {
-			if (gelf_getrela(id, i, &rela) != &rela)
-				errx(EXIT_FAILURE, "gelf_getrel failed: %s",
-				    elf_errmsg(-1));
-		}
-		name = elf_strptr(ecp->ein, elf_ndxscn(ecp->strtab->is),
-		    GELF_R_SYM(rel.r_info));
-		if (name == NULL)
-			errx(EXIT_FAILURE, "elf_strptr failed: %s",
-			    elf_errmsg(-1));
-		if (lookup_symop_list(ecp, name, SYMOP_KEEP) != NULL) {
-			if (ecp->oec == ELFCLASS32) {
-				if (s->type == SHT_REL)
-					COPYREL(rel, 32);
-				else
-					COPYREL(rela, 32);
-			} else {
-				if (s->type == SHT_REL)
-					COPYREL(rel, 64);
-				else
-					COPYREL(rela, 64);
-			}
-		}
-	}
-	elferr = elf_errno();
-	if (elferr != 0)
-		errx(EXIT_FAILURE, "elf_getdata() failed: %s",
-		    elf_errmsg(elferr));
-
-	if (ecp->oec == ELFCLASS32) {
-		if (s->type == SHT_REL)
-			s->buf = rel32;
-		else
-			s->buf = rela32;
-	} else {
-		if (s->type == SHT_REL)
-			s->buf = rel64;
-		else
-			s->buf = rela64;
-	}
-	s->sz = gelf_fsize(ecp->eout, (s->type == SHT_REL ? ELF_T_REL :
-	    ELF_T_RELA), nrels, EV_CURRENT);
 	s->nocopy = 1;
 }
 
