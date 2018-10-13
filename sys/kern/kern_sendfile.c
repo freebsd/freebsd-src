@@ -951,7 +951,7 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct uio *hdr_uio, *trl_uio;
 	struct file *fp;
 	off_t sbytes;
-	int error;
+	int copyout_error, error;
 
 	/*
 	 * File offset must be positive.  If it goes beyond EOF
@@ -1007,8 +1007,16 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	    uap->nbytes, &sbytes, uap->flags, td);
 	fdrop(fp, td);
 
-	if (uap->sbytes != NULL)
-		copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	if (uap->sbytes != NULL) {
+		copyout_error = copyout(&sbytes, uap->sbytes, sizeof(off_t));
+		/*
+		 * Ensure that any issues with copyout are properly percolated
+		 * up to the caller as it can affect the validity of `sbytes`.
+		 * This is needed because some of the errors (EAGAIN, etc) can
+		 * return partial results in `sbytes`.
+		 */
+		error = copyout_error != 0 ? copyout_error : error;
+	}
 
 out:
 	free(hdr_uio, M_IOV);
